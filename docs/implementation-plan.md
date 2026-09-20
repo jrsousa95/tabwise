@@ -58,14 +58,14 @@ Objetivo: Tauri + sidecar + React conversando entre si, sem nenhuma feature de p
 
 Referência: `PRD Épico 1`.
 
-- [ ] Evento `operator_registered` + projeção da tabela `operators` (nome, papel, hash do PIN).
-- [ ] Tela de cadastro de operador (dono) — PRD 1.1.
-- [ ] Fluxo de login por PIN, validação local contra hash (bcrypt/argon2) — PRD 1.2.
-- [ ] Sessão de terminal (persistida até logout/troca de operador, sem expiração automática — decisão já registrada em `PRD 1.2`).
-- [ ] Enforcement de permissões por papel na navegação (garçom não acessa configurações/fechamento de caixa) — `PRD §2`.
-- [ ] Estrutura de log de auditoria (genérica, reaproveitável pelo cancelamento no M6) — evento append-only vinculado a `operator_id`.
+- [x] Evento `operator_registered` + projeção da tabela `operators` (nome, papel, hash do PIN) — já existia desde o M1; M3 acrescentou o hashing de verdade (`packages/sync-engine/src/auth.ts`, `hashPin`/`verifyPin` via `node:crypto` scrypt em vez de bcrypt/argon2 — mesma decisão de fundo do `node:sqlite` em `db.ts`: evitar dependência nativa compilada por plataforma, que quebraria o binário SEA standalone do Spike 1).
+- [x] Tela de cadastro de operador (dono) — PRD 1.1. Uma única tela (`routes/operator-registration.tsx`) serve dois casos: bootstrap (nenhum operador existe, ninguém logado, cria-se o primeiro dono) e uso normal (dono logado cadastra mais gente) — o sidecar decide qual caso vale.
+- [x] Fluxo de login por PIN, validação local contra hash — PRD 1.2. Teclado numérico (`routes/login.tsx`), `POST /session/login` verifica o PIN contra o hash de cada operador.
+- [x] Sessão de terminal (persistida até logout/troca de operador, sem expiração automática) — `session.json` no `dataDir` do sidecar (não em memória), testado explicitamente sobrevivendo a reload da página/app.
+- [x] Enforcement de permissões por papel na navegação (garçom não acessa Caixa/cadastro de operador) — `PRD §2`. `RequireSession`/`RequireRole` (`route-guards.tsx`) bloqueiam rota e redirecionam; nav (`layout.tsx`) já esconde os links pro papel errado. Enforcement é só de navegação (UI), não uma camada de autorização de servidor completa — a revisão de segurança fica pro M12, mas o backend do M3 já faz uma checagem básica (só dono cria operador, exceto no bootstrap).
+- [x] Estrutura de log de auditoria (genérica, reaproveitável pelo cancelamento no M6) — evento append-only vinculado a `operator_id`. Não precisou de estrutura nova: todo evento já carrega `operatorId`+`hlc`+`id` desde o M1; só faltava expor a consulta, feito via `GET /events?aggregateId=` (usa `findEventsByAggregateId`, já existente no `sync-engine`).
 
-**Critério de saída do M3:** dá pra cadastrar operadores, logar e navegar respeitando permissões — ainda sem nenhuma feature de mesa/comanda.
+**Critério de saída do M3:** ✅ atingido em 2026-09-20 — validado de ponta a ponta no browser: bootstrap sem operador nenhum → cadastro do primeiro dono → login por PIN → nav mostra Mapa de Mesas/Caixa/Cadastrar operador; logout → cadastro de um garçom (só permitido logado como dono) → login como garçom → nav esconde Caixa e Cadastrar operador → acesso direto via URL a `/cash-register` e `/operators/new` redireciona/bloqueia corretamente → sessão sobrevive a reload de página. `GET /state` nunca expõe `pinHash` (achado corrigido durante o teste manual — só o log de eventos bruto, usado pra sync, carrega o hash). Suite de testes (33 no total: `shared-types`+`sync-engine`, incluindo os novos testes de `auth.ts`) e build de todos os workspaces, incluindo o binário SEA real, seguem passando.
 
 ---
 
