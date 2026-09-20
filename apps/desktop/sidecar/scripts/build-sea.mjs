@@ -84,8 +84,11 @@ function main() {
   }
 
   console.log("[build-sea] injetando o blob no binário via postject...");
+  // No Windows, "npx" é um shim .cmd (npx.cmd), não um executável direto —
+  // execFileSync sem shell:true falha com ENOENT tentando rodar "npx" puro
+  // (só apareceu rodando em Windows real via CI, não no cross-build do Mac).
   execFileSync(
-    "npx",
+    process.platform === "win32" ? "npx.cmd" : "npx",
     [
       "postject",
       outputPath,
@@ -103,7 +106,11 @@ function main() {
     execFileSync("codesign", ["--sign", "-", outputPath]);
   }
 
-  execFileSync("chmod", ["+x", outputPath]);
+  if (process.platform !== "win32") {
+    // Windows não tem bit de permissão de execução (nem `chmod` disponível
+    // fora do Git Bash) — a extensão .exe já é suficiente lá.
+    execFileSync("chmod", ["+x", outputPath]);
+  }
 
   console.log(`[build-sea] OK — sidecar pronto em: ${outputPath}`);
 }
