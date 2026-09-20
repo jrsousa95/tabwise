@@ -52,6 +52,11 @@ type IpcCheckStatus = "pending" | "ok" | "error";
  * consegue escrever e ler um evento de teste no SQLite local via IPC".
  * `insertEvent` é idempotente por id, então repetir esse POST em todo
  * reload não duplica nada no banco.
+ *
+ * Usa `tables_grouped` (não `operator_registered`) de propósito: é o único
+ * tipo de evento que não afeta nenhuma lógica de negócio real (M3+ passou a
+ * usar a lista de operadores pra decidir o fluxo de bootstrap do login —
+ * um operador fantasma aqui quebraria essa detecção).
  */
 export function useSidecarIpcCheck() {
   const [status, setStatus] = useState<IpcCheckStatus>("pending");
@@ -67,10 +72,10 @@ export function useSidecarIpcCheck() {
           operatorId: "diagnostico-m2",
           terminalId: "diagnostico-m2",
           createdAt: 0,
-          type: "operator_registered",
-          aggregateType: "operator",
+          type: "tables_grouped",
+          aggregateType: "table_group",
           aggregateId: "diagnostico-m2",
-          payload: { name: "Diagnóstico M2", role: "owner", pinHash: "diagnostico-m2" },
+          payload: { tableIds: ["diagnostico-m2-a", "diagnostico-m2-b"] },
         };
 
         const postRes = await fetch(`${SIDECAR_URL}/events`, {

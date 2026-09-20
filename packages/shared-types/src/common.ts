@@ -4,6 +4,9 @@ import { z } from "zod";
 export const OperatorRoleSchema = z.enum(["owner", "cashier", "waiter"]);
 export type OperatorRole = z.infer<typeof OperatorRoleSchema>;
 
+/** PRD 1.1 — PIN numérico de 4 a 6 dígitos, único por estabelecimento (checado na escrita, não no schema). */
+export const PinSchema = z.string().regex(/^\d{4,6}$/, "PIN deve ter de 4 a 6 dígitos numéricos");
+
 /** PRD 5.3. */
 export const PaymentMethodSchema = z.enum(["cash", "card"]);
 export type PaymentMethod = z.infer<typeof PaymentMethodSchema>;
