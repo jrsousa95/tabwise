@@ -1,0 +1,18 @@
+{
+  "name": "spike-3-reconciliation",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Spike 3 (M0): protótipo isolado de HLC + reconciliação de eventos (ARCH §4.2), com testes de propriedade.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "fast-check": "^3.23.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.1"
+  }
+}
