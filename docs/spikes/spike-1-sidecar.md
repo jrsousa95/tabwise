@@ -2,7 +2,7 @@
 
 **Referência:** `docs/architecture.md` §9, `docs/implementation-plan.md` M0
 **Data:** 2026-09-20
-**Status:** ✅ Totalmente validado no host (macOS/arm64), incluindo confirmação visual — validação em Windows real ainda pendente
+**Status:** ✅ Totalmente validado — macOS/arm64 (incluindo confirmação visual) e Windows real (via CI, ver pendência 1)
 
 ## O que foi testado
 
@@ -33,7 +33,7 @@ Ambas as armadilhas são exatamente o tipo de coisa que a arquitetura já anteci
 
 ## Pendências para fechar o Spike 1 por completo
 
-1. **Testar o instalador final em Windows real** — em validação via `.github/workflows/spike1-windows-validation.yml` (runner `windows-latest` do GitHub Actions, disparo manual via `workflow_dispatch`): builda o sidecar nativamente em Windows, faz smoke test do `/health` e gera o instalador Tauri completo (`.msi`/`.exe`) como artifact. Já achou e corrigiu a armadilha 3 acima na primeira execução — confirma que o cross-build local não seria suficiente. Status final depende da próxima execução após a correção.
+1. ~~Testar o instalador final em Windows real (VM ou máquina física)~~ — **resolvido**, via `.github/workflows/spike1-windows-validation.yml` (runner `windows-latest` do GitHub Actions, disparo manual via `workflow_dispatch`, [run 35517168909](https://github.com/jrsousa95/passa-a-regua/actions/runs/35517168909)): sidecar buildado nativamente em Windows, smoke test do `/health` respondeu `{"status":"ok","platform":"win32","arch":"x64"}`, e o instalador Tauri completo (`.msi`/`.exe`) foi gerado com sucesso e subido como artifact. A primeira execução já achou e corrigiu de quebra a armadilha 3 acima — confirma que o cross-build a partir do Mac não seria suficiente pra pegar esse bug.
 2. Assinatura de código para distribuição real (o ad-hoc signing usado aqui — `codesign --sign -` — só serve para rodar localmente; um instalador distribuído precisará de um certificado de assinatura de verdade, tanto para macOS/notarization quanto para Windows/Authenticode, para não ser bloqueado por Gatekeeper/SmartScreen).
 
 ~~Confirmação visual do `fetch()` renderizando na tela~~ — **resolvido**: confirmado rodando localmente (tela exibindo "✅ Sidecar respondendo" com pid/plataforma corretos), após a correção de CORS acima.
