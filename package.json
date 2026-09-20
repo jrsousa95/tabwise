@@ -4,5 +4,9 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "scripts": {
+    "dev:tauri": "npm run dev:tauri --workspace=desktop",
+    "build:tauri": "npm run build:tauri --workspace=desktop"
+  }
 }
