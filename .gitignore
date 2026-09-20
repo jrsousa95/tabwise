@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+target/
+.DS_Store
+*.log
+.env
+.env.local
+
+# Tauri
+apps/desktop/src-tauri/target/
+
+# Sidecar build artifacts
+apps/desktop/sidecar/dist/
+apps/desktop/sidecar/*.blob
+apps/desktop/src-tauri/sidecar/

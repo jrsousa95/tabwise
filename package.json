@@ -1,0 +1,8 @@
+{
+  "name": "passa-a-regua",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

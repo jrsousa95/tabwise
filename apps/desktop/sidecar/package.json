@@ -1,0 +1,16 @@
+{
+  "name": "@passa-a-regua/sidecar",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Spike 1 (M0): processo sidecar Node embutido no app Tauri via SEA (Single Executable Application).",
+  "scripts": {
+    "build:ts": "tsc -p tsconfig.json",
+    "build:sea": "node scripts/build-sea.mjs",
+    "build": "npm run build:ts && npm run build:sea"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "postject": "^1.0.0-alpha.6",
+    "typescript": "^5.9.3"
+  }
+}
