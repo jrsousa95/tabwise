@@ -1,0 +1,71 @@
+name: Spike 1 - Validação Windows
+
+# Disparo manual apenas (Actions > Spike 1 - Validação Windows > Run workflow).
+# Não roda em push/PR — é uma validação pontual do Spike 1 (M0), não um
+# teste de CI recorrente. Ver docs/spikes/spike-1-sidecar.md, pendência 1.
+on:
+  workflow_dispatch:
+
+jobs:
+  validate-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Instala dependências do monorepo (raiz + workspace desktop)
+        run: npm install
+
+      - name: Instala dependências do sidecar (pacote isolado, fora do workspace)
+        working-directory: apps/desktop/sidecar
+        run: npm install
+
+      - name: Builda o binário SEA do sidecar (nativo em Windows, sem cross-build)
+        working-directory: apps/desktop
+        run: npm run sidecar:build
+
+      - name: Smoke test - sobe o binário do sidecar e valida /health
+        working-directory: apps/desktop/src-tauri/sidecar
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Filter "passa-a-regua-sidecar-*.exe" | Select-Object -First 1
+          if (-not $exe) { throw "Binário do sidecar não encontrado após o build." }
+          Write-Host "Binário encontrado: $($exe.Name)"
+
+          $proc = Start-Process -FilePath $exe.FullName -PassThru -NoNewWindow
+
+          $response = $null
+          for ($i = 0; $i -lt 20; $i++) {
+            try {
+              $response = Invoke-RestMethod -Uri "http://127.0.0.1:4550/health" -TimeoutSec 2
+              break
+            } catch {
+              Start-Sleep -Milliseconds 500
+            }
+          }
+
+          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+
+          if (-not $response) { throw "Sidecar não respondeu em /health depois de tentar por ~10s." }
+          if ($response.status -ne "ok") { throw "Resposta inesperada de /health: $($response | ConvertTo-Json)" }
+          if ($response.platform -ne "win32") { throw "Platform inesperada: $($response.platform) (esperado win32)" }
+
+          Write-Host "OK - sidecar respondeu em Windows real: $($response | ConvertTo-Json)"
+
+      - name: Builda o instalador Tauri completo (.msi/.exe)
+        working-directory: apps/desktop
+        run: npm run build:tauri
+
+      - name: Upload do instalador gerado
+        uses: actions/upload-artifact@v4
+        with:
+          name: passa-a-regua-windows-installer
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/**/*.msi
+            apps/desktop/src-tauri/target/release/bundle/**/*.exe
+          if-no-files-found: error
