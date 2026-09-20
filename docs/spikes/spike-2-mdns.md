@@ -2,7 +2,7 @@
 
 **Referência:** `docs/architecture.md` §2 (decisão 2), `docs/implementation-plan.md` M0
 **Data:** 2026-09-20
-**Status:** 🟡 Protótipo construído e validado localmente — validação cross-device/cross-rede pendente (precisa rodar em 2 máquinas físicas, não é algo que dá pra terceirizar pra CI como o Spike 1)
+**Status:** ✅ Validado — protótipo local e teste real cross-device em 2 redes diferentes (Mac + iPhone via app de Bonjour Browser)
 
 ## O que foi testado
 
@@ -29,43 +29,27 @@ Rodei os dois processos nesta máquina (`descobrir` num processo, `anunciar` nou
 
 Isso confirma que **o código funciona** — mas não prova nada sobre o risco real identificado no ARCH §9 ("roteadores de baixo custo têm suporte inconsistente a multicast"), porque os dois processos nunca saíram desta máquina: não passaram pelo comportamento de forwarding de multicast entre portas de um roteador/AP de verdade.
 
-## Pendente: validação real entre 2 dispositivos, em 2 redes
+## Validação real: 2 dispositivos físicos, 2 redes
 
-Ver seção "Como rodar o teste real" abaixo. Preencher esta seção depois de rodar:
+Como não havia um segundo notebook disponível, a validação cross-device foi feita com o Mac rodando `anunciar` e um **iPhone 12 rodando um app de Bonjour/DNS-SD Browser** (busca manual pelo tipo de serviço `_passaaregua._tcp`) — um dispositivo genuinamente diferente, participando da rede pelo próprio rádio Wi-Fi, exatamente o cenário que o roteador precisa suportar.
 
-- [ ] Rede 1 (Wi-Fi de casa): descoberta funcionou? Em quanto tempo?
-- [ ] Rede 2 (hotspot pessoal do iPhone): descoberta funcionou? Em quanto tempo?
-- [ ] Testado nos dois sentidos (cada máquina anunciando e descobrindo)?
-- [ ] Algum firewall/prompt do SO precisou ser liberado manualmente?
+- **Rede 1 (Wi-Fi de casa):** ✅ funcionou. O iPhone encontrou `mac-eudes._passaaregua._tcp.local.`, com IPv4 real (`192.168.0.7`), IPv6 e o TXT record completo (`terminalId`, `iniciadoEm`), em poucos segundos.
+- **Rede 2 (hotspot pessoal do iPhone):** ✅ funcionou, confirmado numa segunda rodada sem ambiguidade — a primeira tentativa tinha ficado inconclusiva porque o processo `anunciar` não foi reiniciado ao trocar de rede (o `iniciadoEm` idêntico ao teste anterior denunciou isso). Reiniciando o `anunciar` já com o Mac conectado no hotspot: IPv4 mudou para `172.20.10.9` (faixa característica do Personal Hotspot da Apple) e `iniciadoEm` com timestamp novo — confirma que foi uma descoberta fresca, de verdade, nessa rede. O iPhone encontrou o serviço normalmente.
+- **Firewall/permissões:** nenhum prompt do macOS apareceu em nenhum dos dois testes.
+- **Testado só num sentido** (Mac anuncia, iPhone descobre) — suficiente pro objetivo do spike, já que o iPhone nunca vai rodar o software de produto; o que importa é provar que o roteador/AP encaminha multicast entre dispositivos diferentes, o que ficou confirmado nas duas redes.
 
-## Como rodar o teste real (2 dispositivos, 2 redes)
+**Observação lateral (não é um problema):** o hostname local do Mac (`MacBook-Air-de-Eudes.local`) foi renomeado automaticamente pelo `mDNSResponder` do macOS (`-3`, depois `-4`) durante os testes, por causa dos processos de teste anteriores rodados em sequência nesta mesma sessão — cosmético, não afeta a lógica de descoberta.
 
-Em **cada** uma das duas máquinas:
+## Conclusão
 
-```bash
-git pull
-cd spikes/spike-2-mdns
-npm install
-```
+**mDNS/Bonjour funciona de forma confiável nas duas redes testadas**, incluindo a mais "hostil" das duas (hotspot de celular, que tem uma pilha de rede diferente de um roteador doméstico convencional). Isso dá confiança suficiente para seguir com a decisão do ARCH §2 (descoberta automática com fallback manual) sem replanejamento de arquitetura. O fallback manual de IP continua recomendado (ARCH §2) para o caso de redes comerciais mais restritivas (ex: Wi-Fi corporativo de shopping, VLANs separando dispositivos) que não foram e não podiam ser testadas aqui.
 
-**Rede 1 (Wi-Fi de casa)** — ambas as máquinas conectadas à mesma rede:
-
-- Máquina A: `npm run descobrir`
-- Máquina B: `npm run anunciar -- --nome maquina-b --porta 4550`
-- Esperado: a Máquina A imprime `ENCONTRADO` com o nome, host e IP da Máquina B em poucos segundos.
-- Repita invertendo os papéis (A anuncia, B descobre), pra confirmar que funciona nos dois sentidos.
-- No macOS, pode aparecer um prompt de firewall ("Deseja permitir que o app aceite conexões de entrada?") — precisa clicar em Permitir, senão a descoberta falha silenciosamente. **Isso já é um dado relevante pro relatório** (mesma preocupação existe no Windows, com o Windows Defender Firewall, ver `ARCH §9`/M12).
-
-**Rede 2 (hotspot do iPhone)** — ativar o Ajuste Pessoal (Personal Hotspot) no iPhone e conectar as duas máquinas nele, depois repetir os mesmos passos acima.
-
-Depois de rodar, me conta o resultado (funcionou/não funcionou em cada rede, quanto tempo levou, algum prompt de permissão) que eu atualizo este documento e o `implementation-plan.md`.
-
-## Pendências conhecidas (não bloqueiam o teste acima, mas ficam pro M9)
+## Pendências conhecidas (ficam pro M9)
 
 1. **Fallback manual de IP** (ARCH §2, decisão 2) não foi prototipado aqui — é só um campo de configuração na UI, sem risco técnico; entra no M9 junto com o resto do sync LAN.
-2. Não testado o cenário de **múltiplos terminais simultâneos** (3+) nem o de **rede sem suporte a multicast** de verdade (só temos como testar "funciona" ou "não funciona" nas redes disponíveis — não temos um roteador conhecidamente ruim à mão). Se a Rede 2 (hotspot) falhar, isso já serve como um caso real de "multicast não funciona nessa rede" pra validar o fallback manual no M9.
+2. Não testado o cenário de **múltiplos terminais simultâneos** (3+), nem redes comerciais mais restritivas (Wi-Fi corporativo, VLANs) — as duas redes disponíveis pra teste (casa + hotspot) funcionaram bem, então não geramos um caso real de "multicast bloqueado" pra validar o fallback manual. Fica como risco residual conhecido, não eliminado por este spike.
 
-## Como rodar (local, sanity check rápido antes do teste real)
+## Como rodar
 
 ```bash
 cd spikes/spike-2-mdns
