@@ -8,7 +8,7 @@ function Login() {
     <main className="container">
       <h1>Passa a Régua</h1>
       <p>Login por PIN entra no M3. Por enquanto, siga direto pro mapa de mesas.</p>
-      <button onClick={() => navigate("/mesas")}>Entrar</button>
+      <button onClick={() => navigate("/tables")}>Entrar</button>
     </main>
   );
 }

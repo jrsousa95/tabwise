@@ -5,8 +5,8 @@
   "description": "Spike 2 (M0): descoberta mDNS entre terminais na mesma rede Wi-Fi (ARCH §2, decisão 2).",
   "type": "module",
   "scripts": {
-    "anunciar": "tsx src/anunciar.ts",
-    "descobrir": "tsx src/descobrir.ts",
+    "announce": "tsx src/announce.ts",
+    "discover": "tsx src/discover.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

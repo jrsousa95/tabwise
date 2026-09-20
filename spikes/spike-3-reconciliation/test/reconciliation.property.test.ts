@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { merge, projetar, sortEventos } from "../src/reconciliation";
-import { arbitrarioDeCenario, embaralharDeterministico, interpretar, particionarDeterministico } from "./sim";
+import { merge, project, sortEvents } from "../src/reconciliation";
+import { scenarioArbitrary, deterministicShuffle, interpret, deterministicPartition } from "./sim";
 
 /**
  * Objetivo do M0 (implementation-plan.md): "gerar sequências aleatórias de
@@ -12,22 +12,22 @@ import { arbitrarioDeCenario, embaralharDeterministico, interpretar, particionar
  * terminais sincronizando entre si).
  */
 
-function normalizar(estado: ReturnType<typeof projetar>): string {
-  return JSON.stringify(estado);
+function normalize(state: ReturnType<typeof project>): string {
+  return JSON.stringify(state);
 }
 
 describe("reconciliação — propriedades (fast-check)", () => {
   it("é comutativa: qualquer ordem de chegada produz o mesmo estado final projetado", () => {
     fc.assert(
-      fc.property(arbitrarioDeCenario(), fc.integer(), (acoes, seedEmbaralho) => {
-        const log = interpretar(acoes);
+      fc.property(scenarioArbitrary(), fc.integer(), (actions, shuffleSeed) => {
+        const log = interpret(actions);
         fc.pre(log.length > 0);
 
-        const esperado = normalizar(projetar(sortEventos(log)));
-        const embaralhado = embaralharDeterministico(log, seedEmbaralho);
-        const obtido = normalizar(projetar(sortEventos(embaralhado)));
+        const expected = normalize(project(sortEvents(log)));
+        const shuffled = deterministicShuffle(log, shuffleSeed);
+        const actual = normalize(project(sortEvents(shuffled)));
 
-        expect(obtido).toEqual(esperado);
+        expect(actual).toEqual(expected);
       }),
       { numRuns: 500 }
     );
@@ -35,14 +35,14 @@ describe("reconciliação — propriedades (fast-check)", () => {
 
   it("é idempotente: mesclar um log com ele mesmo não muda o estado final", () => {
     fc.assert(
-      fc.property(arbitrarioDeCenario(), (acoes) => {
-        const log = interpretar(acoes);
+      fc.property(scenarioArbitrary(), (actions) => {
+        const log = interpret(actions);
         fc.pre(log.length > 0);
 
-        const esperado = normalizar(projetar(sortEventos(log)));
-        const remesclado = normalizar(projetar(merge(log, log)));
+        const expected = normalize(project(sortEvents(log)));
+        const remerged = normalize(project(merge(log, log)));
 
-        expect(remesclado).toEqual(esperado);
+        expect(remerged).toEqual(expected);
       }),
       { numRuns: 300 }
     );
@@ -50,15 +50,15 @@ describe("reconciliação — propriedades (fast-check)", () => {
 
   it("particionar o log em dois (dois terminais com visões parciais) e mesclar reproduz o estado original", () => {
     fc.assert(
-      fc.property(arbitrarioDeCenario(), fc.integer(), (acoes, seedParticao) => {
-        const log = interpretar(acoes);
+      fc.property(scenarioArbitrary(), fc.integer(), (actions, partitionSeed) => {
+        const log = interpret(actions);
         fc.pre(log.length > 0);
 
-        const esperado = normalizar(projetar(sortEventos(log)));
-        const [logA, logB] = particionarDeterministico(log, seedParticao);
-        const reconciliado = normalizar(projetar(merge(logA, logB)));
+        const expected = normalize(project(sortEvents(log)));
+        const [logA, logB] = deterministicPartition(log, partitionSeed);
+        const reconciled = normalize(project(merge(logA, logB)));
 
-        expect(reconciliado).toEqual(esperado);
+        expect(reconciled).toEqual(expected);
       }),
       { numRuns: 500 }
     );

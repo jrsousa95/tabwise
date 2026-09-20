@@ -5,61 +5,61 @@
  * hlc.ts (dogfooding). Portado de `spikes/spike-3-reconciliation/`.
  */
 import fc from "fast-check";
-import type { Evento } from "@passa-a-regua/shared-types";
+import type { DomainEvent } from "@passa-a-regua/shared-types";
 import { ZERO, receive, serialize, tick, type HLC } from "../src/hlc.js";
 
-export const TERMINAIS = ["T1", "T2", "T3"] as const;
-export const MESAS = ["mesa-1", "mesa-2"] as const;
+export const TERMINALS = ["T1", "T2", "T3"] as const;
+export const TABLES = ["table-1", "table-2"] as const;
 
-interface AcaoAbrir {
-  readonly tipo: "abrir";
-  readonly terminal: (typeof TERMINAIS)[number];
-  readonly mesaId: (typeof MESAS)[number];
-  readonly comandaId: string;
+interface OpenAction {
+  readonly type: "open";
+  readonly terminal: (typeof TERMINALS)[number];
+  readonly tableId: (typeof TABLES)[number];
+  readonly orderId: string;
 }
 
-interface AcaoItem {
-  readonly tipo: "item_adicionado" | "item_cancelado";
-  readonly terminal: (typeof TERMINAIS)[number];
-  readonly comandaId: string;
+interface ItemAction {
+  readonly type: "item_added" | "item_canceled";
+  readonly terminal: (typeof TERMINALS)[number];
+  readonly orderId: string;
   readonly itemId: string;
 }
 
-type Acao = AcaoAbrir | AcaoItem;
+type Action = OpenAction | ItemAction;
 
 /**
- * Gera um cenário plausível: todas as aberturas de comanda "acontecem"
+ * Gera um cenário plausível: todas as aberturas de order "acontecem"
  * primeiro (cada terminal decidindo por conta própria, sem ver o que os
  * outros fizeram — a premissa do ARCH §4.2), seguidas por ações de item.
  */
-export function arbitrarioDeCenario(): fc.Arbitrary<Acao[]> {
-  const arbAbrirSpec = fc.record({
-    terminal: fc.constantFrom(...TERMINAIS),
-    mesaId: fc.constantFrom(...MESAS),
+export function scenarioArbitrary(): fc.Arbitrary<Action[]> {
+  const openSpecArb = fc.record({
+    terminal: fc.constantFrom(...TERMINALS),
+    tableId: fc.constantFrom(...TABLES),
   });
 
-  return fc.array(arbAbrirSpec, { minLength: 1, maxLength: 6 }).chain((abrirSpecs) => {
-    const arbItemSpec = fc.record({
-      terminal: fc.constantFrom(...TERMINAIS),
-      comandaIndex: fc.nat({ max: abrirSpecs.length - 1 }),
+  return fc.array(openSpecArb, { minLength: 1, maxLength: 6 }).chain((openSpecs) => {
+    const itemSpecArb = fc.record({
+      terminal: fc.constantFrom(...TERMINALS),
+      orderIndex: fc.nat({ max: openSpecs.length - 1 }),
       itemId: fc.stringMatching(/^[a-z]{4,8}$/),
-      cancelar: fc.boolean(),
+      cancel: fc.boolean(),
     });
 
-    return fc.array(arbItemSpec, { minLength: 0, maxLength: 20 }).map((itemSpecs): Acao[] => {
-      const acoesAbrir: Acao[] = abrirSpecs.map((s, i) => ({
-        tipo: "abrir",
+    return fc.array(itemSpecArb, { minLength: 0, maxLength: 20 }).map((itemSpecs): Action[] => {
+      const openActions: Action[] = openSpecs.map((s, i) => ({
+        type: "open",
         terminal: s.terminal,
-        mesaId: s.mesaId,
-        comandaId: `comanda-${i}`,
+        tableId: s.tableId,
+        orderId: `order-${i}`,
       }));
-      const acoesItem: Acao[] = itemSpecs.map((s) => ({
-        tipo: s.cancelar ? "item_cancelado" : "item_adicionado",
+      const itemActions: Action[] = itemSpecs.map((s) => ({
+        type: s.cancel ? "item_canceled" : "item_added",
         terminal: s.terminal,
-        comandaId: `comanda-${s.comandaIndex}`,
+        orderId: `order-${s.orderIndex}`,
         itemId: s.itemId,
       }));
-      return [...acoesAbrir, ...acoesItem];
+      return [...openActions, ...itemActions];
     });
   });
 }
@@ -67,73 +67,73 @@ export function arbitrarioDeCenario(): fc.Arbitrary<Acao[]> {
 /**
  * Interpreta a lista de ações "na ordem em que aconteceram de verdade",
  * atribuindo HLCs reais por terminal via tick()/receive(). Uma ação de
- * item que referencia uma comanda aberta por OUTRO terminal simula ter
+ * item que referencia uma order aberta por OUTRO terminal simula ter
  * sincronizado o suficiente pra saber que ela existe (receive).
  */
-export function interpretar(acoes: readonly Acao[]): Evento[] {
+export function interpret(actions: readonly Action[]): DomainEvent[] {
   const clocks = new Map<string, HLC>();
-  const hlcDeAbertura = new Map<string, HLC>();
-  const eventos: Evento[] = [];
-  let contador = 0;
+  const openingHlc = new Map<string, HLC>();
+  const events: DomainEvent[] = [];
+  let counter = 0;
 
-  const clockDe = (terminal: string): HLC => clocks.get(terminal) ?? ZERO;
+  const clockFor = (terminal: string): HLC => clocks.get(terminal) ?? ZERO;
 
-  for (const acao of acoes) {
-    const wall = 1_700_000_000_000 + contador;
+  for (const action of actions) {
+    const wall = 1_700_000_000_000 + counter;
 
-    if (acao.tipo === "abrir") {
-      const novoClock = tick(clockDe(acao.terminal), wall);
-      clocks.set(acao.terminal, novoClock);
-      hlcDeAbertura.set(acao.comandaId, novoClock);
-      eventos.push({
-        id: `ev-${contador++}`,
-        hlc: serialize(novoClock),
-        aggregateType: "comanda",
-        aggregateId: acao.comandaId,
-        tipo: "comanda_aberta",
-        terminalId: acao.terminal,
-        operadorId: "op-1",
-        criadoEm: wall,
-        payload: { origem: "mesa", mesaId: acao.mesaId },
+    if (action.type === "open") {
+      const newClock = tick(clockFor(action.terminal), wall);
+      clocks.set(action.terminal, newClock);
+      openingHlc.set(action.orderId, newClock);
+      events.push({
+        id: `ev-${counter++}`,
+        hlc: serialize(newClock),
+        aggregateType: "order",
+        aggregateId: action.orderId,
+        type: "order_opened",
+        terminalId: action.terminal,
+        operatorId: "op-1",
+        createdAt: wall,
+        payload: { source: "table", tableId: action.tableId },
       });
       continue;
     }
 
-    const clockOrigem = hlcDeAbertura.get(acao.comandaId);
-    if (!clockOrigem) continue;
+    const originClock = openingHlc.get(action.orderId);
+    if (!originClock) continue;
 
-    const clockSincronizado = receive(clockDe(acao.terminal), clockOrigem, wall);
-    const novoClock = tick(clockSincronizado, wall);
-    clocks.set(acao.terminal, novoClock);
+    const syncedClock = receive(clockFor(action.terminal), originClock, wall);
+    const newClock = tick(syncedClock, wall);
+    clocks.set(action.terminal, newClock);
 
-    if (acao.tipo === "item_adicionado") {
-      eventos.push({
-        id: `ev-${contador++}`,
-        hlc: serialize(novoClock),
-        aggregateType: "comanda",
-        aggregateId: acao.comandaId,
-        tipo: "item_adicionado",
-        terminalId: acao.terminal,
-        operadorId: "op-1",
-        criadoEm: wall,
-        payload: { itemId: acao.itemId, nome: `Item ${acao.itemId}`, precoUnitarioCentavos: 100, quantidade: 1 },
+    if (action.type === "item_added") {
+      events.push({
+        id: `ev-${counter++}`,
+        hlc: serialize(newClock),
+        aggregateType: "order",
+        aggregateId: action.orderId,
+        type: "item_added",
+        terminalId: action.terminal,
+        operatorId: "op-1",
+        createdAt: wall,
+        payload: { itemId: action.itemId, name: `Item ${action.itemId}`, unitPriceCents: 100, quantity: 1 },
       });
     } else {
-      eventos.push({
-        id: `ev-${contador++}`,
-        hlc: serialize(novoClock),
-        aggregateType: "comanda",
-        aggregateId: acao.comandaId,
-        tipo: "item_cancelado",
-        terminalId: acao.terminal,
-        operadorId: "op-1",
-        criadoEm: wall,
-        payload: { itemId: acao.itemId, motivo: "outro" },
+      events.push({
+        id: `ev-${counter++}`,
+        hlc: serialize(newClock),
+        aggregateType: "order",
+        aggregateId: action.orderId,
+        type: "item_canceled",
+        terminalId: action.terminal,
+        operatorId: "op-1",
+        createdAt: wall,
+        payload: { itemId: action.itemId, reason: "other" },
       });
     }
   }
 
-  return eventos;
+  return events;
 }
 
 /** PRNG determinístico (mulberry32) — shuffle/partição reprodutíveis a partir de uma seed do fast-check. */
@@ -148,23 +148,23 @@ function prng(seed: number): () => number {
   };
 }
 
-export function embaralharDeterministico<T>(itens: readonly T[], seed: number): T[] {
+export function deterministicShuffle<T>(items: readonly T[], seed: number): T[] {
   const rand = prng(seed);
-  const copia = [...itens];
-  for (let i = copia.length - 1; i > 0; i--) {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
-    const tmp = copia[i]!;
-    copia[i] = copia[j]!;
-    copia[j] = tmp;
+    const tmp = copy[i]!;
+    copy[i] = copy[j]!;
+    copy[j] = tmp;
   }
-  return copia;
+  return copy;
 }
 
 /** Divide o log em duas partições arbitrárias (simula dois terminais com visões parciais). */
-export function particionarDeterministico<T>(itens: readonly T[], seed: number): [T[], T[]] {
+export function deterministicPartition<T>(items: readonly T[], seed: number): [T[], T[]] {
   const rand = prng(seed);
   const a: T[] = [];
   const b: T[] = [];
-  for (const item of itens) (rand() < 0.5 ? a : b).push(item);
+  for (const item of items) (rand() < 0.5 ? a : b).push(item);
   return [a, b];
 }

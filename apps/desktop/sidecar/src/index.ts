@@ -1,8 +1,8 @@
 import http from "node:http";
 import path from "node:path";
 import { mkdirSync } from "node:fs";
-import { EventoSchema } from "@passa-a-regua/shared-types";
-import { abrirBanco, inserirEvento, listarEventosDesdeCursor, projetar, sortEventos } from "@passa-a-regua/sync-engine";
+import { DomainEventSchema } from "@passa-a-regua/shared-types";
+import { openDatabase, insertEvent, listEventsSinceCursor, project, sortEvents } from "@passa-a-regua/sync-engine";
 
 /**
  * M2 (ARCH §9, implementation-plan.md): sidecar real conectado ao
@@ -22,7 +22,7 @@ const startedAt = new Date().toISOString();
 const dataDir = process.env.PASSA_A_REGUA_DATA_DIR ?? path.join(process.cwd(), ".dev-data");
 mkdirSync(dataDir, { recursive: true });
 const dbPath = path.join(dataDir, "passa-a-regua.db");
-const db = abrirBanco(dbPath);
+const db = openDatabase(dbPath);
 
 /**
  * CORS: o frontend (http://localhost:1420 em dev, tauri://localhost ou
@@ -39,20 +39,20 @@ function withCors(res: http.ServerResponse) {
   return res;
 }
 
-function enviarJson(res: http.ServerResponse, status: number, corpo: unknown) {
+function sendJson(res: http.ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { "Content-Type": "application/json" });
-  res.end(JSON.stringify(corpo));
+  res.end(JSON.stringify(body));
 }
 
-function lerCorpoJson(req: http.IncomingMessage): Promise<unknown> {
+function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    const partes: Buffer[] = [];
-    req.on("data", (parte) => partes.push(parte));
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk) => chunks.push(chunk));
     req.on("end", () => {
       try {
-        resolve(partes.length === 0 ? undefined : JSON.parse(Buffer.concat(partes).toString("utf8")));
-      } catch (erro) {
-        reject(erro);
+        resolve(chunks.length === 0 ? undefined : JSON.parse(Buffer.concat(chunks).toString("utf8")));
+      } catch (error) {
+        reject(error);
       }
     });
     req.on("error", reject);
@@ -71,38 +71,38 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
 
   if (req.method === "GET" && url.pathname === "/health") {
-    enviarJson(res, 200, { status: "ok", pid: process.pid, startedAt, platform: process.platform, arch: process.arch });
+    sendJson(res, 200, { status: "ok", pid: process.pid, startedAt, platform: process.platform, arch: process.arch });
     return;
   }
 
-  if (req.method === "POST" && url.pathname === "/eventos") {
+  if (req.method === "POST" && url.pathname === "/events") {
     try {
-      const corpo = await lerCorpoJson(req);
-      const resultado = EventoSchema.safeParse(corpo);
-      if (!resultado.success) {
-        enviarJson(res, 400, { error: "evento inválido", detalhes: resultado.error.issues });
+      const body = await readJsonBody(req);
+      const result = DomainEventSchema.safeParse(body);
+      if (!result.success) {
+        sendJson(res, 400, { error: "evento inválido", details: result.error.issues });
         return;
       }
-      inserirEvento(db, resultado.data);
-      enviarJson(res, 201, resultado.data);
+      insertEvent(db, result.data);
+      sendJson(res, 201, result.data);
     } catch {
-      enviarJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
     }
     return;
   }
 
-  if (req.method === "GET" && url.pathname === "/eventos") {
-    const cursor = url.searchParams.get("desde") ?? undefined;
-    enviarJson(res, 200, listarEventosDesdeCursor(db, cursor));
+  if (req.method === "GET" && url.pathname === "/events") {
+    const cursor = url.searchParams.get("since") ?? undefined;
+    sendJson(res, 200, listEventsSinceCursor(db, cursor));
     return;
   }
 
-  if (req.method === "GET" && url.pathname === "/estado") {
-    enviarJson(res, 200, projetar(sortEventos(listarEventosDesdeCursor(db))));
+  if (req.method === "GET" && url.pathname === "/state") {
+    sendJson(res, 200, project(sortEvents(listEventsSinceCursor(db))));
     return;
   }
 
-  enviarJson(res, 404, { error: "not found" });
+  sendJson(res, 404, { error: "not found" });
 });
 
 server.listen(PORT, "127.0.0.1", () => {

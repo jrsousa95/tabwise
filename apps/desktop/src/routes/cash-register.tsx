@@ -1,5 +1,5 @@
 /** PRD Épico 6.1 (M8) — resumo do dia e fechamento de caixa entram aqui. */
-function Caixa() {
+function CashRegister() {
   return (
     <section>
       <h2>Caixa</h2>
@@ -8,4 +8,4 @@ function Caixa() {
   );
 }
 
-export default Caixa;
+export default CashRegister;

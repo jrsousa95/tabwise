@@ -59,9 +59,9 @@ export function serialize(clock: HLC): string {
 }
 
 export function parse(text: string): HLC {
-  const partes = text.split("-");
-  if (partes.length !== 2) throw new Error(`HLC serializado inválido: ${text}`);
-  return { l: parseInt(partes[0]!, 16), c: parseInt(partes[1]!, 16) };
+  const parts = text.split("-");
+  if (parts.length !== 2) throw new Error(`HLC serializado inválido: ${text}`);
+  return { l: parseInt(parts[0]!, 16), c: parseInt(parts[1]!, 16) };
 }
 
 export function compareSerialized(a: string, b: string): -1 | 0 | 1 {

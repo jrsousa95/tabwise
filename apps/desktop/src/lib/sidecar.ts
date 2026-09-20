@@ -45,53 +45,53 @@ export function useSidecarHealth(intervalMs = 2000) {
   return { health, error };
 }
 
-type IpcCheckStatus = "pendente" | "ok" | "erro";
+type IpcCheckStatus = "pending" | "ok" | "error";
 
 /**
  * Critério de saída do M2 (implementation-plan.md): "uma tela React
  * consegue escrever e ler um evento de teste no SQLite local via IPC".
- * `inserirEvento` é idempotente por id, então repetir esse POST em todo
+ * `insertEvent` é idempotente por id, então repetir esse POST em todo
  * reload não duplica nada no banco.
  */
 export function useSidecarIpcCheck() {
-  const [status, setStatus] = useState<IpcCheckStatus>("pendente");
+  const [status, setStatus] = useState<IpcCheckStatus>("pending");
 
   useEffect(() => {
     let cancelled = false;
 
-    async function verificarRoundtrip() {
+    async function verifyRoundtrip() {
       try {
-        const eventoDeTeste = {
+        const testEvent = {
           id: "diagnostico-m2-ipc",
           hlc: "0000000000000000-0000",
-          operadorId: "diagnostico-m2",
+          operatorId: "diagnostico-m2",
           terminalId: "diagnostico-m2",
-          criadoEm: 0,
-          tipo: "operador_cadastrado",
-          aggregateType: "operador",
+          createdAt: 0,
+          type: "operator_registered",
+          aggregateType: "operator",
           aggregateId: "diagnostico-m2",
-          payload: { nome: "Diagnóstico M2", papel: "dono", pinHash: "diagnostico-m2" },
+          payload: { name: "Diagnóstico M2", role: "owner", pinHash: "diagnostico-m2" },
         };
 
-        const postRes = await fetch(`${SIDECAR_URL}/eventos`, {
+        const postRes = await fetch(`${SIDECAR_URL}/events`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(eventoDeTeste),
+          body: JSON.stringify(testEvent),
         });
-        if (!postRes.ok && postRes.status !== 400) throw new Error(`POST /eventos: HTTP ${postRes.status}`);
+        if (!postRes.ok && postRes.status !== 400) throw new Error(`POST /events: HTTP ${postRes.status}`);
 
-        const getRes = await fetch(`${SIDECAR_URL}/eventos`);
-        if (!getRes.ok) throw new Error(`GET /eventos: HTTP ${getRes.status}`);
-        const eventos = (await getRes.json()) as Array<{ id: string }>;
-        const encontrado = eventos.some((evento) => evento.id === eventoDeTeste.id);
+        const getRes = await fetch(`${SIDECAR_URL}/events`);
+        if (!getRes.ok) throw new Error(`GET /events: HTTP ${getRes.status}`);
+        const events = (await getRes.json()) as Array<{ id: string }>;
+        const found = events.some((event) => event.id === testEvent.id);
 
-        if (!cancelled) setStatus(encontrado ? "ok" : "erro");
+        if (!cancelled) setStatus(found ? "ok" : "error");
       } catch {
-        if (!cancelled) setStatus("erro");
+        if (!cancelled) setStatus("error");
       }
     }
 
-    verificarRoundtrip();
+    verifyRoundtrip();
     return () => {
       cancelled = true;
     };

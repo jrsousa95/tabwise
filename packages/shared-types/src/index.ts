@@ -1,2 +1,2 @@
-export * from "./comum.js";
-export * from "./eventos.js";
+export * from "./common.js";
+export * from "./events.js";

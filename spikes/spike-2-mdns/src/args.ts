@@ -1,17 +1,17 @@
-/** Parser mínimo de `--chave valor` — o bastante pra este spike, sem puxar dependência extra. */
+/** Parser mínimo de `--key value` — o bastante pra este spike, sem puxar dependência extra. */
 export function parseArgs(argv: readonly string[]): Record<string, string> {
-  const resultado: Record<string, string> = {};
+  const result: Record<string, string> = {};
   for (let i = 0; i < argv.length; i++) {
-    const atual = argv[i];
-    if (!atual?.startsWith("--")) continue;
-    const chave = atual.slice(2);
-    const proximo = argv[i + 1];
-    if (proximo !== undefined && !proximo.startsWith("--")) {
-      resultado[chave] = proximo;
+    const current = argv[i];
+    if (!current?.startsWith("--")) continue;
+    const key = current.slice(2);
+    const next = argv[i + 1];
+    if (next !== undefined && !next.startsWith("--")) {
+      result[key] = next;
       i++;
     } else {
-      resultado[chave] = "true";
+      result[key] = "true";
     }
   }
-  return resultado;
+  return result;
 }

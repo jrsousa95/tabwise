@@ -16,18 +16,18 @@ function Layout() {
       <header className="app-nav">
         <span className="app-nav-brand">Passa a Régua</span>
         <nav>
-          <NavLink to="/mesas" className={navLinkClassName}>
+          <NavLink to="/tables" className={navLinkClassName}>
             Mapa de Mesas
           </NavLink>
-          <NavLink to="/caixa" className={navLinkClassName}>
+          <NavLink to="/cash-register" className={navLinkClassName}>
             Caixa
           </NavLink>
         </nav>
         <span className={`sidecar-status ${health ? "sidecar-status-ok" : "sidecar-status-down"}`}>
           {health ? "sidecar ok" : `sidecar offline${error ? ` (${error})` : ""}`}
         </span>
-        <span className={`sidecar-status sidecar-status-${ipcCheck === "ok" ? "ok" : ipcCheck === "erro" ? "down" : "pending"}`}>
-          {ipcCheck === "ok" ? "IPC ok" : ipcCheck === "erro" ? "IPC falhou" : "IPC..."}
+        <span className={`sidecar-status sidecar-status-${ipcCheck === "ok" ? "ok" : ipcCheck === "error" ? "down" : "pending"}`}>
+          {ipcCheck === "ok" ? "IPC ok" : ipcCheck === "error" ? "IPC falhou" : "IPC..."}
         </span>
       </header>
       <main className="app-content">
