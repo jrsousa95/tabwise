@@ -32,31 +32,31 @@ Essa unificação existe porque o PRD já exige (§ Épico 7, NFR2/NFR3) que nen
 
 ### 3.1 Camada de eventos (fonte de verdade, append-only)
 
-Cada terminal mantém uma tabela `eventos` no SQLite local:
+Cada terminal mantém uma tabela `events` no SQLite local:
 
 | Campo | Tipo | Descrição |
 |---|---|---|
 | `id` | TEXT (ULID) | Identificador do evento, ordenável por tempo de criação |
 | `hlc` | TEXT | Hybrid Logical Clock — timestamp lógico usado para ordenação causal entre terminais (ver § 3.3) |
-| `aggregate_type` | TEXT | Ex: `comanda`, `mesa`, `operador` |
+| `aggregate_type` | TEXT | Ex: `order`, `table`, `operator` |
 | `aggregate_id` | TEXT | Id da entidade afetada (ex: id da comanda) |
-| `tipo` | TEXT | Ex: `item_adicionado`, `item_cancelado`, `comanda_aberta`, `comanda_transferida`, `comanda_fechada`, `mesas_agrupadas` |
+| `type` | TEXT | Ex: `item_added`, `item_canceled`, `order_opened`, `order_transferred`, `order_closed`, `tables_grouped` |
 | `payload` | JSON | Dados específicos do evento |
-| `operador_id` | TEXT | Quem gerou o evento (obrigatório — decorre da exigência de auditoria do PRD) |
+| `operator_id` | TEXT | Quem gerou o evento (obrigatório — decorre da exigência de auditoria do PRD) |
 | `terminal_id` | TEXT | De qual terminal o evento se originou |
-| `criado_em` | INTEGER | Timestamp de parede (wall-clock), só para exibição — nunca usado para ordenação de conflito |
+| `created_at` | INTEGER | Timestamp de parede (wall-clock), só para exibição — nunca usado para ordenação de conflito |
 
-Eventos **nunca são editados ou apagados** — um cancelamento é um novo evento (`item_cancelado`) que referencia o evento original, não uma remoção.
+Eventos **nunca são editados ou apagados** — um cancelamento é um novo evento (`item_canceled`) que referencia o evento original, não uma remoção.
 
 ### 3.2 Camada de leitura (materializada, derivada dos eventos)
 
 Para a UI responder rápido, cada terminal também mantém tabelas "normais" (mutáveis), que são **projeções recalculadas a partir do replay dos eventos** em ordem de HLC:
 
-- `mesas` (id, identificador, status)
-- `comandas` (id, mesa_id nullable, status, aberta_em, fechada_em)
-- `comanda_itens` (estado atual — já refletindo cancelamentos aplicados)
-- `pagamentos` (registros de fechamento, splits)
-- `mesas_grupos` (vínculo visual de mesas "juntas", PRD história 2.6)
+- `tables` (id, identificador, status)
+- `orders` (id, table_id nullable, status, opened_at, closed_at)
+- `order_items` (estado atual — já refletindo cancelamentos aplicados)
+- `payments` (registros de fechamento, splits)
+- `table_groups` (vínculo visual de mesas "juntas", PRD história 2.6)
 
 Essas tabelas são **descartáveis e reconstruíveis** a qualquer momento a partir do log de eventos — isso é o que torna a reconciliação segura: se dois terminais mesclam seus logs de eventos, cada um recalcula sua camada de leitura do zero (ou incrementalmente) e chega ao mesmo estado, porque a função "aplicar eventos em ordem de HLC" é determinística.
 
@@ -72,7 +72,7 @@ Isso é uma peça de infraestrutura pequena (uma biblioteca de ~100 linhas), mas
 Itens adicionados a uma comanda por terminais diferentes simplesmente se unem no log — não há conflito real porque "adicionar item" é uma operação que comuta (a ordem não muda o resultado final: a lista de itens da comanda).
 
 ### 4.2 Caso de conflito real: duas comandas abertas na mesma mesa
-Cenário: o host cai; dois garçons em terminais diferentes, sem conseguir se enxergar na LAN, cada um abre uma comanda para a "mesa 5" (ex: um não viu que o outro já tinha aberto, ou acharam que a mesa tinha ficado livre). Quando os logs se mesclam, existem dois eventos `comanda_aberta` para a mesma mesa.
+Cenário: o host cai; dois garçons em terminais diferentes, sem conseguir se enxergar na LAN, cada um abre uma comanda para a "mesa 5" (ex: um não viu que o outro já tinha aberto, ou acharam que a mesa tinha ficado livre). Quando os logs se mesclam, existem dois eventos `order_opened` para a mesma mesa.
 
 **Regra de resolução (confirmada):** o evento com o **menor HLC** (o que aconteceu primeiro, causalmente) é a comanda canônica; o segundo evento é reclassificado automaticamente como se fosse uma continuação da primeira comanda (seus itens são reatribuídos à comanda canônica). **O merge é automático e não bloqueia ninguém** — não exige decisão manual no meio do rush.
 
@@ -94,7 +94,7 @@ O backend mantém sua própria camada de leitura materializada em PostgreSQL (me
 
 ## 6. Enforcement de limites de plano (freemium)
 
-- O backend é a **fonte de verdade** dos limites (`max_comandas_simultaneas`, `max_terminais`) por estabelecimento, guardados em uma tabela `planos`/`assinaturas` no Postgres.
+- O backend é a **fonte de verdade** dos limites (`max_concurrent_orders`, `max_terminals`) por estabelecimento, guardados em uma tabela `planos`/`assinaturas` no Postgres.
 - Cada terminal mantém uma **cópia local em cache** desses limites (atualizada a cada sync com a nuvem) e faz o enforcement **localmente e offline**, usando o valor em cache.
 - Consequência aceita: se o dono faz upgrade de plano enquanto o terminal está offline, o novo limite só passa a valer no próximo sync — isso é esperado e aceitável (não é um requisito de tempo real).
 - Downgrade com dados excedentes: conforme já decidido no PRD (§ 2.7), comandas já abertas não são bloqueadas retroativamente — a trava só impede novas aberturas até a contagem cair abaixo do limite.

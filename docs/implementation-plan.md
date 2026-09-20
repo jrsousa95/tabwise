@@ -30,11 +30,11 @@ Objetivo: eliminar as maiores incertezas técnicas antes de comprometer tempo em
 Objetivo: ter o pacote `sync-engine` funcional e testado isoladamente, antes de conectá-lo a qualquer UI. Referência: `ARCH §3, §8`.
 
 - [x] Setup do monorepo: `packages/shared-types` e `packages/sync-engine` criados como membros do workspace npm já existente (mesmo workspace usado pelo `apps/desktop` desde o Spike 1 — sem trocar pra pnpm/Turborepo, não havia necessidade real). `apps/backend` fica de fato criado só no M9, quando existir código pra colocar nele.
-- [x] `shared-types`: tipos + schemas Zod (discriminated union por `tipo`) dos 8 eventos — `operador_cadastrado`, `comanda_aberta`, `comanda_transferida`, `mesas_agrupadas`, `item_adicionado`, `item_cancelado`, `comanda_fechada`, `pagamento_registrado`. Validações do PRD embutidas no schema (motivo de cancelamento da lista fechada, valores em centavos sempre inteiros, origem mesa/avulsa mutuamente exclusiva).
+- [x] `shared-types`: tipos + schemas Zod (discriminated union por `type`) dos 8 eventos — `operator_registered`, `order_opened`, `order_transferred`, `tables_grouped`, `item_added`, `item_canceled`, `order_closed`, `payment_recorded`. Validações do PRD embutidas no schema (motivo de cancelamento da lista fechada, valores em centavos sempre inteiros, origem mesa/avulsa mutuamente exclusiva).
 - [x] `sync-engine`: HLC portado do `spikes/spike-3-reconciliation/` (mesma implementação já validada) com testes unitários + de propriedade.
-- [x] `sync-engine`: schema SQLite da tabela `eventos` + camada de acesso (`inserirEvento`/`inserirEventos` idempotentes por id, `listarEventosDesdeCursor`, `buscarEventosPorAggregateId`) — via `node:sqlite` (embutido no Node, decisão deliberada pra não reintroduzir dependência nativa compilada por plataforma depois do que o Spike 1 validou).
-- [x] `sync-engine`: motor de projeção (`projetar`) — recebe eventos ordenados por HLC, devolve estado materializado de todos os 8 tipos.
-- [x] `sync-engine`: reconciliação (`merge`/`reconciliar`) — dedupe por `id`, reordenação por HLC, regra de conflito de comanda duplicada do `ARCH §4.2` generalizada do spike pro modelo de evento completo.
+- [x] `sync-engine`: schema SQLite da tabela `events` + camada de acesso (`insertEvent`/`insertEvents` idempotentes por id, `listEventsSinceCursor`, `findEventsByAggregateId`) — via `node:sqlite` (embutido no Node, decisão deliberada pra não reintroduzir dependência nativa compilada por plataforma depois do que o Spike 1 validou).
+- [x] `sync-engine`: motor de projeção (`project`) — recebe eventos ordenados por HLC, devolve estado materializado de todos os 8 tipos.
+- [x] `sync-engine`: reconciliação (`merge`/`reconcile`) — dedupe por `id`, reordenação por HLC, regra de conflito de order duplicada do `ARCH §4.2` generalizada do spike pro modelo de evento completo.
 - [x] Suite de testes de propriedade (fast-check, ~1300 execuções): comutatividade, idempotência e particionamento de log — mesmo padrão validado no Spike 3.
 
 **Critério de saída do M1:** ✅ atingido em 2026-09-20 — 27 testes (`shared-types` + `sync-engine`) passando, `sync-engine` funciona 100% em memória (`node:sqlite` com `:memory:` nos testes) e via CLI/Node puro, zero dependência de Tauri ou rede. Achado real ao construir: `node:sqlite` não trata `TEXT PRIMARY KEY` como `NOT NULL` implícito, e `INSERT OR IGNORE` ignora silenciosamente qualquer violação de constraint (não só duplicata de id) — documentado em `packages/sync-engine/src/db.ts`.
@@ -45,12 +45,12 @@ Objetivo: ter o pacote `sync-engine` funcional e testado isoladamente, antes de 
 
 Objetivo: Tauri + sidecar + React conversando entre si, sem nenhuma feature de produto ainda.
 
-- [ ] Scaffold do app Tauri (`apps/desktop`) com sidecar Node/TS embutido (usando o `sync-engine` como dependência).
-- [ ] Canal de IPC entre webview (React) e sidecar (ex: sidecar expõe uma API local via HTTP/WebSocket em `localhost`, consumida pelo frontend).
-- [ ] Inicialização do SQLite local no primeiro start do sidecar (criação de schema).
-- [ ] Layout base da UI (roteamento entre telas: login, mapa de mesas, comanda, caixa) — sem lógica de negócio ainda, só shell navegável.
+- [x] Scaffold do app Tauri (`apps/desktop`) com sidecar Node/TS embutido (usando o `sync-engine` como dependência) — `@passa-a-regua/sync-engine` e `@passa-a-regua/shared-types` adicionados como deps do sidecar via workspace npm; build passou de `tsc` puro pra `esbuild` (bundle) + `build-sea.mjs`, já que o SEA precisa de um único arquivo (o `tsc` sozinho não resolve os `imports` de outros pacotes do workspace).
+- [x] Canal de IPC entre webview (React) e sidecar — API HTTP local em `127.0.0.1:4550`: `POST /events` (valida com `DomainEventSchema` do `shared-types`, insere via `insertEvent`), `GET /events?since=` (lista via `listEventsSinceCursor`), `GET /state` (projeção via `project`/`sortEvents`).
+- [x] Inicialização do SQLite local no primeiro start do sidecar — `openDatabase` chamado no boot, caminho lido de `PASSA_A_REGUA_DATA_DIR` (setado pelo Tauri) com fallback pra `./.dev-data` em dev fora do Tauri.
+- [x] Layout base da UI (roteamento entre telas: login, mapa de mesas, comanda, caixa) — `react-router-dom` (`HashRouter`, necessário porque o protocolo de asset do Tauri não tem servidor por trás pra resolver History API em reload/deep-link), shell com nav em `layout.tsx`, 4 telas placeholder em `src/routes/`, sem lógica de negócio.
 
-**Critério de saída do M2:** o app abre, o sidecar sobe, e uma tela React consegue escrever e ler um evento de teste no SQLite local via IPC.
+**Critério de saída do M2:** ✅ atingido em 2026-09-20 — validado manualmente (bundle esbuild + binário SEA real) que o sidecar sobe, inicializa o SQLite e responde `/health`, `/events` (POST+GET) e `/state` corretamente; e a partir da própria tela React (hook `useSidecarIpcCheck` em `lib/sidecar.ts`, exibido como badge "IPC ok" no header) um evento de teste é escrito e lido de volta via IPC a cada carregamento do app — round-trip idempotente por id, não duplica no banco. Suite de testes (`shared-types` + `sync-engine`, 27 testes) e build de todos os workspaces seguem passando. Nomenclatura de todo o código (arquivos, tipos, funções, eventos) traduzida de português pra inglês nesta etapa, incluindo M0/M1 e os protótipos dos spikes — ver decisão registrada abaixo.
 
 ---
 
@@ -58,12 +58,12 @@ Objetivo: Tauri + sidecar + React conversando entre si, sem nenhuma feature de p
 
 Referência: `PRD Épico 1`.
 
-- [ ] Evento `operador_cadastrado` + projeção da tabela `operadores` (nome, papel, hash do PIN).
+- [ ] Evento `operator_registered` + projeção da tabela `operators` (nome, papel, hash do PIN).
 - [ ] Tela de cadastro de operador (dono) — PRD 1.1.
 - [ ] Fluxo de login por PIN, validação local contra hash (bcrypt/argon2) — PRD 1.2.
 - [ ] Sessão de terminal (persistida até logout/troca de operador, sem expiração automática — decisão já registrada em `PRD 1.2`).
 - [ ] Enforcement de permissões por papel na navegação (garçom não acessa configurações/fechamento de caixa) — `PRD §2`.
-- [ ] Estrutura de log de auditoria (genérica, reaproveitável pelo cancelamento no M6) — evento append-only vinculado a `operador_id`.
+- [ ] Estrutura de log de auditoria (genérica, reaproveitável pelo cancelamento no M6) — evento append-only vinculado a `operator_id`.
 
 **Critério de saída do M3:** dá pra cadastrar operadores, logar e navegar respeitando permissões — ainda sem nenhuma feature de mesa/comanda.
 
@@ -86,10 +86,10 @@ Referência: `PRD Épico 2`.
 
 - [ ] Evento/projeção de mesas (cadastro) — PRD 2.1.
 - [ ] Abrir comanda vinculada a mesa, com invariante local "1 comanda aberta por mesa" — PRD 2.2.
-- [ ] Abrir comanda avulsa (numeração sequencial, sem `mesa_id`) — PRD 2.3.
+- [ ] Abrir comanda avulsa (numeração sequencial, sem `table_id`) — PRD 2.3.
 - [ ] Tela de mapa de mesas + lista de comandas abertas (mesa + avulsa) — PRD 2.4.
-- [ ] Transferência de comanda entre mesas (evento `comanda_transferida`, mantendo histórico) — PRD 2.5.
-- [ ] Junção visual de mesas (`mesas_agrupadas`), sem mesclar dados de comanda — PRD 2.6.
+- [ ] Transferência de comanda entre mesas (evento `order_transferred`, mantendo histórico) — PRD 2.5.
+- [ ] Junção visual de mesas (`tables_grouped`), sem mesclar dados de comanda — PRD 2.6.
 - [ ] Enforcement do limite de 10 comandas simultâneas (contagem local mesa+avulsa) — PRD 2.7. *(Neste milestone, usar valor fixo/local do limite; a leitura do valor real do plano via backend entra no M9.)*
 
 **Critério de saída do M5:** fluxo completo de "abrir mesa/comanda avulsa → ver no mapa → transferir/agrupar" funcional em um único terminal, offline.
@@ -100,7 +100,7 @@ Referência: `PRD Épico 2`.
 
 Referência: `PRD Épico 4`. Depende de M4 (produtos) e M5 (comandas).
 
-- [ ] Adicionar item a uma comanda aberta (evento `item_adicionado`) — PRD 4.1.
+- [ ] Adicionar item a uma comanda aberta (evento `item_added`) — PRD 4.1.
 - [ ] Observação por item (ex: "sem cebola") — PRD 4.2.
 - [ ] Cancelamento de item com motivo obrigatório (lista pré-definida + "outro"), gerando evento de auditoria — PRD 4.3, ligado ao log do M3.
 
@@ -116,7 +116,7 @@ Referência: `PRD Épico 5`. Depende de M6.
 - [ ] Split manual (soma exata obrigatória, UI mostra quanto falta/sobra, botão desabilitado até bater) — PRD 5.2.
 - [ ] Registro de forma de pagamento por parte do split (dinheiro/cartão manual) — PRD 5.3.
 - [ ] Cálculo de troco (só sobre a parte em dinheiro) — PRD 5.4.
-- [ ] Fechamento da comanda (evento `comanda_fechada`, imutabilidade pós-fechamento) — PRD 5.5.
+- [ ] Fechamento da comanda (evento `order_closed`, imutabilidade pós-fechamento) — PRD 5.5.
 - [ ] Fechamento conjunto de mesas agrupadas (M5) numa única operação de pagamento — PRD 5.2.
 
 ---
@@ -155,7 +155,7 @@ Referência: `PRD Épico 7`, `ARCH §2, §5`. Este é o milestone de maior risco
 
 Referência: `PRD Épico 8`, `ARCH §6`. Depende de M9 (precisa do backend e do sync).
 
-- [ ] Backend: tabela de planos/assinaturas (`max_comandas_simultaneas`, `max_terminais`).
+- [ ] Backend: tabela de planos/assinaturas (`max_concurrent_orders`, `max_terminals`).
 - [ ] Sidecar: cache local do plano, atualizado a cada sync com a nuvem.
 - [ ] Enforcement real de limite de terminais (bloqueio de 2º terminal no free) — substitui o valor fixo usado provisoriamente no M5.
 - [ ] Enforcement de limite de comandas usando o valor vindo do plano (não mais hardcoded).
