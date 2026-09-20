@@ -2,14 +2,20 @@
   "name": "@passa-a-regua/sidecar",
   "private": true,
   "version": "0.1.0",
-  "description": "Spike 1 (M0): processo sidecar Node embutido no app Tauri via SEA (Single Executable Application).",
+  "description": "Processo sidecar Node embutido no app Tauri via SEA (Single Executable Application) — ARCH §9, M2.",
   "scripts": {
-    "build:ts": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build:bundle": "esbuild src/index.ts --bundle --platform=node --format=cjs --outfile=dist/index.js --external:node:sqlite",
     "build:sea": "node scripts/build-sea.mjs",
-    "build": "npm run build:ts && npm run build:sea"
+    "build": "npm run typecheck && npm run build:bundle && npm run build:sea"
+  },
+  "dependencies": {
+    "@passa-a-regua/shared-types": "*",
+    "@passa-a-regua/sync-engine": "*"
   },
   "devDependencies": {
-    "@types/node": "^26.6.2",
+    "@types/node": "^24.6.2",
+    "esbuild": "^0.28.2",
     "postject": "^1.0.0-alpha.6",
     "typescript": "^5.9.3"
   }
