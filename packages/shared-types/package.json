@@ -1,0 +1,22 @@
+{
+  "name": "@passa-a-regua/shared-types",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Tipos e schemas de validação (Zod) dos eventos compartilhados entre desktop e backend — ARCH §3.1, §8.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.1"
+  }
+}

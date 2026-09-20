@@ -1,0 +1,23 @@
+{
+  "name": "@passa-a-regua/sync-engine",
+  "private": true,
+  "version": "0.0.0",
+  "description": "HLC, persistência de eventos (SQLite) e reconciliação — o coração técnico do projeto (ARCH §3, §4, §8).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@passa-a-regua/shared-types": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "fast-check": "^3.23.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.1"
+  }
+}
