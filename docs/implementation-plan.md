@@ -29,15 +29,15 @@ Objetivo: eliminar as maiores incertezas técnicas antes de comprometer tempo em
 
 Objetivo: ter o pacote `sync-engine` funcional e testado isoladamente, antes de conectá-lo a qualquer UI. Referência: `ARCH §3, §8`.
 
-- [ ] Setup do monorepo (`apps/desktop`, `apps/backend`, `packages/sync-engine`, `packages/shared-types`) com workspace TS (ex: pnpm workspaces ou Turborepo).
-- [ ] `shared-types`: definir os tipos de evento (`EventoBase`, união discriminada por `tipo`) e schemas de validação (ex: Zod) para: `operador_cadastrado`, `comanda_aberta`, `comanda_transferida`, `mesas_agrupadas`, `item_adicionado`, `item_cancelado`, `comanda_fechada`, `pagamento_registrado`.
-- [ ] `sync-engine`: implementar HLC (gerar, comparar, mesclar ao receber evento remoto) com testes unitários.
-- [ ] `sync-engine`: schema SQLite da tabela `eventos` (append-only) + camada de acesso (insert, listar desde cursor, buscar por `aggregate_id`).
-- [ ] `sync-engine`: motor de projeção — função pura `aplicarEvento(estadoAtual, evento) => novoEstado`, testável sem banco (recebe lista de eventos ordenados por HLC, devolve estado materializado).
-- [ ] `sync-engine`: reconciliação — função de merge de dois logs de eventos (dedupe por `id`, reordenação por HLC, aplicação da regra de conflito de comanda duplicada do `ARCH §4.2`).
-- [ ] Suite de testes de propriedade (property-based) para a reconciliação: gerar sequências aleatórias de eventos em ordens diferentes e validar que o estado final é sempre o mesmo (comutatividade do merge).
+- [x] Setup do monorepo: `packages/shared-types` e `packages/sync-engine` criados como membros do workspace npm já existente (mesmo workspace usado pelo `apps/desktop` desde o Spike 1 — sem trocar pra pnpm/Turborepo, não havia necessidade real). `apps/backend` fica de fato criado só no M9, quando existir código pra colocar nele.
+- [x] `shared-types`: tipos + schemas Zod (discriminated union por `tipo`) dos 8 eventos — `operador_cadastrado`, `comanda_aberta`, `comanda_transferida`, `mesas_agrupadas`, `item_adicionado`, `item_cancelado`, `comanda_fechada`, `pagamento_registrado`. Validações do PRD embutidas no schema (motivo de cancelamento da lista fechada, valores em centavos sempre inteiros, origem mesa/avulsa mutuamente exclusiva).
+- [x] `sync-engine`: HLC portado do `spikes/spike-3-reconciliation/` (mesma implementação já validada) com testes unitários + de propriedade.
+- [x] `sync-engine`: schema SQLite da tabela `eventos` + camada de acesso (`inserirEvento`/`inserirEventos` idempotentes por id, `listarEventosDesdeCursor`, `buscarEventosPorAggregateId`) — via `node:sqlite` (embutido no Node, decisão deliberada pra não reintroduzir dependência nativa compilada por plataforma depois do que o Spike 1 validou).
+- [x] `sync-engine`: motor de projeção (`projetar`) — recebe eventos ordenados por HLC, devolve estado materializado de todos os 8 tipos.
+- [x] `sync-engine`: reconciliação (`merge`/`reconciliar`) — dedupe por `id`, reordenação por HLC, regra de conflito de comanda duplicada do `ARCH §4.2` generalizada do spike pro modelo de evento completo.
+- [x] Suite de testes de propriedade (fast-check, ~1300 execuções): comutatividade, idempotência e particionamento de log — mesmo padrão validado no Spike 3.
 
-**Critério de saída do M1:** `sync-engine` tem cobertura de teste sólida e funciona 100% em memória/CLI, sem depender do Tauri ou de rede — isso é o que te dá confiança pra construir tudo o resto em cima.
+**Critério de saída do M1:** ✅ atingido em 2026-09-20 — 27 testes (`shared-types` + `sync-engine`) passando, `sync-engine` funciona 100% em memória (`node:sqlite` com `:memory:` nos testes) e via CLI/Node puro, zero dependência de Tauri ou rede. Achado real ao construir: `node:sqlite` não trata `TEXT PRIMARY KEY` como `NOT NULL` implícito, e `INSERT OR IGNORE` ignora silenciosamente qualquer violação de constraint (não só duplicata de id) — documentado em `packages/sync-engine/src/db.ts`.
 
 ---
 
