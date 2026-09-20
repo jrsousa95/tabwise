@@ -7,6 +7,12 @@
   ],
   "scripts": {
     "dev:tauri": "npm run dev:tauri --workspace=desktop",
-    "build:tauri": "npm run build:tauri --workspace=desktop"
+    "build:tauri": "npm run build:tauri --workspace=desktop",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "husky": "^9.1.7"
   }
 }
