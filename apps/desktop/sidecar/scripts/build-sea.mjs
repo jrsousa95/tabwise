@@ -13,8 +13,10 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, copyFileSync, writeFileSync, rmSync } from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
+const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sidecarRoot = path.resolve(__dirname, "..");
 const distDir = path.join(sidecarRoot, "dist");
@@ -84,13 +86,15 @@ function main() {
   }
 
   console.log("[build-sea] injetando o blob no binário via postject...");
-  // No Windows, "npx" é um shim .cmd (npx.cmd), não um executável direto —
-  // execFileSync sem shell:true falha com ENOENT tentando rodar "npx" puro
-  // (só apareceu rodando em Windows real via CI, não no cross-build do Mac).
+  // Chamar via "npx" (ou "npx.cmd" no Windows) exige shell:true no Windows
+  // pra rodar um shim .cmd (senão dá ENOENT/EINVAL) — em vez de lidar com
+  // isso por SO, resolve o CLI do postject direto e roda com `node`,
+  // idêntico em qualquer plataforma.
+  const postjectCli = require.resolve("postject/dist/cli.js");
   execFileSync(
-    process.platform === "win32" ? "npx.cmd" : "npx",
+    process.execPath,
     [
-      "postject",
+      postjectCli,
       outputPath,
       "NODE_SEA_BLOB",
       blobPath,
