@@ -203,6 +203,16 @@
   max-width: 420px;
 }
 
+.table-map-section {
+  margin-bottom: 2.5em;
+}
+
+.transfer-control {
+  display: inline-flex;
+  gap: 0.4em;
+  align-items: center;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;

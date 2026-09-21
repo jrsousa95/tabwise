@@ -5,13 +5,15 @@ function base() {
   return { id: "ev-1", hlc: "0000000000000001-00000000", operatorId: "op-1", terminalId: "t-1", createdAt: 1700000000000 };
 }
 
-describe("DomainEventSchema — discriminated union dos 11 tipos (PRD/ARCH §3.1)", () => {
+describe("DomainEventSchema — discriminated union dos 12 tipos (PRD/ARCH §3.1)", () => {
   it("aceita um evento válido de cada tipo", () => {
     const validEvents = [
       { ...base(), type: "operator_registered", aggregateType: "operator", aggregateId: "op-1", payload: { name: "Ana", role: "waiter", pinHash: "hash" } },
       { ...base(), type: "category_registered", aggregateType: "category", aggregateId: "cat-1", payload: { name: "Bebidas" } },
       { ...base(), type: "product_registered", aggregateType: "product", aggregateId: "p-1", payload: { name: "Cerveja", priceCents: 1200, categoryId: "cat-1", active: true } },
       { ...base(), type: "product_status_changed", aggregateType: "product", aggregateId: "p-1", payload: { active: false } },
+      { ...base(), type: "table_registered", aggregateType: "table", aggregateId: "m-1", payload: { identifier: "Mesa 1", capacity: 4 } },
+      { ...base(), type: "table_registered", aggregateType: "table", aggregateId: "m-2", payload: { identifier: "Mesa 2" } },
       { ...base(), type: "order_opened", aggregateType: "order", aggregateId: "c-1", payload: { source: "table", tableId: "m-1" } },
       { ...base(), type: "order_opened", aggregateType: "order", aggregateId: "c-2", payload: { source: "standalone", number: 7 } },
       { ...base(), type: "order_transferred", aggregateType: "order", aggregateId: "c-1", payload: { originTableId: "m-1", destinationTableId: "m-2" } },

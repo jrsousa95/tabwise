@@ -48,19 +48,33 @@ function currentOperators() {
   return currentState().operators;
 }
 
-/**
- * PRD 3.1/3.2 — só o dono cadastra categoria/produto (sem caso de bootstrap
- * aqui, ao contrário de `POST /operators`: pra chegar nessas telas já
- * precisa existir pelo menos um operador logado).
- */
-function requireOwner(res: http.ServerResponse) {
+/** Qualquer operação que precise saber "quem está fazendo isso" (fora do bootstrap de `POST /operators`). */
+function requireSession(res: http.ServerResponse) {
   const session = loadSession(dataDir);
   const acting = currentOperators().find((o) => o.id === session?.operatorId);
-  if (!acting || acting.role !== "owner") {
+  if (!acting) {
+    sendJson(res, 401, { error: "faça login primeiro" });
+    return null;
+  }
+  return acting;
+}
+
+/** PRD 3.1/3.2/2.1 — só o dono cadastra categoria/produto/mesa. */
+function requireOwner(res: http.ServerResponse) {
+  const acting = requireSession(res);
+  if (!acting) return null;
+  if (acting.role !== "owner") {
     sendJson(res, 403, { error: "só o dono pode fazer isso" });
     return null;
   }
   return acting;
+}
+
+/** PRD 2.7 — valor fixo/local até o M9 ler o limite real do plano via backend. */
+const MAX_CONCURRENT_ORDERS = 10;
+
+function isTableFree(state: ReturnType<typeof currentState>, tableId: string): boolean {
+  return !state.orders.some((o) => o.mergedInto === undefined && o.status === "open" && o.currentTableId === tableId);
 }
 
 /**
@@ -352,6 +366,203 @@ const server = http.createServer(async (req, res) => {
       });
       insertEvent(db, event);
       sendJson(res, 200, { id: productId, active: body.active });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/tables") {
+    try {
+      const acting = requireOwner(res);
+      if (!acting) return;
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const identifier = typeof body?.identifier === "string" ? body.identifier.trim() : "";
+      const capacity = body?.capacity;
+      if (identifier.length === 0) {
+        sendJson(res, 400, { error: "identificador da mesa é obrigatório" });
+        return;
+      }
+      if (capacity !== undefined && (typeof capacity !== "number" || !Number.isInteger(capacity) || capacity <= 0)) {
+        sendJson(res, 400, { error: "capacidade precisa ser um número inteiro positivo" });
+        return;
+      }
+
+      const tableId = randomUUID();
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "table_registered",
+        aggregateType: "table",
+        aggregateId: tableId,
+        payload: capacity === undefined ? { identifier } : { identifier, capacity },
+      });
+      insertEvent(db, event);
+      sendJson(res, 201, { id: tableId, identifier, capacity });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/orders") {
+    try {
+      const acting = requireSession(res);
+      if (!acting) return;
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const source = body?.source;
+      if (source !== "table" && source !== "standalone") {
+        sendJson(res, 400, { error: "source precisa ser 'table' ou 'standalone'" });
+        return;
+      }
+
+      const state = currentState();
+      const openOrders = state.orders.filter((o) => o.mergedInto === undefined && o.status === "open");
+      // PRD 2.7 — limite fixo/local; leitura do valor real do plano entra no M9.
+      if (openOrders.length >= MAX_CONCURRENT_ORDERS) {
+        sendJson(res, 409, { error: `limite de ${MAX_CONCURRENT_ORDERS} comandas simultâneas atingido` });
+        return;
+      }
+
+      let payload: { source: "table"; tableId: string } | { source: "standalone"; number: number };
+      if (source === "table") {
+        const tableId = typeof body?.tableId === "string" ? body.tableId : "";
+        if (!state.tables.some((t) => t.id === tableId)) {
+          sendJson(res, 400, { error: "mesa não encontrada" });
+          return;
+        }
+        // PRD 2.2 — invariante local "1 comanda aberta por mesa" (conflito
+        // entre terminais offline continua resolvido pelo ARCH §4.2 na
+        // hora de mesclar — isso aqui só evita o caso óbvio no mesmo terminal).
+        if (!isTableFree(state, tableId)) {
+          sendJson(res, 409, { error: "mesa já tem uma comanda aberta" });
+          return;
+        }
+        payload = { source: "table", tableId };
+      } else {
+        // PRD 2.3 — número sequencial visível, nunca reaproveitado.
+        const usedNumbers = state.orders
+          .filter((o) => o.origin.source === "standalone")
+          .map((o) => (o.origin as { number: number }).number);
+        const number = usedNumbers.length > 0 ? Math.max(...usedNumbers) + 1 : 1;
+        payload = { source: "standalone", number };
+      }
+
+      const orderId = randomUUID();
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "order_opened",
+        aggregateType: "order",
+        aggregateId: orderId,
+        payload,
+      });
+      insertEvent(db, event);
+      sendJson(res, 201, { id: orderId, ...payload });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  const orderTransferMatch = url.pathname.match(/^\/orders\/([^/]+)\/transfer$/);
+  if (req.method === "POST" && orderTransferMatch) {
+    try {
+      const acting = requireSession(res);
+      if (!acting) return;
+
+      const orderId = orderTransferMatch[1]!;
+      const state = currentState();
+      const order = state.orders.find((o) => o.id === orderId);
+      if (!order || order.mergedInto !== undefined) {
+        sendJson(res, 404, { error: "comanda não encontrada" });
+        return;
+      }
+      if (order.status !== "open") {
+        sendJson(res, 409, { error: "comanda fechada não pode ser transferida" });
+        return;
+      }
+      if (!order.currentTableId) {
+        sendJson(res, 409, { error: "comanda avulsa não tem mesa pra transferir" });
+        return;
+      }
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const destinationTableId = typeof body?.destinationTableId === "string" ? body.destinationTableId : "";
+      if (!state.tables.some((t) => t.id === destinationTableId)) {
+        sendJson(res, 400, { error: "mesa de destino não encontrada" });
+        return;
+      }
+      if (destinationTableId === order.currentTableId) {
+        sendJson(res, 400, { error: "mesa de destino é a mesma mesa atual" });
+        return;
+      }
+      // PRD 2.5 — mesa de destino precisa estar livre (senão é caso de
+      // junção, história 2.6 — não de transferência).
+      if (!isTableFree(state, destinationTableId)) {
+        sendJson(res, 409, { error: "mesa de destino já tem uma comanda aberta" });
+        return;
+      }
+
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "order_transferred",
+        aggregateType: "order",
+        aggregateId: orderId,
+        payload: { originTableId: order.currentTableId, destinationTableId },
+      });
+      insertEvent(db, event);
+      sendJson(res, 200, { id: orderId, originTableId: order.currentTableId, destinationTableId });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/table-groups") {
+    try {
+      const acting = requireSession(res);
+      if (!acting) return;
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const tableIds = Array.isArray(body?.tableIds) ? body.tableIds.filter((id): id is string => typeof id === "string") : [];
+      const uniqueTableIds = [...new Set(tableIds)];
+      if (uniqueTableIds.length < 2) {
+        sendJson(res, 400, { error: "junção de mesas exige pelo menos 2 mesas distintas" });
+        return;
+      }
+      const tables = currentState().tables;
+      if (!uniqueTableIds.every((id) => tables.some((t) => t.id === id))) {
+        sendJson(res, 400, { error: "uma ou mais mesas não encontradas" });
+        return;
+      }
+
+      const groupId = randomUUID();
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "tables_grouped",
+        aggregateType: "table_group",
+        aggregateId: groupId,
+        payload: { tableIds: uniqueTableIds },
+      });
+      insertEvent(db, event);
+      sendJson(res, 201, { id: groupId, tableIds: uniqueTableIds });
     } catch {
       sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
     }

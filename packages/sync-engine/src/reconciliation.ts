@@ -87,6 +87,12 @@ export interface ProductState {
   readonly active: boolean;
 }
 
+export interface TableState {
+  readonly id: string;
+  readonly identifier: string;
+  readonly capacity?: number;
+}
+
 export interface MergeWarning {
   readonly losingOrder: string;
   readonly canonicalOrder: string;
@@ -99,6 +105,7 @@ export interface ProjectedState {
   readonly tableGroups: readonly TableGroupState[];
   readonly categories: readonly CategoryState[];
   readonly products: readonly ProductState[];
+  readonly tables: readonly TableState[];
   /** Base pro indicador não bloqueante que a UI deve mostrar (ARCH §4.2). */
   readonly mergeWarnings: readonly MergeWarning[];
 }
@@ -133,6 +140,7 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
   const tableGroups = new Map<string, TableGroupState>();
   const categories = new Map<string, CategoryState>();
   const products = new Map<string, ProductState>();
+  const tables = new Map<string, TableState>();
   const mergeWarnings: MergeWarning[] = [];
 
   function resolveCanonical(orderId: string): MutableOrder {
@@ -180,6 +188,15 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
       case "product_status_changed": {
         const existing = products.get(event.aggregateId);
         if (existing) products.set(event.aggregateId, { ...existing, active: event.payload.active });
+        break;
+      }
+
+      case "table_registered": {
+        tables.set(event.aggregateId, {
+          id: event.aggregateId,
+          identifier: event.payload.identifier,
+          capacity: event.payload.capacity,
+        });
         break;
       }
 
@@ -293,6 +310,7 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
     tableGroups: [...tableGroups.values()].sort((a, b) => compareText(a.id, b.id)),
     categories: [...categories.values()].sort((a, b) => compareText(a.id, b.id)),
     products: [...products.values()].sort((a, b) => compareText(a.id, b.id)),
+    tables: [...tables.values()].sort((a, b) => compareText(a.id, b.id)),
     mergeWarnings: [...mergeWarnings].sort((a, b) => compareText(a.losingOrder, b.losingOrder)),
   };
 }

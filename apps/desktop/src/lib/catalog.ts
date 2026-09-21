@@ -15,9 +15,11 @@ export function useCatalog() {
   const refresh = useCallback(async () => {
     try {
       const res = await fetch(`${SIDECAR_URL}/state`);
-      const data = (await res.json()) as { categories: Category[]; products: Product[] };
-      setCategories(data.categories);
-      setProducts(data.products);
+      const data = (await res.json()) as Partial<{ categories: Category[]; products: Product[] }>;
+      // Fallback pra [] se o sidecar rodando for de uma versão anterior a
+      // esses campos existirem (não reinicia sozinho com HMR do frontend).
+      setCategories(data.categories ?? []);
+      setProducts(data.products ?? []);
     } catch {
       setCategories([]);
       setProducts([]);

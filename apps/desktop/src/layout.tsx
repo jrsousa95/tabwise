@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useSidecarHealth, useSidecarIpcCheck } from "./lib/sidecar";
+import { useSidecarHealth } from "./lib/sidecar";
 import { useSession } from "./lib/session";
 
 const navLinkClassName = ({ isActive }: { isActive: boolean }) => (isActive ? "nav-link nav-link-active" : "nav-link");
@@ -13,7 +13,6 @@ const roleLabel: Record<string, string> = { owner: "dono", cashier: "caixa", wai
  */
 function Layout() {
   const { health, error } = useSidecarHealth();
-  const ipcCheck = useSidecarIpcCheck();
   const { operator, logout } = useSession();
   const navigate = useNavigate();
 
@@ -56,9 +55,6 @@ function Layout() {
         )}
         <span className={`sidecar-status ${health ? "sidecar-status-ok" : "sidecar-status-down"}`}>
           {health ? "sidecar ok" : `sidecar offline${error ? ` (${error})` : ""}`}
-        </span>
-        <span className={`sidecar-status sidecar-status-${ipcCheck === "ok" ? "ok" : ipcCheck === "error" ? "down" : "pending"}`}>
-          {ipcCheck === "ok" ? "IPC ok" : ipcCheck === "error" ? "IPC falhou" : "IPC..."}
         </span>
       </header>
       <main className="app-content">

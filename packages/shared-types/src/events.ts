@@ -55,6 +55,18 @@ export const ProductStatusChangedSchema = baseEventSchema.extend({
 });
 export type ProductStatusChanged = z.infer<typeof ProductStatusChangedSchema>;
 
+/** PRD 2.1 — cadastro de mesa (dono). `aggregateId` é o id da mesa criada. */
+export const TableRegisteredSchema = baseEventSchema.extend({
+  type: z.literal("table_registered"),
+  aggregateType: z.literal("table"),
+  aggregateId: z.string().min(1),
+  payload: z.object({
+    identifier: z.string().min(1),
+    capacity: z.number().int().positive().optional(),
+  }),
+});
+export type TableRegistered = z.infer<typeof TableRegisteredSchema>;
+
 /**
  * PRD 2.2/2.3 — order vinculada a uma mesa OU avulsa (nunca as duas).
  * `aggregateId` é o id da order sendo aberta.
@@ -171,6 +183,7 @@ export const DomainEventSchema = z.discriminatedUnion("type", [
   CategoryRegisteredSchema,
   ProductRegisteredSchema,
   ProductStatusChangedSchema,
+  TableRegisteredSchema,
   OrderOpenedSchema,
   OrderTransferredSchema,
   TablesGroupedSchema,
