@@ -74,3 +74,20 @@ export function addItemToOrder(orderId: string, input: { productId: string; quan
 export function cancelItem(orderId: string, itemId: string, input: { reason: CancelReason; note?: string }) {
   return postJson<{ itemId: string }>(`/orders/${orderId}/items/${itemId}/cancel`, input);
 }
+
+function subtotalOf(order: OrderDetail): number {
+  return order.items.filter((i) => !i.canceled).reduce((sum, i) => sum + i.unitPriceCents * i.quantity, 0);
+}
+
+/**
+ * PRD 2.6/5.2 — subtotal combinado de várias comandas (fechamento conjunto
+ * de mesas agrupadas). Não dá pra derivar isso do `useTablesAndOrders`
+ * porque aquele hook não carrega os itens de cada comanda, só o essencial
+ * pro mapa de mesas — por isso um fetch próprio aqui.
+ */
+export async function fetchCombinedSubtotalCents(orderIds: string[]): Promise<number> {
+  const res = await fetch(`${SIDECAR_URL}/state`);
+  const data = (await res.json()) as Partial<{ orders: OrderDetail[] }>;
+  const orders = (data.orders ?? []).filter((o) => orderIds.includes(o.id));
+  return orders.reduce((sum, o) => sum + subtotalOf(o), 0);
+}

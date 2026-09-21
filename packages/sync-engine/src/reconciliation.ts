@@ -95,6 +95,13 @@ export interface TableState {
   readonly capacity?: number;
 }
 
+/** PRD 5.1 — 10% é o default até o dono configurar algo diferente; sem evento nenhum, vale esse valor. */
+export const DEFAULT_SERVICE_FEE_PERCENT = 10;
+
+export interface EstablishmentState {
+  readonly defaultServiceFeePercent: number;
+}
+
 export interface MergeWarning {
   readonly losingOrder: string;
   readonly canonicalOrder: string;
@@ -108,6 +115,7 @@ export interface ProjectedState {
   readonly categories: readonly CategoryState[];
   readonly products: readonly ProductState[];
   readonly tables: readonly TableState[];
+  readonly establishment: EstablishmentState;
   /** Base pro indicador não bloqueante que a UI deve mostrar (ARCH §4.2). */
   readonly mergeWarnings: readonly MergeWarning[];
 }
@@ -143,6 +151,7 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
   const categories = new Map<string, CategoryState>();
   const products = new Map<string, ProductState>();
   const tables = new Map<string, TableState>();
+  let establishment: EstablishmentState = { defaultServiceFeePercent: DEFAULT_SERVICE_FEE_PERCENT };
   const mergeWarnings: MergeWarning[] = [];
 
   function resolveCanonical(orderId: string): MutableOrder {
@@ -190,6 +199,11 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
       case "product_status_changed": {
         const existing = products.get(event.aggregateId);
         if (existing) products.set(event.aggregateId, { ...existing, active: event.payload.active });
+        break;
+      }
+
+      case "establishment_settings_updated": {
+        establishment = { defaultServiceFeePercent: event.payload.defaultServiceFeePercent };
         break;
       }
 
@@ -314,6 +328,7 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
     categories: [...categories.values()].sort((a, b) => compareText(a.id, b.id)),
     products: [...products.values()].sort((a, b) => compareText(a.id, b.id)),
     tables: [...tables.values()].sort((a, b) => compareText(a.id, b.id)),
+    establishment,
     mergeWarnings: [...mergeWarnings].sort((a, b) => compareText(a.losingOrder, b.losingOrder)),
   };
 }

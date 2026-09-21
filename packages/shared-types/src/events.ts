@@ -1,5 +1,21 @@
 import { z } from "zod";
-import { baseEventSchema, PaymentMethodSchema, CancelReasonSchema, OperatorRoleSchema } from "./common.js";
+import { baseEventSchema, PaymentMethodSchema, CancelReasonSchema, OperatorRoleSchema, ESTABLISHMENT_ID } from "./common.js";
+
+/**
+ * PRD 5.1 — percentual padrão de taxa de serviço do estabelecimento
+ * (default 10%, ajustável/isentável por comanda individual no fechamento —
+ * ver `OrderClosedSchema`). `aggregateId` é sempre `ESTABLISHMENT_ID`
+ * (singleton neste MVP local-first).
+ */
+export const EstablishmentSettingsUpdatedSchema = baseEventSchema.extend({
+  type: z.literal("establishment_settings_updated"),
+  aggregateType: z.literal("establishment"),
+  aggregateId: z.literal(ESTABLISHMENT_ID),
+  payload: z.object({
+    defaultServiceFeePercent: z.number().nonnegative(),
+  }),
+});
+export type EstablishmentSettingsUpdated = z.infer<typeof EstablishmentSettingsUpdatedSchema>;
 
 /** PRD 1.1 — cadastro de operador (nome, papel, PIN). `aggregateId` é o próprio id do operador criado. */
 export const OperatorRegisteredSchema = baseEventSchema.extend({
@@ -179,6 +195,7 @@ export const PaymentRecordedSchema = baseEventSchema.extend({
 export type PaymentRecorded = z.infer<typeof PaymentRecordedSchema>;
 
 export const DomainEventSchema = z.discriminatedUnion("type", [
+  EstablishmentSettingsUpdatedSchema,
   OperatorRegisteredSchema,
   CategoryRegisteredSchema,
   ProductRegisteredSchema,

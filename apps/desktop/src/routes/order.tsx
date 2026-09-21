@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useSession } from "../lib/session";
 import { useOrder, addItemToOrder, cancelItem } from "../lib/order";
 import { useTablesAndOrders } from "../lib/tables";
@@ -7,13 +7,17 @@ import { formatCentsToBRL } from "../lib/money";
 import { cancelReasonLabel, cancelReasons, type CancelReason } from "../lib/cancel-reason";
 import type { Product } from "../lib/catalog";
 import ProductSearch from "../product-search";
+import OrderClosing from "../order-closing";
 
-/** PRD Épico 4 (M6) — lançamento e cancelamento de itens. Fechamento (M7) ainda não entra aqui. */
+/** PRD Épico 4/5 (M6/M7) — lançamento/cancelamento de itens e fechamento de comanda. */
 function Order() {
   const { orderId } = useParams<{ orderId: string }>();
+  const navigate = useNavigate();
   const { operator } = useSession();
   const { status, order, refresh } = useOrder(orderId);
-  const { tables } = useTablesAndOrders();
+  const { tables, orders, tableGroups } = useTablesAndOrders();
+
+  const [closing, setClosing] = useState(false);
 
   const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState("1");
@@ -26,7 +30,8 @@ function Order() {
   const [cancelNote, setCancelNote] = useState("");
   const [cancelError, setCancelError] = useState<string | null>(null);
 
-  const canCancelItems = operator?.role === "owner" || operator?.role === "cashier";
+  // PRD §2 — garçom lança item mas não cancela nem fecha comanda; só caixa/dono.
+  const canManageOrder = operator?.role === "owner" || operator?.role === "cashier";
 
   if (status === "loading") {
     return (
@@ -47,6 +52,13 @@ function Order() {
   const tableLabel = order.currentTableId ? tables.find((t) => t.id === order.currentTableId)?.identifier : undefined;
   const title = order.origin.source === "table" ? `Comanda — ${tableLabel ?? "mesa"}` : `Comanda avulsa #${order.origin.number}`;
   const subtotalCents = order.items.filter((i) => !i.canceled).reduce((sum, i) => sum + i.unitPriceCents * i.quantity, 0);
+
+  // PRD 2.6/5.2 — outras comandas abertas em mesas do mesmo grupo visual
+  // desta, se houver — habilita a opção de fechamento conjunto.
+  const tableGroup = order.currentTableId ? tableGroups.find((g) => g.tableIds.includes(order.currentTableId!)) : undefined;
+  const groupOrderIds = tableGroup
+    ? orders.filter((o) => o.mergedInto === undefined && o.status === "open" && o.currentTableId && tableGroup.tableIds.includes(o.currentTableId)).map((o) => o.id)
+    : [];
 
   function handleSelectProduct(product: Product) {
     setPendingProduct(product);
@@ -129,7 +141,7 @@ function Order() {
               <td>{formatCentsToBRL(item.unitPriceCents)}</td>
               <td>{formatCentsToBRL(item.unitPriceCents * item.quantity)}</td>
               <td>
-                {!item.canceled && canCancelItems && order.status === "open" && (
+                {!item.canceled && canManageOrder && order.status === "open" && (
                   <button type="button" onClick={() => setCancelingItemId(item.id)}>
                     Cancelar
                   </button>
@@ -207,6 +219,22 @@ function Order() {
           )}
 
           <ProductSearch onSelect={handleSelectProduct} />
+
+          {canManageOrder &&
+            (closing ? (
+              <OrderClosing
+                orderId={orderId}
+                subtotalCents={subtotalCents}
+                groupOrderIds={groupOrderIds}
+                onClosed={() => navigate("/tables")}
+              />
+            ) : (
+              <div className="table-map-section">
+                <button type="button" onClick={() => setClosing(true)}>
+                  Fechar comanda
+                </button>
+              </div>
+            ))}
         </>
       )}
     </section>

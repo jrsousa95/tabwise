@@ -1,10 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCatalog, createCategory, createProduct, setProductActive } from "../lib/catalog";
 import { formatCentsToBRL, parseReaisToCents } from "../lib/money";
+import { useEstablishment, updateEstablishmentSettings } from "../lib/closing";
 
-/** PRD Épico 3/M4 — cadastro de categorias e produtos (dono). */
+/** PRD Épico 3/M4 — cadastro de categorias e produtos (dono). PRD 5.1 — taxa de serviço padrão do estabelecimento. */
 function Catalog() {
   const { status, categories, products, refresh } = useCatalog();
+  const { status: establishmentStatus, defaultServiceFeePercent, refresh: refreshEstablishment } = useEstablishment();
+
+  const [serviceFeePercent, setServiceFeePercent] = useState("10");
+  const [serviceFeeError, setServiceFeeError] = useState<string | null>(null);
+  const [serviceFeeSubmitting, setServiceFeeSubmitting] = useState(false);
+  const [serviceFeeSaved, setServiceFeeSaved] = useState(false);
+
+  useEffect(() => {
+    if (establishmentStatus === "ready") setServiceFeePercent(String(defaultServiceFeePercent));
+  }, [establishmentStatus, defaultServiceFeePercent]);
 
   const [categoryName, setCategoryName] = useState("");
   const [categoryError, setCategoryError] = useState<string | null>(null);
@@ -55,6 +66,23 @@ function Catalog() {
     refresh();
   }
 
+  async function handleSaveServiceFee(e: React.FormEvent) {
+    e.preventDefault();
+    const percent = Number(serviceFeePercent.replace(",", "."));
+    if (!Number.isFinite(percent) || percent < 0 || serviceFeeSubmitting) return;
+    setServiceFeeSubmitting(true);
+    setServiceFeeError(null);
+    setServiceFeeSaved(false);
+    const result = await updateEstablishmentSettings(percent);
+    setServiceFeeSubmitting(false);
+    if (!result.ok) {
+      setServiceFeeError(result.error);
+      return;
+    }
+    setServiceFeeSaved(true);
+    refreshEstablishment();
+  }
+
   if (status === "loading") {
     return (
       <section>
@@ -66,8 +94,31 @@ function Catalog() {
   const categoryLabel = (categoryId: string) => categories.find((c) => c.id === categoryId)?.name ?? "—";
 
   return (
-    <section className="catalog">
-      <div className="catalog-column">
+    <section>
+      <div className="table-map-section">
+        <h2>Configurações do estabelecimento</h2>
+        <form onSubmit={handleSaveServiceFee} className="inline-form">
+          <label>
+            Taxa de serviço padrão (%)
+            <input
+              value={serviceFeePercent}
+              onChange={(e) => {
+                setServiceFeePercent(e.target.value.replace(/[^0-9,.]/g, ""));
+                setServiceFeeSaved(false);
+              }}
+              inputMode="decimal"
+            />
+          </label>
+          <button type="submit" disabled={serviceFeeSubmitting}>
+            Salvar
+          </button>
+        </form>
+        {serviceFeeError && <p className="form-error">{serviceFeeError}</p>}
+        {serviceFeeSaved && <p>Taxa de serviço padrão atualizada.</p>}
+      </div>
+
+      <div className="catalog">
+        <div className="catalog-column">
         <h2>Categorias</h2>
         <form onSubmit={handleAddCategory} className="inline-form">
           <input
@@ -154,6 +205,7 @@ function Catalog() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </section>
   );

@@ -77,6 +77,77 @@ function isTableFree(state: ReturnType<typeof currentState>, tableId: string): b
   return !state.orders.some((o) => o.mergedInto === undefined && o.status === "open" && o.currentTableId === tableId);
 }
 
+type Order = ReturnType<typeof currentState>["orders"][number];
+
+/** PRD 5.1 — soma dos itens não cancelados; nunca confia num subtotal vindo do cliente. */
+function computeSubtotalCents(order: Order): number {
+  return order.items.filter((i) => !i.canceled).reduce((sum, i) => sum + i.unitPriceCents * i.quantity, 0);
+}
+
+/** PRD 5.2 — divisão em partes iguais: resto da divisão inteira vai determinística pra primeira parcela. */
+function distributeEqually(total: number, parts: number): number[] {
+  const base = Math.floor(total / parts);
+  const result = new Array(parts).fill(base) as number[];
+  result[0] += total - base * parts;
+  return result;
+}
+
+/**
+ * PRD 5.2 (fechamento conjunto de mesas agrupadas) — distribui `total` entre
+ * `weights` proporcionalmente, com o resto da divisão inteira indo pra
+ * primeira posição (mesmo princípio do split igual). Cai pra divisão igual
+ * se todos os pesos forem 0 (evita divisão por zero).
+ */
+function distributeProportionally(total: number, weights: readonly number[]): number[] {
+  if (weights.length === 0) return [];
+  const weightSum = weights.reduce((a, b) => a + b, 0);
+  if (weightSum === 0) return distributeEqually(total, weights.length);
+  const shares = weights.map((w) => Math.floor((total * w) / weightSum));
+  const distributed = shares.reduce((a, b) => a + b, 0);
+  shares[0] += total - distributed;
+  return shares;
+}
+
+type Payment = { amountCents: number; paymentMethod: "cash" | "card"; changeCents: number };
+
+/**
+ * PRD 5.2/5.3/5.4 — valida as partes do split (soma exata obrigatória, sem
+ * tolerância) e calcula o troco de cada parte em dinheiro.
+ */
+function parseSplits(splitsInput: readonly unknown[], totalCents: number): { ok: true; payments: Payment[] } | { ok: false; error: string } {
+  if (splitsInput.length === 0) return { ok: false, error: "informe ao menos uma parte do pagamento" };
+
+  const payments: Payment[] = [];
+  let sum = 0;
+  for (const raw of splitsInput) {
+    const split = raw as Record<string, unknown> | null;
+    const amountCents = split?.amountCents;
+    const paymentMethod = split?.paymentMethod;
+    if (typeof amountCents !== "number" || !Number.isInteger(amountCents) || amountCents <= 0) {
+      return { ok: false, error: "cada parte do split precisa de um valor inteiro positivo" };
+    }
+    if (paymentMethod !== "cash" && paymentMethod !== "card") {
+      return { ok: false, error: "forma de pagamento precisa ser 'cash' ou 'card'" };
+    }
+    let changeCents = 0;
+    if (paymentMethod === "cash") {
+      const cashReceivedCents = split?.cashReceivedCents;
+      if (typeof cashReceivedCents !== "number" || !Number.isInteger(cashReceivedCents) || cashReceivedCents < amountCents) {
+        return { ok: false, error: "valor recebido em dinheiro precisa ser maior ou igual ao valor da parte" };
+      }
+      // PRD 5.4 — troco só se aplica à parte em dinheiro.
+      changeCents = cashReceivedCents - amountCents;
+    }
+    payments.push({ amountCents, paymentMethod, changeCents });
+    sum += amountCents;
+  }
+  // PRD 5.2 — sem faixa de tolerância, a soma precisa bater exata.
+  if (sum !== totalCents) {
+    return { ok: false, error: `soma das partes (${sum}) precisa ser exatamente igual ao total (${totalCents})` };
+  }
+  return { ok: true, payments };
+}
+
 /**
  * CORS: o frontend (http://localhost:1420 em dev, tauri://localhost ou
  * https://tauri.localhost em produção) e o sidecar (http://127.0.0.1:4550)
@@ -409,6 +480,37 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && url.pathname === "/establishment/settings") {
+    try {
+      const acting = requireOwner(res);
+      if (!acting) return;
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const defaultServiceFeePercent = body?.defaultServiceFeePercent;
+      if (typeof defaultServiceFeePercent !== "number" || defaultServiceFeePercent < 0) {
+        sendJson(res, 400, { error: "taxa de serviço padrão precisa ser um número >= 0" });
+        return;
+      }
+
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "establishment_settings_updated",
+        aggregateType: "establishment",
+        aggregateId: "establishment",
+        payload: { defaultServiceFeePercent },
+      });
+      insertEvent(db, event);
+      sendJson(res, 200, { defaultServiceFeePercent });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/orders") {
     try {
       const acting = requireSession(res);
@@ -684,6 +786,216 @@ const server = http.createServer(async (req, res) => {
       });
       insertEvent(db, event);
       sendJson(res, 200, { itemId, reason: reasonResult.data, note });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  const orderCloseMatch = url.pathname.match(/^\/orders\/([^/]+)\/close$/);
+  if (req.method === "POST" && orderCloseMatch) {
+    try {
+      const acting = requireSession(res);
+      if (!acting) return;
+      // PRD §2 — fechamento é ação de caixa/dono, garçom não fecha comanda.
+      if (acting.role === "waiter") {
+        sendJson(res, 403, { error: "garçom não pode fechar comanda" });
+        return;
+      }
+
+      const orderId = orderCloseMatch[1]!;
+      const state = currentState();
+      const order = state.orders.find((o) => o.id === orderId);
+      if (!order || order.mergedInto !== undefined) {
+        sendJson(res, 404, { error: "comanda não encontrada" });
+        return;
+      }
+      if (order.status !== "open") {
+        sendJson(res, 409, { error: "comanda já está fechada" });
+        return;
+      }
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const serviceFeePercent = body?.serviceFeePercent;
+      if (typeof serviceFeePercent !== "number" || serviceFeePercent < 0) {
+        sendJson(res, 400, { error: "taxa de serviço inválida" });
+        return;
+      }
+      const splitsInput = Array.isArray(body?.splits) ? body.splits : [];
+
+      const subtotalCents = computeSubtotalCents(order);
+      const serviceFeeCents = Math.round((subtotalCents * serviceFeePercent) / 100);
+      const totalCents = subtotalCents + serviceFeeCents;
+
+      const splitsResult = parseSplits(splitsInput, totalCents);
+      if (!splitsResult.ok) {
+        sendJson(res, 400, { error: splitsResult.error });
+        return;
+      }
+
+      const closedEvent = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "order_closed",
+        aggregateType: "order",
+        aggregateId: orderId,
+        payload: { subtotalCents, serviceFeePercent, serviceFeeCents, totalCents },
+      });
+      insertEvent(db, closedEvent);
+
+      for (const payment of splitsResult.payments) {
+        const paymentEvent = DomainEventSchema.parse({
+          id: randomUUID(),
+          hlc: nextHlc(),
+          operatorId: acting.id,
+          terminalId,
+          createdAt: Date.now(),
+          type: "payment_recorded",
+          aggregateType: "order",
+          aggregateId: orderId,
+          payload: payment,
+        });
+        insertEvent(db, paymentEvent);
+      }
+
+      sendJson(res, 200, { id: orderId, subtotalCents, serviceFeePercent, serviceFeeCents, totalCents, payments: splitsResult.payments });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  const orderCloseGroupMatch = url.pathname.match(/^\/orders\/([^/]+)\/close-group$/);
+  if (req.method === "POST" && orderCloseGroupMatch) {
+    try {
+      const acting = requireSession(res);
+      if (!acting) return;
+      if (acting.role === "waiter") {
+        sendJson(res, 403, { error: "garçom não pode fechar comanda" });
+        return;
+      }
+
+      const primaryOrderId = orderCloseGroupMatch[1]!;
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const orderIdsInput = Array.isArray(body?.orderIds) ? body.orderIds.filter((id): id is string => typeof id === "string") : [];
+      const orderIds = [...new Set(orderIdsInput)];
+      if (!orderIds.includes(primaryOrderId) || orderIds.length < 2) {
+        sendJson(res, 400, {
+          error: "fechamento conjunto exige pelo menos 2 comandas, incluindo a da URL",
+        });
+        return;
+      }
+
+      const state = currentState();
+      const orders = orderIds.map((id) => state.orders.find((o) => o.id === id));
+      if (orders.some((o) => !o || o.mergedInto !== undefined)) {
+        sendJson(res, 404, { error: "uma ou mais comandas não encontradas" });
+        return;
+      }
+      const resolvedOrders = orders as Order[];
+      if (resolvedOrders.some((o) => o.status !== "open")) {
+        sendJson(res, 409, { error: "uma ou mais comandas já estão fechadas" });
+        return;
+      }
+      // PRD 2.6/5.2 — fechamento conjunto só vale pra mesas marcadas como
+      // juntas; sem isso, cada comanda fecha sozinha via POST /orders/:id/close.
+      const tableIds = resolvedOrders.map((o) => o.currentTableId);
+      if (tableIds.some((id) => !id)) {
+        sendJson(res, 400, { error: "comanda avulsa não participa de fechamento conjunto" });
+        return;
+      }
+      const sameGroup = state.tableGroups.some((g) => tableIds.every((id) => g.tableIds.includes(id!)));
+      if (!sameGroup) {
+        sendJson(res, 400, { error: "as mesas dessas comandas não estão marcadas como agrupadas" });
+        return;
+      }
+
+      const serviceFeePercent = body?.serviceFeePercent;
+      if (typeof serviceFeePercent !== "number" || serviceFeePercent < 0) {
+        sendJson(res, 400, { error: "taxa de serviço inválida" });
+        return;
+      }
+      const splitsInput = Array.isArray(body?.splits) ? body.splits : [];
+
+      // Ordenação estável (por id) pra decidir de forma determinística onde
+      // vai o resto de cada distribuição proporcional (PRD 5.2 — mesmo
+      // princípio do split igual, só que entre comandas em vez de pessoas).
+      const sortedOrders = [...resolvedOrders].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      const subtotals = sortedOrders.map(computeSubtotalCents);
+      const combinedSubtotalCents = subtotals.reduce((a, b) => a + b, 0);
+      const combinedServiceFeeCents = Math.round((combinedSubtotalCents * serviceFeePercent) / 100);
+      const combinedTotalCents = combinedSubtotalCents + combinedServiceFeeCents;
+
+      const splitsResult = parseSplits(splitsInput, combinedTotalCents);
+      if (!splitsResult.ok) {
+        sendJson(res, 400, { error: splitsResult.error });
+        return;
+      }
+
+      // Taxa de serviço combinada distribuída proporcionalmente ao subtotal
+      // de cada comanda — cada order_closed carrega só os números da sua
+      // própria comanda, nunca o total combinado (não mescla dados, PRD 2.6).
+      const serviceFeeShares = distributeProportionally(combinedServiceFeeCents, subtotals);
+      const orderTotals = sortedOrders.map((_, i) => subtotals[i]! + serviceFeeShares[i]!);
+
+      // Cada parte do split é distribuída entre as comandas proporcionalmente
+      // ao total de cada uma — gera um payment_recorded por (comanda, parte),
+      // mantendo o histórico de pagamento de cada comanda auto-contido.
+      const paymentsByOrder: Payment[][] = sortedOrders.map(() => []);
+      for (const split of splitsResult.payments) {
+        const amountShares = distributeProportionally(split.amountCents, orderTotals);
+        const changeShares = distributeProportionally(split.changeCents, orderTotals);
+        for (let i = 0; i < sortedOrders.length; i++) {
+          if (amountShares[i]! <= 0) continue;
+          paymentsByOrder[i]!.push({ amountCents: amountShares[i]!, paymentMethod: split.paymentMethod, changeCents: changeShares[i]! });
+        }
+      }
+
+      const summaries: Array<{ id: string; subtotalCents: number; serviceFeeCents: number; totalCents: number; payments: Payment[] }> = [];
+      for (let i = 0; i < sortedOrders.length; i++) {
+        const order = sortedOrders[i]!;
+        const subtotalCents = subtotals[i]!;
+        const serviceFeeCents = serviceFeeShares[i]!;
+        const totalCents = orderTotals[i]!;
+
+        const closedEvent = DomainEventSchema.parse({
+          id: randomUUID(),
+          hlc: nextHlc(),
+          operatorId: acting.id,
+          terminalId,
+          createdAt: Date.now(),
+          type: "order_closed",
+          aggregateType: "order",
+          aggregateId: order.id,
+          payload: { subtotalCents, serviceFeePercent, serviceFeeCents, totalCents },
+        });
+        insertEvent(db, closedEvent);
+
+        for (const payment of paymentsByOrder[i]!) {
+          const paymentEvent = DomainEventSchema.parse({
+            id: randomUUID(),
+            hlc: nextHlc(),
+            operatorId: acting.id,
+            terminalId,
+            createdAt: Date.now(),
+            type: "payment_recorded",
+            aggregateType: "order",
+            aggregateId: order.id,
+            payload: payment,
+          });
+          insertEvent(db, paymentEvent);
+        }
+
+        summaries.push({ id: order.id, subtotalCents, serviceFeeCents, totalCents, payments: paymentsByOrder[i]! });
+      }
+
+      sendJson(res, 200, {
+        orders: summaries,
+        combined: { subtotalCents: combinedSubtotalCents, serviceFeePercent, serviceFeeCents: combinedServiceFeeCents, totalCents: combinedTotalCents },
+      });
     } catch {
       sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
     }

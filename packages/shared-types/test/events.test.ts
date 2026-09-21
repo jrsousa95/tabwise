@@ -5,9 +5,10 @@ function base() {
   return { id: "ev-1", hlc: "0000000000000001-00000000", operatorId: "op-1", terminalId: "t-1", createdAt: 1700000000000 };
 }
 
-describe("DomainEventSchema — discriminated union dos 12 tipos (PRD/ARCH §3.1)", () => {
+describe("DomainEventSchema — discriminated union dos 13 tipos (PRD/ARCH §3.1)", () => {
   it("aceita um evento válido de cada tipo", () => {
     const validEvents = [
+      { ...base(), type: "establishment_settings_updated", aggregateType: "establishment", aggregateId: "establishment", payload: { defaultServiceFeePercent: 10 } },
       { ...base(), type: "operator_registered", aggregateType: "operator", aggregateId: "op-1", payload: { name: "Ana", role: "waiter", pinHash: "hash" } },
       { ...base(), type: "category_registered", aggregateType: "category", aggregateId: "cat-1", payload: { name: "Bebidas" } },
       { ...base(), type: "product_registered", aggregateType: "product", aggregateId: "p-1", payload: { name: "Cerveja", priceCents: 1200, categoryId: "cat-1", active: true } },
@@ -78,6 +79,17 @@ describe("DomainEventSchema — discriminated union dos 12 tipos (PRD/ARCH §3.1
       aggregateType: "order",
       aggregateId: "c-1",
       payload: { itemId: "i-1", name: "Cerveja", unitPriceCents: 12.5, quantity: 1 },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("establishment_settings_updated exige aggregateId fixo 'establishment' (singleton, PRD 5.1)", () => {
+    const result = DomainEventSchema.safeParse({
+      ...base(),
+      type: "establishment_settings_updated",
+      aggregateType: "establishment",
+      aggregateId: "qualquer-outro-id",
+      payload: { defaultServiceFeePercent: 10 },
     });
     expect(result.success).toBe(false);
   });

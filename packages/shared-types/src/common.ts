@@ -15,8 +15,15 @@ export type PaymentMethod = z.infer<typeof PaymentMethodSchema>;
 export const CancelReasonSchema = z.enum(["entry_error", "customer_changed_mind", "item_unavailable", "other"]);
 export type CancelReason = z.infer<typeof CancelReasonSchema>;
 
-export const AggregateTypeSchema = z.enum(["operator", "order", "table_group", "category", "product", "table"]);
+export const AggregateTypeSchema = z.enum(["operator", "order", "table_group", "category", "product", "table", "establishment"]);
 export type AggregateType = z.infer<typeof AggregateTypeSchema>;
+
+/**
+ * PRD 5.1 — só existe um estabelecimento por terminal neste MVP (o
+ * cadastro multi-estabelecimento de verdade é do backend/M9); o agregado
+ * "establishment" é um singleton, sempre com este id fixo.
+ */
+export const ESTABLISHMENT_ID = "establishment";
 
 /**
  * Campos comuns a todo evento (ARCH §3.1). `createdAt` é wall-clock só para
