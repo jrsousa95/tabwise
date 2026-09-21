@@ -55,6 +55,8 @@ export interface ClosingState {
   readonly serviceFeePercent: number;
   readonly serviceFeeCents: number;
   readonly totalCents: number;
+  /** PRD 6.1 — wall-clock do evento `order_closed`, usado só pra agrupar o resumo do dia por data (nunca pra ordenação/conflito, isso é papel do `hlc`). */
+  readonly closedAt: number;
 }
 
 export interface OrderState {
@@ -293,7 +295,7 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
       case "order_closed": {
         const canonical = resolveCanonical(event.aggregateId);
         canonical.status = "closed";
-        canonical.closing = { ...event.payload };
+        canonical.closing = { ...event.payload, closedAt: event.createdAt };
         break;
       }
 

@@ -152,6 +152,7 @@ describe("projeção — demais tipos de evento", () => {
       serviceFeePercent: 10,
       serviceFeeCents: 300,
       totalCents: 3300,
+      closedAt: 1000,
     });
     expect(order.payments).toEqual([
       { amountCents: 2000, paymentMethod: "cash", changeCents: 500 },

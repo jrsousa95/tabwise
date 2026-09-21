@@ -148,6 +148,43 @@ function parseSplits(splitsInput: readonly unknown[], totalCents: number): { ok:
   return { ok: true, payments };
 }
 
+/** "YYYY-MM-DD" no fuso local — sidecar roda na mesma máquina do usuário, então `Date` local já é o fuso certo. */
+function localDateKey(epochMs: number): string {
+  const d = new Date(epochMs);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * PRD 6.1 — resumo do dia calculado só da projeção local (nunca depende de
+ * sync com a nuvem estar em dia — isso nem existe ainda, é sempre local
+ * neste MVP). Comandas ainda abertas aparecem separadas como "pendentes",
+ * nunca entram no total fechado.
+ */
+function computeCashRegisterSummary(state: ReturnType<typeof currentState>, dateKey: string) {
+  const closedToday = state.orders.filter((o) => o.mergedInto === undefined && o.status === "closed" && localDateKey(o.closing!.closedAt) === dateKey);
+  const pending = state.orders.filter((o) => o.mergedInto === undefined && o.status === "open");
+
+  const totalByPaymentMethod = { cash: 0, card: 0 };
+  for (const order of closedToday) {
+    for (const payment of order.payments) {
+      totalByPaymentMethod[payment.paymentMethod] += payment.amountCents;
+    }
+  }
+
+  return {
+    date: dateKey,
+    closedOrdersCount: closedToday.length,
+    subtotalCents: closedToday.reduce((sum, o) => sum + o.closing!.subtotalCents, 0),
+    serviceFeeCents: closedToday.reduce((sum, o) => sum + o.closing!.serviceFeeCents, 0),
+    totalSoldCents: closedToday.reduce((sum, o) => sum + o.closing!.totalCents, 0),
+    totalByPaymentMethod,
+    pendingOrders: pending.map((o) => ({ id: o.id, origin: o.origin, currentTableId: o.currentTableId })),
+  };
+}
+
 /**
  * CORS: o frontend (http://localhost:1420 em dev, tauri://localhost ou
  * https://tauri.localhost em produção) e o sidecar (http://127.0.0.1:4550)
@@ -235,6 +272,12 @@ const server = http.createServer(async (req, res) => {
     // o log de eventos (/events) precisa carregar pra fins de sync (M9),
     // mas a UI não tem motivo nenhum pra ver o hash de ninguém.
     sendJson(res, 200, { ...state, operators: state.operators.map(({ pinHash: _pinHash, ...rest }) => rest) });
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/cash-register/summary") {
+    const dateKey = url.searchParams.get("date") ?? localDateKey(Date.now());
+    sendJson(res, 200, computeCashRegisterSummary(currentState(), dateKey));
     return;
   }
 
