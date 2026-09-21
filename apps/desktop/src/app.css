@@ -203,6 +203,13 @@
   max-width: 420px;
 }
 
+.product-search-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1em;
+}
+
 .table-map-section {
   margin-bottom: 2.5em;
 }

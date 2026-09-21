@@ -34,6 +34,8 @@ export interface ItemState {
   readonly note?: string;
   readonly canceled: boolean;
   readonly cancelReason?: CancelReason;
+  /** PRD 1.3 — texto livre do cancelamento (obrigatório na prática quando `cancelReason === "other"`). */
+  readonly cancelNote?: string;
 }
 
 export interface TransferState {
@@ -268,6 +270,7 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
             ...existing,
             canceled: true,
             cancelReason: event.payload.reason,
+            cancelNote: event.payload.note,
           });
         }
         break;

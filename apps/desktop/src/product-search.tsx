@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
-import { useCatalog } from "./lib/catalog";
+import { useCatalog, type Product } from "./lib/catalog";
 import { formatCentsToBRL } from "./lib/money";
 
 /**
  * PRD 3.3 — busca de produto por nome/categoria. Só produtos ativos
- * aparecem aqui (PRD 3.2). Componente reutilizável: M4 só entrega a busca
- * em si; o "adicionar à comanda" (lançamento de pedido) é do M6.
+ * aparecem aqui (PRD 3.2). `onSelect` é opcional: sem ele, é só a busca
+ * "de vitrine" entregue no M4; com ele (M6, tela de comanda), cada
+ * resultado vira um botão "Adicionar".
  */
-function ProductSearch() {
+function ProductSearch({ onSelect }: { onSelect?: (product: Product) => void }) {
   const { status, categories, products } = useCatalog();
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -38,8 +39,15 @@ function ProductSearch() {
       </div>
       <ul className="catalog-list">
         {results.map((p) => (
-          <li key={p.id}>
-            {p.name} — {formatCentsToBRL(p.priceCents)}
+          <li key={p.id} className={onSelect ? "product-search-result" : undefined}>
+            <span>
+              {p.name} — {formatCentsToBRL(p.priceCents)}
+            </span>
+            {onSelect && (
+              <button type="button" onClick={() => onSelect(p)}>
+                Adicionar
+              </button>
+            )}
           </li>
         ))}
         {results.length === 0 && <li className="catalog-empty">Nenhum produto encontrado.</li>}

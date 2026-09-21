@@ -2,7 +2,7 @@ import http from "node:http";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
-import { DomainEventSchema, OperatorRoleSchema, PinSchema } from "@passa-a-regua/shared-types";
+import { DomainEventSchema, OperatorRoleSchema, PinSchema, CancelReasonSchema } from "@passa-a-regua/shared-types";
 import {
   openDatabase,
   insertEvent,
@@ -563,6 +563,127 @@ const server = http.createServer(async (req, res) => {
       });
       insertEvent(db, event);
       sendJson(res, 201, { id: groupId, tableIds: uniqueTableIds });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  const orderItemsMatch = url.pathname.match(/^\/orders\/([^/]+)\/items$/);
+  if (req.method === "POST" && orderItemsMatch) {
+    try {
+      const acting = requireSession(res);
+      if (!acting) return;
+
+      const orderId = orderItemsMatch[1]!;
+      const state = currentState();
+      const order = state.orders.find((o) => o.id === orderId);
+      if (!order || order.mergedInto !== undefined) {
+        sendJson(res, 404, { error: "comanda não encontrada" });
+        return;
+      }
+      if (order.status !== "open") {
+        sendJson(res, 409, { error: "comanda fechada não aceita novos itens" });
+        return;
+      }
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const productId = typeof body?.productId === "string" ? body.productId : "";
+      const quantity = body?.quantity;
+      const note = typeof body?.note === "string" && body.note.trim().length > 0 ? body.note.trim() : undefined;
+      if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity <= 0) {
+        sendJson(res, 400, { error: "quantidade precisa ser um número inteiro positivo" });
+        return;
+      }
+      // PRD 3.2 — produto inativo não aparece na busca do garçom; reforçado
+      // aqui pra não depender só do filtro client-side do ProductSearch.
+      const product = state.products.find((p) => p.id === productId && p.active);
+      if (!product) {
+        sendJson(res, 400, { error: "produto não encontrado ou inativo" });
+        return;
+      }
+
+      const itemId = randomUUID();
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "item_added",
+        aggregateType: "order",
+        aggregateId: orderId,
+        // PRD 4.1 — denormalizado de propósito (ver comentário em
+        // shared-types/src/events.ts): preço de venda não muda
+        // retroativamente se o produto for editado depois.
+        payload: { itemId, name: product.name, unitPriceCents: product.priceCents, quantity, note },
+      });
+      insertEvent(db, event);
+      sendJson(res, 201, { itemId, name: product.name, unitPriceCents: product.priceCents, quantity, note });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  const itemCancelMatch = url.pathname.match(/^\/orders\/([^/]+)\/items\/([^/]+)\/cancel$/);
+  if (req.method === "POST" && itemCancelMatch) {
+    try {
+      const acting = requireSession(res);
+      if (!acting) return;
+      // PRD §2 — garçom lança item, mas só caixa/dono cancela.
+      if (acting.role === "waiter") {
+        sendJson(res, 403, { error: "garçom não pode cancelar item" });
+        return;
+      }
+
+      const [, orderId, itemId] = itemCancelMatch;
+      const state = currentState();
+      const order = state.orders.find((o) => o.id === orderId);
+      if (!order || order.mergedInto !== undefined) {
+        sendJson(res, 404, { error: "comanda não encontrada" });
+        return;
+      }
+      if (order.status !== "open") {
+        sendJson(res, 409, { error: "comanda fechada não aceita cancelamento de item" });
+        return;
+      }
+      const item = order.items.find((i) => i.id === itemId);
+      if (!item) {
+        sendJson(res, 404, { error: "item não encontrado" });
+        return;
+      }
+      if (item.canceled) {
+        sendJson(res, 409, { error: "item já está cancelado" });
+        return;
+      }
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const reasonResult = CancelReasonSchema.safeParse(body?.reason);
+      const note = typeof body?.note === "string" && body.note.trim().length > 0 ? body.note.trim() : undefined;
+      if (!reasonResult.success) {
+        sendJson(res, 400, { error: "motivo de cancelamento inválido" });
+        return;
+      }
+      // PRD 1.3 — motivo "outro" exige texto livre.
+      if (reasonResult.data === "other" && !note) {
+        sendJson(res, 400, { error: "motivo 'outro' exige uma observação" });
+        return;
+      }
+
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "item_canceled",
+        aggregateType: "order",
+        aggregateId: orderId!,
+        payload: { itemId: itemId!, reason: reasonResult.data, note },
+      });
+      insertEvent(db, event);
+      sendJson(res, 200, { itemId, reason: reasonResult.data, note });
     } catch {
       sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
     }
