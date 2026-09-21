@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useOperators } from "../lib/operators";
 import { useSession } from "../lib/session";
-import { useLanToken, adoptLanToken, useManualHost, saveManualHost, clearManualHost } from "../lib/pairing";
+import { useLanToken, adoptLanToken, useManualHost, saveManualHost, clearManualHost, useCloudStatus } from "../lib/pairing";
 
 /**
  * M9 (ARCH §2, §7) — tela de Pareamento. Mesmo padrão de dois modos de
@@ -19,6 +19,7 @@ function Pairing() {
 
   const { status: tokenStatus, token, refresh: refreshToken } = useLanToken();
   const { status: manualHostStatus, manualHost, refresh: refreshManualHost } = useManualHost();
+  const cloudStatus = useCloudStatus();
 
   const [adoptInput, setAdoptInput] = useState("");
   const [adoptError, setAdoptError] = useState<string | null>(null);
@@ -113,6 +114,17 @@ function Pairing() {
   return (
     <main className="container">
       <h1>Pareamento de terminais</h1>
+
+      {/* M10 (PRD 8.1) — mensagem clara de upgrade quando o plano bloqueou
+          este terminal na nuvem; sem isso o bloqueio ficaria silencioso
+          (o terminal continua funcionando localmente, só não sincroniza). */}
+      {cloudStatus?.blockedReason && <p className="form-error">⚠️ {cloudStatus.blockedReason}</p>}
+      {cloudStatus && !cloudStatus.blockedReason && (
+        <p className={cloudStatus.connected ? undefined : "form-error"}>
+          {cloudStatus.connected ? "Conectado à nuvem." : "Ainda não conectado à nuvem — tentando..."}
+        </p>
+      )}
+
       {isBootstrap && (
         <p>
           Este terminal ainda não tem nenhum operador. Digite abaixo o código de pareamento de um terminal já

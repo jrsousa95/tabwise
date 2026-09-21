@@ -12,6 +12,8 @@ import {
   listEventsSince,
   upsertProjection,
   getProjection,
+  countTerminals,
+  getEstablishmentPlan,
   type Db,
 } from "./db.js";
 
@@ -140,6 +142,21 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 409, { error: "terminal já cadastrado" });
         return;
       }
+
+      // PRD 8.1 — limite de terminais do plano (free = 1, ver default em
+      // schema.sql). É bem aqui, no momento de conectar um 2º terminal a um
+      // estabelecimento existente, que o limite precisa ser aplicado — o
+      // bootstrap em `POST /register` sempre cria terminal #1 de um
+      // estabelecimento novo, esse nunca esbarra no limite.
+      const plan = await getEstablishmentPlan(db, auth.establishmentId);
+      const terminalCount = await countTerminals(db, auth.establishmentId);
+      if (plan && terminalCount >= plan.maxTerminals) {
+        sendJson(res, 403, {
+          error: `limite de ${plan.maxTerminals} terminal(is) do plano atingido — faça upgrade pra conectar mais terminais`,
+        });
+        return;
+      }
+
       const secret = randomBytes(24).toString("hex");
       const credentialHash = await hashSecret(secret);
       await registerTerminal(db, newTerminalId, auth.establishmentId, credentialHash);
@@ -181,6 +198,21 @@ const server = http.createServer(async (req, res) => {
     const auth = await authenticateTerminal(req, res);
     if (!auth) return;
     sendJson(res, 200, (await getProjection(db, auth.establishmentId)) ?? {});
+    return;
+  }
+
+  // M10 (ARCH §6, PRD 8.2/8.3) — terminal lê aqui os limites do seu plano
+  // pra cachear localmente; enforcement de verdade acontece no sidecar
+  // (offline-first, NFR1), este endpoint só é a fonte de verdade.
+  if (req.method === "GET" && url.pathname === "/sync/plan") {
+    const auth = await authenticateTerminal(req, res);
+    if (!auth) return;
+    const plan = await getEstablishmentPlan(db, auth.establishmentId);
+    if (!plan) {
+      sendJson(res, 404, { error: "estabelecimento não encontrado" });
+      return;
+    }
+    sendJson(res, 200, plan);
     return;
   }
 

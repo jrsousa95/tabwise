@@ -74,3 +74,23 @@ export async function clearManualHost(): Promise<{ ok: true } | { ok: false; err
   if (!res.ok) return { ok: false, error: "não foi possível remover o host manual" };
   return { ok: true };
 }
+
+export type CloudStatus = { connected: boolean; blockedReason: string | null };
+
+/** M10 (PRD 8.1) — "conectado à nuvem" vs. mensagem clara de upgrade quando o plano bloqueou este terminal. */
+export function useCloudStatus(intervalMs = 5000) {
+  const [cloudStatus, setCloudStatus] = useState<CloudStatus | null>(null);
+
+  const refresh = useCallback(async () => {
+    const result = await getJson<CloudStatus>("/pairing/cloud-status");
+    setCloudStatus(result.ok ? result.data : null);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    const interval = setInterval(refresh, intervalMs);
+    return () => clearInterval(interval);
+  }, [refresh, intervalMs]);
+
+  return cloudStatus;
+}

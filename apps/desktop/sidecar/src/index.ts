@@ -23,6 +23,8 @@ import { loadManualHost, saveManualHost, clearManualHost } from "./manual-host.j
 import { startLanSyncLoop } from "./lan-sync-client.js";
 import { startCloudSyncLoop, BACKEND_URL } from "./cloud-sync-client.js";
 import { loadCloudCredential } from "./cloud-credential.js";
+import { loadPlanCache } from "./plan-cache.js";
+import { loadRegistrationError } from "./registration-status.js";
 
 /**
  * M2 (ARCH §9, implementation-plan.md): sidecar real conectado ao
@@ -116,8 +118,10 @@ function requireLanToken(req: http.IncomingMessage, res: http.ServerResponse): b
   return true;
 }
 
-/** PRD 2.7 — valor fixo/local até o M9 ler o limite real do plano via backend. */
-const MAX_CONCURRENT_ORDERS = 10;
+/** M10 (ARCH §6, PRD 2.7/8.2) — lê o cache local do plano (atualizado a cada sync com a nuvem, `cloud-sync-client.ts`); nunca chama a nuvem em tempo real aqui, precisa funcionar 100% offline (NFR1). */
+function maxConcurrentOrders(): number {
+  return loadPlanCache(dataDir).maxConcurrentOrders;
+}
 
 function isTableFree(state: ReturnType<typeof currentState>, tableId: string): boolean {
   return !state.orders.some((o) => o.mergedInto === undefined && o.status === "open" && o.currentTableId === tableId);
@@ -361,7 +365,14 @@ const server = http.createServer(async (req, res) => {
         signal: AbortSignal.timeout(8000),
       });
       if (!sponsorRes.ok) {
-        sendJson(res, 502, { error: "backend recusou o patrocínio de cadastro" });
+        // M10 (PRD 8.1) — repassa o status/motivo reais (ex: 403 de limite de
+        // plano atingido) pro terminal que pediu o patrocínio, em vez de
+        // colapsar tudo num 502 genérico; ele precisa distinguir "bloqueio
+        // definitivo do plano" de "erro transitório" pra decidir se vira
+        // âncora de um estabelecimento novo ou fica bloqueado mostrando a
+        // mensagem de upgrade.
+        const body = await sponsorRes.json().catch(() => ({ error: "backend recusou o patrocínio de cadastro" }));
+        sendJson(res, sponsorRes.status, body);
         return;
       }
       sendJson(res, 200, await sponsorRes.json());
@@ -541,6 +552,18 @@ const server = http.createServer(async (req, res) => {
     clearManualHost(dataDir);
     res.writeHead(204);
     res.end();
+    return;
+  }
+
+  // M10 (PRD 8.1) — a tela de Pareamento usa isto pra mostrar "conectado à
+  // nuvem" vs. a mensagem clara de upgrade quando o patrocínio de cadastro
+  // foi bloqueado por limite de plano (ver `cloud-sync-client.ts`).
+  if (req.method === "GET" && url.pathname === "/pairing/cloud-status") {
+    if (!requireOwnerOrBootstrap(res)) return;
+    sendJson(res, 200, {
+      connected: loadCloudCredential(dataDir) !== null,
+      blockedReason: loadRegistrationError(dataDir),
+    });
     return;
   }
 
@@ -736,9 +759,10 @@ const server = http.createServer(async (req, res) => {
 
       const state = currentState();
       const openOrders = state.orders.filter((o) => o.mergedInto === undefined && o.status === "open");
-      // PRD 2.7 — limite fixo/local; leitura do valor real do plano entra no M9.
-      if (openOrders.length >= MAX_CONCURRENT_ORDERS) {
-        sendJson(res, 409, { error: `limite de ${MAX_CONCURRENT_ORDERS} comandas simultâneas atingido` });
+      const orderLimit = maxConcurrentOrders();
+      // PRD 2.7/8.2 — limite real do plano (cache local, ver `maxConcurrentOrders`).
+      if (openOrders.length >= orderLimit) {
+        sendJson(res, 409, { error: `limite de ${orderLimit} comandas simultâneas atingido — faça upgrade de plano pra aumentar` });
         return;
       }
 
