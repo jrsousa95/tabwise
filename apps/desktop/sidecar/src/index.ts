@@ -1,6 +1,6 @@
 import http from "node:http";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { DomainEventSchema, OperatorRoleSchema, PinSchema, CancelReasonSchema } from "@passa-a-regua/shared-types";
 import {
@@ -110,10 +110,23 @@ function requireOwnerOrBootstrap(res: http.ServerResponse): boolean {
  * frontend local). Token compartilhado só entre terminais pareados —
  * qualquer outro dispositivo na rede Wi-Fi do bar é rejeitado.
  */
+/**
+ * M12 (ARCH §7, revisão de segurança) — comparação em tempo constante.
+ * `!==` entre strings vaza timing (V8 costuma sair no primeiro byte
+ * diferente), o que dá pra outro dispositivo na mesma rede Wi-Fi usar pra
+ * adivinhar o token byte a byte; `timingSafeEqual` já era usado pro PIN
+ * (`packages/sync-engine/src/auth.ts`) mas não tinha sido aplicado aqui.
+ */
+function safeEquals(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, "utf8");
+  const bufB = Buffer.from(b, "utf8");
+  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+}
+
 function requireLanToken(req: http.IncomingMessage, res: http.ServerResponse): boolean {
   const header = req.headers.authorization;
   const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : null;
-  if (!token || token !== loadOrCreateLanToken(dataDir)) {
+  if (!token || !safeEquals(token, loadOrCreateLanToken(dataDir))) {
     sendJson(res, 401, { error: "token de pareamento LAN ausente ou inválido" });
     return false;
   }
@@ -240,6 +253,26 @@ function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   });
 }
 
+/**
+ * M12 (ARCH §7, achado na revisão de segurança) — o servidor precisa
+ * escutar em todas as interfaces (não só loopback) pra M9's sync LAN
+ * funcionar de verdade entre DUAS MÁQUINAS físicas na mesma rede (o teste
+ * do M9/M10/M11 usou processos na mesma máquina via 127.0.0.1 com portas
+ * diferentes, o que mascarava esse bug). Mas a API local do frontend
+ * (`/state`, `/orders`, `/categories` etc.) não tem autenticação nenhuma
+ * por design (não precisa — só o próprio app local a consome) — abrir
+ * ela pra rede deixaria qualquer dispositivo no Wi-Fi do bar ler os dados
+ * do estabelecimento. Só as rotas explicitamente feitas pra sync entre
+ * terminais (`/sync/*`, autenticadas pelo token de pareamento) e `/health`
+ * podem ser alcançadas de fora desta máquina; todo o resto exige loopback.
+ */
+const LAN_FACING_PATHS = ["/sync/events", "/sync/sponsor-cloud-registration"];
+
+function isLoopback(req: http.IncomingMessage): boolean {
+  const addr = req.socket.remoteAddress ?? "";
+  return addr === "127.0.0.1" || addr === "::1" || addr === "::ffff:127.0.0.1";
+}
+
 const server = http.createServer(async (req, res) => {
   withCors(res);
 
@@ -253,6 +286,11 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "GET" && url.pathname === "/health") {
     sendJson(res, 200, { status: "ok", pid: process.pid, startedAt, platform: process.platform, arch: process.arch });
+    return;
+  }
+
+  if (!LAN_FACING_PATHS.includes(url.pathname) && !isLoopback(req)) {
+    sendJson(res, 403, { error: "esta API só aceita conexões desta máquina" });
     return;
   }
 
@@ -1210,9 +1248,12 @@ const server = http.createServer(async (req, res) => {
   sendJson(res, 404, { error: "not found" });
 });
 
-server.listen(PORT, "127.0.0.1", () => {
+// M12 — precisa escutar em todas as interfaces pro sync LAN (`/sync/*`) ser
+// alcançável por outro terminal na rede; o guard de loopback acima protege
+// o resto da API local. Sem host explícito aqui, Node escuta em "::" (todas as interfaces).
+server.listen(PORT, () => {
   // stdout é observado pelo processo pai (Tauri) só pra debug manual.
-  console.log(`[sidecar] ouvindo em http://127.0.0.1:${PORT} (pid ${process.pid}) — banco em ${dbPath}`);
+  console.log(`[sidecar] ouvindo em http://0.0.0.0:${PORT} (pid ${process.pid}) — banco em ${dbPath}`);
 });
 
 function shutdown() {

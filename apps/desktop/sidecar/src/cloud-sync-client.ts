@@ -15,6 +15,25 @@ const REQUEST_TIMEOUT_MS = 8000;
 export const BACKEND_URL = process.env.PASSA_A_REGUA_BACKEND_URL ?? "http://localhost:4551";
 
 /**
+ * M12 (ARCH §7, revisão de segurança) — "HTTPS obrigatório" pro sync com a
+ * nuvem é uma decisão de arquitetura, não algo que o código consiga
+ * impor sozinho (o backend real pode ficar atrás de um proxy/load
+ * balancer que termina TLS, por exemplo). Isso aqui só evita o erro mais
+ * comum: apontar `PASSA_A_REGUA_BACKEND_URL` pra um endereço `http://`
+ * que não seja loopback/dev local, o que mandaria a credencial de
+ * terminal em texto plano pela rede.
+ */
+function warnIfInsecureBackendUrl(url: string): void {
+  if (url.startsWith("https://")) return;
+  const isLocalDev = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/.test(url);
+  if (isLocalDev) return;
+  console.warn(
+    `[sidecar] ATENÇÃO: PASSA_A_REGUA_BACKEND_URL (${url}) não usa HTTPS — a credencial de terminal trafegaria em texto plano pela rede (ARCH §7). Use https:// em qualquer ambiente que não seja dev local.`
+  );
+}
+warnIfInsecureBackendUrl(BACKEND_URL);
+
+/**
  * M9 (ARCH §7) — pergunta a cada peer LAN pareado (mesmo token) se ELE já
  * tem credencial de nuvem; se tiver, ele patrocina o cadastro deste
  * terminal no MESMO estabelecimento (`POST /sync/sponsor-cloud-registration`

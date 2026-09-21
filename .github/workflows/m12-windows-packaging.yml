@@ -1,0 +1,55 @@
+name: M12 - Empacotamento e instalação em Windows real
+
+# Disparo manual apenas — validação pontual do M12 (docs/implementation-plan.md),
+# não um teste de CI recorrente a cada push/PR. Reaproveita o padrão do
+# spike1-windows-validation.yml (M0), mas com um smoke test de negócio
+# completo em vez de só /health: o Spike 1 provou que o binário SEA sobe
+# no Windows; este workflow prova que node:sqlite e a lógica de negócio
+# inteira (operador, cardápio, mesa, comanda, fechamento) funcionam nele.
+on:
+  workflow_dispatch:
+
+jobs:
+  validate-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Instala dependências do monorepo (raiz + workspace desktop)
+        run: npm install
+
+      - name: Instala dependências do sidecar (pacote isolado, fora do workspace)
+        working-directory: apps/desktop/sidecar
+        run: npm install
+
+      - name: Builda o binário SEA do sidecar (nativo em Windows, sem cross-build)
+        working-directory: apps/desktop
+        run: npm run sidecar:build
+
+      - name: Smoke test de negócio completo contra o binário empacotado
+        working-directory: apps/desktop/src-tauri/sidecar
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Filter "passa-a-regua-sidecar-*.exe" | Select-Object -First 1
+          if (-not $exe) { throw "Binário do sidecar não encontrado após o build." }
+          Write-Host "Binário encontrado: $($exe.Name)"
+          node "$env:GITHUB_WORKSPACE\apps\desktop\sidecar\test\packaged-binary-smoke.mjs" "$($exe.FullName)"
+
+      - name: Builda o instalador Tauri completo (.msi/.exe)
+        working-directory: apps/desktop
+        run: npm run build:tauri
+
+      - name: Upload do instalador gerado
+        uses: actions/upload-artifact@v4
+        with:
+          name: passa-a-regua-windows-installer
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/**/*.msi
+            apps/desktop/src-tauri/target/release/bundle/**/*.exe
+          if-no-files-found: error
