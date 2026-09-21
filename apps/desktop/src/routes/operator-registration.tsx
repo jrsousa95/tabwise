@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { SIDECAR_URL } from "../lib/sidecar";
 import { useOperators } from "../lib/operators";
 import { useSession } from "../lib/session";
@@ -124,9 +124,14 @@ function OperatorRegistration() {
         {pinConfirm.length > 0 && pin !== pinConfirm && <p className="form-error">Os PINs não coincidem.</p>}
         {error && <p className="form-error">{error}</p>}
 
-        <button type="submit" disabled={!canSubmit}>
-          Cadastrar
-        </button>
+        <div className="operator-form-actions">
+          <button type="submit" disabled={!canSubmit}>
+            Cadastrar
+          </button>
+          {/* No bootstrap não tem pra onde voltar — sem operador nenhum,
+              o app não tem mais nada pra mostrar (PRD 1.1). */}
+          {!isBootstrap && <Link to="/tables">Cancelar</Link>}
+        </div>
       </form>
     </main>
   );

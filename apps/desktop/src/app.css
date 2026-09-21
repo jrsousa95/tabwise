@@ -135,6 +135,12 @@
   font-size: 0.9em;
 }
 
+.operator-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+}
+
 .form-error {
   color: #c0392b;
   font-size: 0.9em;

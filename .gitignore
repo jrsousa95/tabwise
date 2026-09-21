@@ -15,5 +15,7 @@ apps/desktop/sidecar/dist/
 apps/desktop/sidecar/*.blob
 apps/desktop/src-tauri/sidecar/
 
-# SQLite local de dev (M2)
-apps/desktop/sidecar/.dev-data/
+# SQLite local de dev (M2) — cwd do sidecar varia conforme como é
+# iniciado (`node dist/index.js` direto vs. spawnado pelo `tauri dev`),
+# então cobre `.dev-data/` em qualquer lugar sob `apps/desktop/`.
+apps/desktop/**/.dev-data/
