@@ -105,8 +105,25 @@ async function main() {
 
     console.log("[packaged-binary-smoke] TUDO OK — node:sqlite e a lógica de negócio completa funcionam no binário empacotado.");
   } finally {
-    child.kill();
-    rmSync(dataDir, { recursive: true, force: true });
+    // No Windows real (achado no CI do M12), `child.kill()` não espera o SO
+    // liberar o handle do arquivo do SQLite antes de retornar — apagar o
+    // dataDir logo em seguida dá EPERM. Espera o processo terminar de
+    // verdade antes de limpar; e a limpeza em si é best-effort (não deve
+    // mascarar como falha um smoke test cujo teste de negócio já passou).
+    await new Promise((resolve) => {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        resolve();
+        return;
+      }
+      child.once("exit", resolve);
+      child.kill();
+      setTimeout(resolve, 3000);
+    });
+    try {
+      rmSync(dataDir, { recursive: true, force: true });
+    } catch (cleanupError) {
+      console.warn(`[packaged-binary-smoke] aviso: não foi possível limpar ${dataDir} (${cleanupError.message}) — não afeta o resultado do teste.`);
+    }
   }
 }
 
