@@ -86,15 +86,17 @@ Referência: `PRD Épico 3`. Precisa vir antes do lançamento de pedidos (M6), q
 
 Referência: `PRD Épico 2`.
 
-- [ ] Evento/projeção de mesas (cadastro) — PRD 2.1.
-- [ ] Abrir comanda vinculada a mesa, com invariante local "1 comanda aberta por mesa" — PRD 2.2.
-- [ ] Abrir comanda avulsa (numeração sequencial, sem `table_id`) — PRD 2.3.
-- [ ] Tela de mapa de mesas + lista de comandas abertas (mesa + avulsa) — PRD 2.4.
-- [ ] Transferência de comanda entre mesas (evento `order_transferred`, mantendo histórico) — PRD 2.5.
-- [ ] Junção visual de mesas (`tables_grouped`), sem mesclar dados de comanda — PRD 2.6.
-- [ ] Enforcement do limite de 10 comandas simultâneas (contagem local mesa+avulsa) — PRD 2.7. *(Neste milestone, usar valor fixo/local do limite; a leitura do valor real do plano via backend entra no M9.)*
+- [x] Evento/projeção de mesas (cadastro) — PRD 2.1. Evento `table_registered` (dono, `POST /tables`), projeção em `tables`.
+- [x] Abrir comanda vinculada a mesa, com invariante local "1 comanda aberta por mesa" — PRD 2.2. `POST /orders` checa `isTableFree` antes de criar o `order_opened` — invariante é só deste terminal; o conflito entre terminais offline continua resolvido pelo merge automático do ARCH §4.2.
+- [x] Abrir comanda avulsa (numeração sequencial, sem `table_id`) — PRD 2.3. Número calculado no sidecar (`max` dos números avulsos já usados + 1), nunca reaproveitado.
+- [x] Tela de mapa de mesas + lista de comandas abertas (mesa + avulsa) — PRD 2.4. `routes/table-map.tsx`: cadastro de mesa (dono), status livre/ocupada por mesa, lista de comandas avulsas abertas.
+- [x] Transferência de comanda entre mesas (evento `order_transferred`, mantendo histórico) — PRD 2.5. `POST /orders/:id/transfer` valida: comanda aberta e não mesclada, tem mesa atual, mesa de destino existe e está livre.
+- [x] Junção visual de mesas (`tables_grouped`), sem mesclar dados de comanda — PRD 2.6. `POST /table-groups`, seleção por checkbox na tela de mapa.
+- [x] Enforcement do limite de 10 comandas simultâneas (contagem local mesa+avulsa) — PRD 2.7. `MAX_CONCURRENT_ORDERS = 10` fixo no sidecar; leitura do valor real do plano via backend fica pro M9 como já planejado.
 
-**Critério de saída do M5:** fluxo completo de "abrir mesa/comanda avulsa → ver no mapa → transferir/agrupar" funcional em um único terminal, offline.
+**Critério de saída do M5:** ✅ atingido em 2026-09-21 — validado via API isolada (porta de teste separada, processo com PID rastreado): cadastro de mesa, invariante "1 comanda por mesa" rejeitando a 2ª tentativa (409), numeração avulsa sequencial (1, 2, ...), transferência liberando a mesa de origem pra nova comanda, junção de mesas, e o limite de 10 rejeitando exatamente a 11ª comanda aberta. 40 testes passando.
+
+Dois achados durante o teste manual na sessão real do app (não no isolado): (1) os hooks `useCatalog`/`useTablesAndOrders` não tinham fallback pra campos ausentes em `GET /state` — como o sidecar não reinicia sozinho quando o frontend recebe HMR, testar a tela nova contra um binário de sidecar de uma versão anterior gerava `TypeError` e tela em branco; agora todos os campos novos caem em `[]` se ausentes. (2) O diagnóstico de IPC do M2 (`useSidecarIpcCheck`, badge "IPC ok") escrevia um evento `tables_grouped` real e permanente no banco pra provar o roundtrip — hoje isso já é comprovado de sobra pelas telas de negócio reais (M3-M5), então o diagnóstico foi removido; o registro fantasma que ele deixou nos bancos já existentes (incluindo o de teste manual do usuário) não pode ser apagado por ser append-only, mas não afeta nada além de aparecer como um grupo de mesas com nomes vazios.
 
 ---
 
