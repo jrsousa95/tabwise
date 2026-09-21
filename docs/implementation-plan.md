@@ -73,10 +73,12 @@ Referência: `PRD Épico 1`.
 
 Referência: `PRD Épico 3`. Precisa vir antes do lançamento de pedidos (M6), que depende de produtos existirem.
 
-- [ ] Evento/projeção de categorias — PRD 3.1.
-- [ ] Evento/projeção de produtos (nome, preço, categoria, status ativo/inativo) — PRD 3.2.
-- [ ] Telas de cadastro (dono) de categorias e produtos.
-- [ ] Tela de busca de produto por nome/categoria (usada depois pelo garçom no M6) — PRD 3.3.
+- [x] Evento/projeção de categorias — PRD 3.1. Evento `category_registered`, projeção em `categories`.
+- [x] Evento/projeção de produtos (nome, preço, categoria, status ativo/inativo) — PRD 3.2. Evento `product_registered` (cadastro) + `product_status_changed` (ativar/desativar depois — nunca reescreve o evento de cadastro original, append-only como o resto do log). Item denormalizado em `item_added` (M6) continua não referenciando `productId`: o preço da venda não pode mudar retroativamente se o produto for editado depois.
+- [x] Telas de cadastro (dono) de categorias e produtos — `routes/catalog.tsx`, rota `/catalog` (owner-only via `RequireRole`), formulários de categoria e produto + tabela de produtos com botão ativar/desativar.
+- [x] Tela de busca de produto por nome/categoria (usada depois pelo garçom no M6) — PRD 3.3. Componente reutilizável `product-search.tsx` (filtro client-side sobre `/state`, só produtos ativos), já embutido na tela de comanda placeholder (`routes/order.tsx`) como preview — o "adicionar à comanda" em si continua sendo escopo do M6.
+
+**Critério de saída do M4:** ✅ atingido em 2026-09-21 — validado via API isolada (registro de categoria, registro de produto com categoria inválida rejeitada, ativar/desativar, enforcement de permissão — garçom recebe 403 tentando cadastrar) e visualmente na tela `/catalog` de uma sessão real do app (estados vazios, validação "cadastre uma categoria antes de adicionar produtos"). 37 testes passando (7 novos: 1 de schema + 4 de projeção de catálogo + 2 herdados do rebuild), build de todos os workspaces incluindo o binário SEA seguem passando. Sidecar ganhou um override `PASSA_A_REGUA_PORT` (default 4550 inalterado) pra permitir rodar instâncias isoladas de teste sem risco de colidir com uma sessão já rodando — achado ao errar exatamente essa colisão durante o teste manual deste milestone.
 
 ---
 
