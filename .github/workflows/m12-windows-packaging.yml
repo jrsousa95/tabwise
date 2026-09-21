@@ -24,6 +24,14 @@ jobs:
       - name: Instala dependências do monorepo (inclui o sidecar, que é membro do workspace)
         run: npm install
 
+      # shared-types/sync-engine não têm hook de build automático no
+      # install — o sidecar depende dos .d.ts/.js compilados deles
+      # (workspace symlink aponta pro pacote, não builda sozinho).
+      - name: Builda os pacotes locais (shared-types, sync-engine) que o sidecar depende
+        run: |
+          npm run build --workspace=@passa-a-regua/shared-types
+          npm run build --workspace=@passa-a-regua/sync-engine
+
       - name: Builda o binário SEA do sidecar (nativo em Windows, sem cross-build)
         working-directory: apps/desktop
         run: npm run sidecar:build
