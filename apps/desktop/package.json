@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "sidecar:build": "npm run build --prefix ./sidecar",
+    "sidecar:build": "cd sidecar && npm run build",
     "tauri": "tauri",
     "predev:tauri": "npm run sidecar:build",
     "dev:tauri": "tauri dev",
