@@ -181,8 +181,8 @@ Referência: `PRD Épico 8`, `ARCH §6`. Depende de M9 (precisa do backend e do 
 
 Referência: `PRD 6.2`, `ARCH §5`. Pode ser feito em paralelo ao M10, já que ambos dependem só do backend estar de pé (M9).
 
-- [ ] Endpoint read-only no backend consultando a projeção PostgreSQL (ex: fechamento do dia por estabelecimento).
-- [ ] Sem tela associada no MVP — validação de "pronto" é o endpoint responder corretamente, conforme decidido no PRD.
+- [x] Endpoint read-only no backend consultando a projeção PostgreSQL (ex: fechamento do dia por estabelecimento). `GET /reports/cash-register?date=` (autenticado por credencial de terminal, mesmo padrão de `/sync/*`). Refatoração feita antes do endpoint: `localDateKey`/`computeCashRegisterSummary` (PRD 6.1, escritos no sidecar no M8) foram extraídos pro `packages/sync-engine` (`reporting.ts`, novo, com testes próprios) em vez de duplicados no backend — mesma lógica, duas fontes de `orders` diferentes (réplica SQLite local de um terminal vs. projeção Postgres agregando todos os terminais do estabelecimento já sincronizados). É literalmente o "sem retrabalho de arquitetura" que a história 6.2 pede.
+- [x] Sem tela associada no MVP — validação de "pronto" é o endpoint responder corretamente, conforme decidido no PRD. Validado via curl contra um terminal real sincronizado com Postgres: resumo do backend bate exatamente com o resumo local do sidecar (mesma comanda fechada, mesma pendente, mesmos totais por forma de pagamento); 401 sem credencial; filtro por `date` funciona (pendentes aparecem independente da data, igual ao comportamento local do M8).
 
 ---
 
