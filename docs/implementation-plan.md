@@ -116,14 +116,16 @@ Referência: `PRD Épico 4`. Depende de M4 (produtos) e M5 (comandas).
 
 Referência: `PRD Épico 5`. Depende de M6.
 
-- [ ] Cálculo de subtotal + taxa de serviço (default 10%, configurável por estabelecimento, ajustável/isentável por comanda) — PRD 5.1.
-- [ ] Valores monetários em centavos (inteiro) em toda a stack — PRD NFR7.
-- [ ] Split igual (N partes, resto determinístico na primeira parcela) — PRD 5.2.
-- [ ] Split manual (soma exata obrigatória, UI mostra quanto falta/sobra, botão desabilitado até bater) — PRD 5.2.
-- [ ] Registro de forma de pagamento por parte do split (dinheiro/cartão manual) — PRD 5.3.
-- [ ] Cálculo de troco (só sobre a parte em dinheiro) — PRD 5.4.
-- [ ] Fechamento da comanda (evento `order_closed`, imutabilidade pós-fechamento) — PRD 5.5.
-- [ ] Fechamento conjunto de mesas agrupadas (M5) numa única operação de pagamento — PRD 5.2.
+- [x] Cálculo de subtotal + taxa de serviço (default 10%, configurável por estabelecimento, ajustável/isentável por comanda) — PRD 5.1. Novo evento `establishment_settings_updated` (singleton, `aggregateId` fixo `ESTABLISHMENT_ID`), projeção com default `DEFAULT_SERVICE_FEE_PERCENT = 10` quando nenhum evento existe ainda. `POST /establishment/settings` (dono). A taxa aplicada no fechamento de cada comanda é sempre a escolhida naquele momento (pode divergir do default, isentar = 0), nunca reescreve o default global.
+- [x] Valores monetários em centavos (inteiro) em toda a stack — PRD NFR7. Já valia desde o M1 nos schemas; M7 só reforça em `computeSubtotalCents`/cálculo de taxa (`Math.round`) no sidecar.
+- [x] Split igual (N partes, resto determinístico na primeira parcela) — PRD 5.2. `distributeEqually` no sidecar e um espelho client-side só pra pré-popular a UI — o servidor sempre recalcula e valida de novo, nunca confia no split vindo do cliente.
+- [x] Split manual (soma exata obrigatória, UI mostra quanto falta/sobra, botão desabilitado até bater) — PRD 5.2. `parseSplits` rejeita qualquer soma diferente do total, sem tolerância; UI (`order-closing.tsx`) mostra "falta/sobra" ao vivo e desabilita "Confirmar fechamento" até bater exato.
+- [x] Registro de forma de pagamento por parte do split (dinheiro/cartão manual) — PRD 5.3. Um `payment_recorded` por parte.
+- [x] Cálculo de troco (só sobre a parte em dinheiro) — PRD 5.4. `cashReceivedCents` obrigatório (>= valor da parte) só pra partes em dinheiro; cartão sempre `changeCents: 0`.
+- [x] Fechamento da comanda (evento `order_closed`, imutabilidade pós-fechamento) — PRD 5.5. `POST /orders/:id/close` bloqueia lançar item, cancelar item e fechar de novo numa comanda já fechada (409). Só caixa/dono (garçom recebe 403).
+- [x] Fechamento conjunto de mesas agrupadas (M5) numa única operação de pagamento — PRD 5.2. `POST /orders/:id/close-group` valida que as mesas envolvidas estão de fato no mesmo grupo visual (M5) e nenhuma é avulsa; distribui a taxa de serviço combinada e cada parte do split proporcionalmente ao subtotal/total de cada comanda (resto determinístico na primeira, mesmo princípio do split igual) — gera um `order_closed` + N `payment_recorded` por comanda, nunca mescla os dados históricos entre elas.
+
+**Critério de saída do M7:** ✅ atingido em 2026-09-21 — validado via API isolada (fechamento individual com split manual dinheiro+cartão e cálculo de troco correto, imutabilidade pós-fechamento, garçom bloqueado, fechamento conjunto rejeitando mesas não agrupadas/avulsas, taxa de serviço padrão configurável) **e visualmente na UI real** (`order-closing.tsx`, num Vite+sidecar isolados só pra este teste — nunca na sessão do usuário): fechamento individual com split de 3 partes iguais + uma em dinheiro, e fechamento conjunto de 2 mesas agrupadas, ambos confirmados batendo com o estado final no banco. Achado corrigido durante esse teste visual, antes de reportar como pronto: ao marcar "fechar mesas juntas", o resumo (subtotal/taxa/total) continuava mostrando só os números da comanda individual, não os combinados — o split bateria certinho no cliente mas seria rejeitado pelo servidor (que sempre calcula em cima do total combinado real). Corrigido buscando o subtotal combinado das comandas do grupo assim que a opção é marcada. 46 testes passando.
 
 ---
 
