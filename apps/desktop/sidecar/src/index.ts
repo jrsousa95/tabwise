@@ -6,6 +6,7 @@ import { DomainEventSchema, OperatorRoleSchema, PinSchema, CancelReasonSchema } 
 import {
   openDatabase,
   insertEvent,
+  insertEvents,
   listEventsSinceCursor,
   findEventsByAggregateId,
   project,
@@ -16,6 +17,12 @@ import {
 import { nextHlc } from "./clock.js";
 import { loadOrCreateTerminalId } from "./terminal-identity.js";
 import { loadSession, saveSession, clearSession } from "./session.js";
+import { loadOrCreateLanToken, adoptLanToken } from "./lan-pairing.js";
+import { startDiscovery, stopDiscovery } from "./discovery.js";
+import { loadManualHost, saveManualHost, clearManualHost } from "./manual-host.js";
+import { startLanSyncLoop } from "./lan-sync-client.js";
+import { startCloudSyncLoop, BACKEND_URL } from "./cloud-sync-client.js";
+import { loadCloudCredential } from "./cloud-credential.js";
 
 /**
  * M2 (ARCH §9, implementation-plan.md): sidecar real conectado ao
@@ -39,6 +46,14 @@ mkdirSync(dataDir, { recursive: true });
 const dbPath = path.join(dataDir, "passa-a-regua.db");
 const db = openDatabase(dbPath);
 const terminalId = loadOrCreateTerminalId(dataDir);
+
+// M9 (ARCH §2, §5, §7): descoberta mDNS + sync LAN e sync com a nuvem
+// rodando em paralelo, cada um no seu próprio ciclo independente — queda de
+// um não trava o outro.
+loadOrCreateLanToken(dataDir); // garante que o token existe desde o boot (tela de Pareamento só lê depois)
+startDiscovery(terminalId, PORT);
+const stopLanSync = startLanSyncLoop(db, dataDir);
+const stopCloudSync = startCloudSyncLoop(db, dataDir, terminalId);
 
 function currentState() {
   return project(sortEvents(listEventsSinceCursor(db)));
@@ -68,6 +83,37 @@ function requireOwner(res: http.ServerResponse) {
     return null;
   }
   return acting;
+}
+
+/**
+ * M9 (ARCH §7) — pareamento tem uma exceção de bootstrap igual à de
+ * `POST /operators`: um terminal novo não tem NENHUM operador até
+ * sincronizar (os operadores chegam via sync, não são cadastrados de novo
+ * em cada terminal). Sem essa exceção, um terminal novo nunca conseguiria
+ * se parear — não tem quem logar como dono pra autorizar o pareamento que
+ * é justamente o que traria os operadores. Depois que o terminal já tem
+ * operadores (já se pareou uma vez, ou é o terminal original), volta a
+ * exigir dono normalmente.
+ */
+function requireOwnerOrBootstrap(res: http.ServerResponse): boolean {
+  if (currentOperators().length === 0) return true;
+  return requireOwner(res) !== null;
+}
+
+/**
+ * M9 (ARCH §7) — autentica requisições de OUTRO terminal no sync LAN (não
+ * confundir com `requireSession`, que autentica o operador humano no
+ * frontend local). Token compartilhado só entre terminais pareados —
+ * qualquer outro dispositivo na rede Wi-Fi do bar é rejeitado.
+ */
+function requireLanToken(req: http.IncomingMessage, res: http.ServerResponse): boolean {
+  const header = req.headers.authorization;
+  const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : null;
+  if (!token || token !== loadOrCreateLanToken(dataDir)) {
+    sendJson(res, 401, { error: "token de pareamento LAN ausente ou inválido" });
+    return false;
+  }
+  return true;
 }
 
 /** PRD 2.7 — valor fixo/local até o M9 ler o limite real do plano via backend. */
@@ -195,7 +241,7 @@ function computeCashRegisterSummary(state: ReturnType<typeof currentState>, date
  */
 function withCors(res: http.ServerResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   return res;
 }
@@ -263,6 +309,65 @@ const server = http.createServer(async (req, res) => {
     }
     const cursor = url.searchParams.get("since") ?? undefined;
     sendJson(res, 200, listEventsSinceCursor(db, cursor));
+    return;
+  }
+
+  // M9 (ARCH §2, §7) — espelha `/events`, mas autenticado pelo token de
+  // pareamento LAN em vez de aberto pro frontend local: é o endpoint que
+  // outro terminal do mesmo estabelecimento usa pra trocar eventos.
+  if (req.method === "POST" && url.pathname === "/sync/events") {
+    if (!requireLanToken(req, res)) return;
+    try {
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const eventsInput = Array.isArray(body?.events) ? body.events : [];
+      const events = eventsInput.map((e) => DomainEventSchema.parse(e));
+      insertEvents(db, events);
+      sendJson(res, 200, { received: events.length });
+    } catch (error) {
+      sendJson(res, 400, { error: "lote de eventos inválido", details: error instanceof Error ? error.message : String(error) });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/sync/events") {
+    if (!requireLanToken(req, res)) return;
+    const cursor = url.searchParams.get("since") ?? undefined;
+    sendJson(res, 200, listEventsSinceCursor(db, cursor));
+    return;
+  }
+
+  // M9 (ARCH §7) — um peer LAN pareado (mesmo token) pede pra este terminal
+  // "patrociná-lo" na nuvem: se este terminal já tem credencial de nuvem,
+  // registra o peer como mais um terminal do MESMO estabelecimento (ver
+  // comentário em `cloud-sync-client.ts` sobre o achado do teste do M9).
+  if (req.method === "POST" && url.pathname === "/sync/sponsor-cloud-registration") {
+    if (!requireLanToken(req, res)) return;
+    try {
+      const credential = loadCloudCredential(dataDir);
+      if (!credential) {
+        sendJson(res, 409, { error: "este terminal ainda não tem credencial de nuvem" });
+        return;
+      }
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const newTerminalId = typeof body?.terminalId === "string" ? body.terminalId : "";
+      if (newTerminalId.length === 0) {
+        sendJson(res, 400, { error: "terminalId é obrigatório" });
+        return;
+      }
+      const sponsorRes = await fetch(`${BACKEND_URL}/terminals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${credential.credential}` },
+        body: JSON.stringify({ terminalId: newTerminalId }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!sponsorRes.ok) {
+        sendJson(res, 502, { error: "backend recusou o patrocínio de cadastro" });
+        return;
+      }
+      sendJson(res, 200, await sponsorRes.json());
+    } catch {
+      sendJson(res, 502, { error: "falha ao contatar a nuvem pra patrocinar o cadastro" });
+    }
     return;
   }
 
@@ -373,6 +478,69 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     sendJson(res, 200, { operator: { id: operator.id, name: operator.name, role: operator.role } });
+    return;
+  }
+
+  // M9 (ARCH §7) — normalmente só o dono lê o token deste terminal pra
+  // digitar no segundo terminal (ver comentário em `lan-pairing.ts`); exceto
+  // no bootstrap do PRÓPRIO terminal novo, que ainda não tem dono nenhum
+  // pra logar (ver `requireOwnerOrBootstrap`).
+  if (req.method === "GET" && url.pathname === "/pairing/lan-token") {
+    if (!requireOwnerOrBootstrap(res)) return;
+    sendJson(res, 200, { token: loadOrCreateLanToken(dataDir) });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/pairing/lan-token") {
+    try {
+      if (!requireOwnerOrBootstrap(res)) return;
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const token = typeof body?.token === "string" ? body.token.trim() : "";
+      if (token.length === 0) {
+        sendJson(res, 400, { error: "token é obrigatório" });
+        return;
+      }
+      adoptLanToken(dataDir, token);
+      sendJson(res, 200, { token });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  // M9 (ARCH §2, decisão 2) — fallback manual quando a descoberta mDNS não
+  // encontra o outro terminal (rede bloqueia multicast, por exemplo).
+  if (req.method === "GET" && url.pathname === "/pairing/manual-host") {
+    if (!requireOwnerOrBootstrap(res)) return;
+    sendJson(res, 200, loadManualHost(dataDir));
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/pairing/manual-host") {
+    try {
+      if (!requireOwnerOrBootstrap(res)) return;
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const host = typeof body?.host === "string" ? body.host.trim() : "";
+      const port = body?.port;
+      if (host.length === 0 || typeof port !== "number" || !Number.isInteger(port) || port <= 0) {
+        sendJson(res, 400, { error: "host e port são obrigatórios (port precisa ser inteiro positivo)" });
+        return;
+      }
+      saveManualHost(dataDir, host, port);
+      sendJson(res, 200, { host, port });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/pairing/manual-host") {
+    if (!requireOwnerOrBootstrap(res)) return;
+    clearManualHost(dataDir);
+    res.writeHead(204);
+    res.end();
     return;
   }
 
@@ -1055,6 +1223,9 @@ server.listen(PORT, "127.0.0.1", () => {
 
 function shutdown() {
   console.log("[sidecar] encerrando...");
+  stopLanSync();
+  stopCloudSync();
+  stopDiscovery();
   db.close();
   server.close(() => process.exit(0));
 }

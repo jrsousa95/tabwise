@@ -28,6 +28,12 @@ function Login() {
         <h1>Passa a Régua</h1>
         <p>Nenhum operador cadastrado neste terminal ainda.</p>
         <Link to="/operators/new">Cadastrar o primeiro operador →</Link>
+        {/* M9 (ARCH §7) — terminal novo pode virar réplica de um já existente
+            em vez de bootstrar operadores do zero: adota o token do terminal
+            1, sincroniza e recebe os operadores dele. */}
+        <p>
+          <Link to="/pairing">Ou parear com um terminal já configurado →</Link>
+        </p>
       </main>
     );
   }

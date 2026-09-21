@@ -1,0 +1,25 @@
+{
+  "name": "@passa-a-regua/backend",
+  "private": true,
+  "version": "0.0.0",
+  "description": "API de sync com a nuvem (M9, ARCH §5, §8) — ingestão de eventos, projeção materializada em PostgreSQL, cadastro/pareamento de terminal.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.build.json && cp src/schema.sql dist/schema.sql",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@passa-a-regua/shared-types": "*",
+    "@passa-a-regua/sync-engine": "*",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

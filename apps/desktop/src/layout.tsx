@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useSidecarHealth } from "./lib/sidecar";
 import { useSession } from "./lib/session";
+import { useMergeWarnings } from "./lib/merge-warnings";
 
 const navLinkClassName = ({ isActive }: { isActive: boolean }) => (isActive ? "nav-link nav-link-active" : "nav-link");
 
@@ -15,6 +17,8 @@ function Layout() {
   const { health, error } = useSidecarHealth();
   const { operator, logout } = useSession();
   const navigate = useNavigate();
+  const { warnings: mergeWarnings, tableLabel } = useMergeWarnings();
+  const [showMergeDetails, setShowMergeDetails] = useState(false);
 
   async function handleLogout() {
     await logout();
@@ -44,6 +48,11 @@ function Layout() {
               Cadastrar operador
             </NavLink>
           )}
+          {operator?.role === "owner" && (
+            <NavLink to="/pairing" className={navLinkClassName}>
+              Pareamento
+            </NavLink>
+          )}
         </nav>
         {operator && (
           <span className="current-operator">
@@ -57,6 +66,30 @@ function Layout() {
           {health ? "sidecar ok" : `sidecar offline${error ? ` (${error})` : ""}`}
         </span>
       </header>
+      {mergeWarnings.length > 0 && (
+        // ARCH §4.2 — merge automático de comanda (conflito entre terminais
+        // offline resolvido por menor HLC) nunca deve passar em silêncio;
+        // é só um aviso, não bloqueia nenhuma ação.
+        <div className="merge-warning-banner">
+          <span>
+            ⚠️ {mergeWarnings.length} {mergeWarnings.length === 1 ? "comanda foi mesclada" : "comandas foram mescladas"}{" "}
+            automaticamente por conflito de sincronização.
+          </span>
+          <button type="button" onClick={() => setShowMergeDetails((v) => !v)}>
+            {showMergeDetails ? "Ocultar detalhes" : "Ver detalhes"}
+          </button>
+          {showMergeDetails && (
+            <ul>
+              {mergeWarnings.map((w) => (
+                <li key={w.losingOrder}>
+                  {tableLabel(w.tableId)}: a comanda mais nova foi mesclada na comanda existente — os itens
+                  lançados nela agora aparecem na comanda que ficou aberta.
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       <main className="app-content">
         <Outlet />
       </main>

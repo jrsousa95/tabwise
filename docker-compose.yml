@@ -1,0 +1,17 @@
+services:
+  # M9 (ARCH §5, §8) — Postgres local de dev pro apps/backend. Produção real
+  # (hosting, backups, etc.) fica pra quando o projeto for pra além do MVP;
+  # isso aqui é só pra desenvolver/testar a sincronização com a nuvem.
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: passa_a_regua
+      POSTGRES_PASSWORD: passa_a_regua_dev
+      POSTGRES_DB: passa_a_regua
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:

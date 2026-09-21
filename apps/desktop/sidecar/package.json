@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@passa-a-regua/shared-types": "*",
-    "@passa-a-regua/sync-engine": "*"
+    "@passa-a-regua/sync-engine": "*",
+    "bonjour-service": "^1.4.4"
   },
   "devDependencies": {
     "@types/node": "^24.6.2",

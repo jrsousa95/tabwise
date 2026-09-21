@@ -8,6 +8,7 @@ import TableMap from "./routes/table-map";
 import Order from "./routes/order";
 import CashRegister from "./routes/cash-register";
 import Catalog from "./routes/catalog";
+import Pairing from "./routes/pairing";
 
 /** M2/M3/M4 (implementation-plan.md): shell navegável com autenticação, permissões por papel e catálogo. */
 function App() {
@@ -15,6 +16,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Login />} />
       <Route path="/operators/new" element={<OperatorRegistration />} />
+      <Route path="/pairing" element={<Pairing />} />
       <Route element={<RequireSession />}>
         <Route element={<Layout />}>
           <Route path="/tables" element={<TableMap />} />

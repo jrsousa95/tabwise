@@ -227,6 +227,30 @@
   margin: 0.4em 0;
 }
 
+.merge-warning-banner {
+  background: #fdf2e3;
+  color: #7a4a00;
+  padding: 0.6em 1em;
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  flex-wrap: wrap;
+  border-bottom: 1px solid rgba(122, 74, 0, 0.2);
+}
+
+.merge-warning-banner ul {
+  flex-basis: 100%;
+  margin: 0.4em 0 0;
+  padding-left: 1.4em;
+}
+
+.pairing-token code {
+  padding: 0.2em 0.5em;
+  background: rgba(128, 128, 128, 0.15);
+  border-radius: 4px;
+  font-size: 1.1em;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;
