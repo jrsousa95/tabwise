@@ -7,8 +7,9 @@ import OperatorRegistration from "./routes/operator-registration";
 import TableMap from "./routes/table-map";
 import Order from "./routes/order";
 import CashRegister from "./routes/cash-register";
+import Catalog from "./routes/catalog";
 
-/** M2/M3 (implementation-plan.md): shell navegável com autenticação e permissões por papel. */
+/** M2/M3/M4 (implementation-plan.md): shell navegável com autenticação, permissões por papel e catálogo. */
 function App() {
   return (
     <Routes>
@@ -20,6 +21,9 @@ function App() {
           <Route path="/orders/:orderId" element={<Order />} />
           <Route element={<RequireRole allowed={["owner", "cashier"]} />}>
             <Route path="/cash-register" element={<CashRegister />} />
+          </Route>
+          <Route element={<RequireRole allowed={["owner"]} />}>
+            <Route path="/catalog" element={<Catalog />} />
           </Route>
         </Route>
       </Route>

@@ -147,6 +147,62 @@
   margin: 0;
 }
 
+.inline-form {
+  display: flex;
+  gap: 0.6em;
+  margin-bottom: 1em;
+}
+
+.catalog {
+  display: flex;
+  gap: 3em;
+  flex-wrap: wrap;
+}
+
+.catalog-column {
+  flex: 1;
+  min-width: 280px;
+}
+
+.catalog-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.catalog-list li {
+  padding: 0.4em 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.catalog-empty {
+  opacity: 0.6;
+  font-style: italic;
+  border-bottom: none !important;
+}
+
+.catalog-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1em;
+}
+
+.catalog-table th,
+.catalog-table td {
+  text-align: left;
+  padding: 0.5em 0.6em;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.catalog-row-inactive {
+  opacity: 0.5;
+}
+
+.product-search {
+  margin-top: 2em;
+  max-width: 420px;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;

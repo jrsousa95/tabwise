@@ -15,6 +15,46 @@ export const OperatorRegisteredSchema = baseEventSchema.extend({
 });
 export type OperatorRegistered = z.infer<typeof OperatorRegisteredSchema>;
 
+/** PRD 3.1 — categoria de produto (ex: Bebidas, Petiscos). `aggregateId` é o id da categoria criada. */
+export const CategoryRegisteredSchema = baseEventSchema.extend({
+  type: z.literal("category_registered"),
+  aggregateType: z.literal("category"),
+  aggregateId: z.string().min(1),
+  payload: z.object({
+    name: z.string().min(1),
+  }),
+});
+export type CategoryRegistered = z.infer<typeof CategoryRegisteredSchema>;
+
+/** PRD 3.2 — cadastro de produto. `aggregateId` é o id do produto criado. */
+export const ProductRegisteredSchema = baseEventSchema.extend({
+  type: z.literal("product_registered"),
+  aggregateType: z.literal("product"),
+  aggregateId: z.string().min(1),
+  payload: z.object({
+    name: z.string().min(1),
+    priceCents: z.number().int().nonnegative(),
+    categoryId: z.string().min(1),
+    active: z.boolean(),
+  }),
+});
+export type ProductRegistered = z.infer<typeof ProductRegisteredSchema>;
+
+/**
+ * PRD 3.2 — ativar/desativar produto depois de cadastrado (produto inativo
+ * some da busca do garçom, mas permanece em comandas históricas já
+ * fechadas — não apaga nem edita o evento de cadastro original).
+ */
+export const ProductStatusChangedSchema = baseEventSchema.extend({
+  type: z.literal("product_status_changed"),
+  aggregateType: z.literal("product"),
+  aggregateId: z.string().min(1),
+  payload: z.object({
+    active: z.boolean(),
+  }),
+});
+export type ProductStatusChanged = z.infer<typeof ProductStatusChangedSchema>;
+
 /**
  * PRD 2.2/2.3 — order vinculada a uma mesa OU avulsa (nunca as duas).
  * `aggregateId` é o id da order sendo aberta.
@@ -60,8 +100,10 @@ export const TablesGroupedSchema = baseEventSchema.extend({
 export type TablesGrouped = z.infer<typeof TablesGroupedSchema>;
 
 /**
- * PRD 4.1/4.2 — dados do item denormalizados no próprio evento (cadastro de
- * produto é do Épico 3/M4, que ainda não existe nesta fase do roadmap).
+ * PRD 4.1/4.2 — dados do item denormalizados no próprio evento (mesmo já
+ * existindo `product_registered` desde o M4): o preço no momento da venda
+ * não pode mudar retroativamente se o produto for editado depois, então o
+ * evento carrega uma cópia própria, não uma referência a `productId`.
  * `aggregateId` é a order onde o item entra.
  */
 export const ItemAddedSchema = baseEventSchema.extend({
@@ -126,6 +168,9 @@ export type PaymentRecorded = z.infer<typeof PaymentRecordedSchema>;
 
 export const DomainEventSchema = z.discriminatedUnion("type", [
   OperatorRegisteredSchema,
+  CategoryRegisteredSchema,
+  ProductRegisteredSchema,
+  ProductStatusChangedSchema,
   OrderOpenedSchema,
   OrderTransferredSchema,
   TablesGroupedSchema,

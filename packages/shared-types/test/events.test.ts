@@ -5,10 +5,13 @@ function base() {
   return { id: "ev-1", hlc: "0000000000000001-00000000", operatorId: "op-1", terminalId: "t-1", createdAt: 1700000000000 };
 }
 
-describe("DomainEventSchema — discriminated union dos 8 tipos (PRD/ARCH §3.1)", () => {
+describe("DomainEventSchema — discriminated union dos 11 tipos (PRD/ARCH §3.1)", () => {
   it("aceita um evento válido de cada tipo", () => {
     const validEvents = [
       { ...base(), type: "operator_registered", aggregateType: "operator", aggregateId: "op-1", payload: { name: "Ana", role: "waiter", pinHash: "hash" } },
+      { ...base(), type: "category_registered", aggregateType: "category", aggregateId: "cat-1", payload: { name: "Bebidas" } },
+      { ...base(), type: "product_registered", aggregateType: "product", aggregateId: "p-1", payload: { name: "Cerveja", priceCents: 1200, categoryId: "cat-1", active: true } },
+      { ...base(), type: "product_status_changed", aggregateType: "product", aggregateId: "p-1", payload: { active: false } },
       { ...base(), type: "order_opened", aggregateType: "order", aggregateId: "c-1", payload: { source: "table", tableId: "m-1" } },
       { ...base(), type: "order_opened", aggregateType: "order", aggregateId: "c-2", payload: { source: "standalone", number: 7 } },
       { ...base(), type: "order_transferred", aggregateType: "order", aggregateId: "c-1", payload: { originTableId: "m-1", destinationTableId: "m-2" } },
@@ -73,6 +76,17 @@ describe("DomainEventSchema — discriminated union dos 8 tipos (PRD/ARCH §3.1)
       aggregateType: "order",
       aggregateId: "c-1",
       payload: { itemId: "i-1", name: "Cerveja", unitPriceCents: 12.5, quantity: 1 },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("product_registered também exige priceCents inteiro (PRD 3.2/5.2)", () => {
+    const result = DomainEventSchema.safeParse({
+      ...base(),
+      type: "product_registered",
+      aggregateType: "product",
+      aggregateId: "p-1",
+      payload: { name: "Cerveja", priceCents: 12.5, categoryId: "cat-1", active: true },
     });
     expect(result.success).toBe(false);
   });

@@ -36,6 +36,11 @@ function Layout() {
             </NavLink>
           )}
           {operator?.role === "owner" && (
+            <NavLink to="/catalog" className={navLinkClassName}>
+              Cardápio
+            </NavLink>
+          )}
+          {operator?.role === "owner" && (
             <NavLink to="/operators/new" className={navLinkClassName}>
               Cadastrar operador
             </NavLink>

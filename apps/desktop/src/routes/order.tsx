@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom";
+import ProductSearch from "../product-search";
 
 /** PRD Épico 4/5 (M6/M7) — lançamento de itens e fechamento entram aqui. */
 function Order() {
@@ -8,6 +9,7 @@ function Order() {
     <section>
       <h2>Comanda {orderId}</h2>
       <p>Lançamento de itens (M6) e fechamento (M7) entram aqui.</p>
+      <ProductSearch />
     </section>
   );
 }

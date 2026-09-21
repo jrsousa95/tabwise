@@ -24,7 +24,9 @@ import { loadSession, saveSession, clearSession } from "./session.js";
  * operador por PIN e sessão de terminal.
  */
 
-const PORT = 4550;
+// Override só pra rodar mais de um sidecar na mesma máquina (teste manual,
+// e mais pra frente M9 com múltiplos terminais simulados localmente).
+const PORT = Number(process.env.PASSA_A_REGUA_PORT) || 4550;
 const startedAt = new Date().toISOString();
 
 /**
@@ -38,8 +40,27 @@ const dbPath = path.join(dataDir, "passa-a-regua.db");
 const db = openDatabase(dbPath);
 const terminalId = loadOrCreateTerminalId(dataDir);
 
+function currentState() {
+  return project(sortEvents(listEventsSinceCursor(db)));
+}
+
 function currentOperators() {
-  return project(sortEvents(listEventsSinceCursor(db))).operators;
+  return currentState().operators;
+}
+
+/**
+ * PRD 3.1/3.2 — só o dono cadastra categoria/produto (sem caso de bootstrap
+ * aqui, ao contrário de `POST /operators`: pra chegar nessas telas já
+ * precisa existir pelo menos um operador logado).
+ */
+function requireOwner(res: http.ServerResponse) {
+  const session = loadSession(dataDir);
+  const acting = currentOperators().find((o) => o.id === session?.operatorId);
+  if (!acting || acting.role !== "owner") {
+    sendJson(res, 403, { error: "só o dono pode fazer isso" });
+    return null;
+  }
+  return acting;
 }
 
 /**
@@ -224,6 +245,116 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     sendJson(res, 200, { operator: { id: operator.id, name: operator.name, role: operator.role } });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/categories") {
+    try {
+      const acting = requireOwner(res);
+      if (!acting) return;
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const name = typeof body?.name === "string" ? body.name.trim() : "";
+      if (name.length === 0) {
+        sendJson(res, 400, { error: "nome da categoria é obrigatório" });
+        return;
+      }
+
+      const categoryId = randomUUID();
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "category_registered",
+        aggregateType: "category",
+        aggregateId: categoryId,
+        payload: { name },
+      });
+      insertEvent(db, event);
+      sendJson(res, 201, { id: categoryId, name });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/products") {
+    try {
+      const acting = requireOwner(res);
+      if (!acting) return;
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const name = typeof body?.name === "string" ? body.name.trim() : "";
+      const priceCents = body?.priceCents;
+      const categoryId = typeof body?.categoryId === "string" ? body.categoryId : "";
+      const active = typeof body?.active === "boolean" ? body.active : true;
+
+      if (name.length === 0 || typeof priceCents !== "number" || !Number.isInteger(priceCents) || priceCents < 0) {
+        sendJson(res, 400, { error: "dados de produto inválidos" });
+        return;
+      }
+      if (!currentState().categories.some((c) => c.id === categoryId)) {
+        sendJson(res, 400, { error: "categoria não encontrada" });
+        return;
+      }
+
+      const productId = randomUUID();
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "product_registered",
+        aggregateType: "product",
+        aggregateId: productId,
+        payload: { name, priceCents, categoryId, active },
+      });
+      insertEvent(db, event);
+      sendJson(res, 201, { id: productId, name, priceCents, categoryId, active });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  const productStatusMatch = url.pathname.match(/^\/products\/([^/]+)\/status$/);
+  if (req.method === "POST" && productStatusMatch) {
+    try {
+      const acting = requireOwner(res);
+      if (!acting) return;
+
+      const productId = productStatusMatch[1]!;
+      const product = currentState().products.find((p) => p.id === productId);
+      if (!product) {
+        sendJson(res, 404, { error: "produto não encontrado" });
+        return;
+      }
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      if (typeof body?.active !== "boolean") {
+        sendJson(res, 400, { error: "campo 'active' (boolean) é obrigatório" });
+        return;
+      }
+
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "product_status_changed",
+        aggregateType: "product",
+        aggregateId: productId,
+        payload: { active: body.active },
+      });
+      insertEvent(db, event);
+      sendJson(res, 200, { id: productId, active: body.active });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
     return;
   }
 
