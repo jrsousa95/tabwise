@@ -133,10 +133,10 @@ Referência: `PRD Épico 5`. Depende de M6.
 
 Referência: `PRD Épico 6.1`. Depende de M7.
 
-- [ ] Cálculo do resumo do dia a partir da projeção local (total vendido, total por forma de pagamento, comandas fechadas vs. pendentes) — PRD 6.1.
-- [ ] Tela de fechamento de caixa (dono/caixa).
+- [x] Cálculo do resumo do dia a partir da projeção local (total vendido, total por forma de pagamento, comandas fechadas vs. pendentes) — PRD 6.1. `GET /cash-register/summary?date=` (default hoje, no fuso local da máquina — sidecar roda na mesma máquina do usuário). Sem evento novo: é um cálculo puro sobre `orders`/`payments` já existentes, agrupado pelo `closedAt` do `order_closed` (campo novo em `ClosingState`, projetado do `createdAt` do evento). "Total por forma de pagamento" soma `amountCents` das partes (nunca o troco — troco volta pro cliente, não é receita).
+- [x] Tela de fechamento de caixa (dono/caixa) — `routes/cash-register.tsx` substitui o placeholder do M2: resumo do dia, total por forma de pagamento, lista de comandas pendentes (nunca entram no total fechado, PRD 6.1) com link direto pra cada uma.
 
-**Critério de saída do M8:** o MVP funcional em **um único terminal, 100% offline**, está completo.
+**Critério de saída do M8:** ✅ atingido em 2026-09-21 — validado via API isolada (resumo zerado sem comandas, resumo correto com 2 fechadas + 1 pendente, filtro por data sem fechamento no dia zera o total mas mantém as pendentes) e visualmente na UI real (Vite+sidecar isolados, nunca na sessão do usuário). 46 testes passando. **O MVP funcional em um único terminal, 100% offline, está completo.**
 
 **M8 é um checkpoint de ir/não ir, não só um marco de demo.** Antes de investir no M9 (o milestone de maior risco técnico do projeto), vale usar esse ponto para validar a tese central do produto: o fluxo single-terminal (mesas, comandas, cardápio, fechamento) já resolve o problema de verdade para um bar pequeno como o do cliente-zero? Se a reação real ao produto funcionando aqui não convencer ninguém a querer usar, é muito mais barato descobrir isso agora do que depois de construir sync LAN inteiro. Recomenda-se uma demo real com o cliente-zero neste ponto antes de seguir para o M9.
 
