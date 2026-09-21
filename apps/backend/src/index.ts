@@ -1,7 +1,15 @@
 import http from "node:http";
 import { randomBytes } from "node:crypto";
 import { DomainEventSchema } from "@passa-a-regua/shared-types";
-import { project, sortEvents, hashPin as hashSecret, verifyPin as verifySecret } from "@passa-a-regua/sync-engine";
+import {
+  project,
+  sortEvents,
+  hashPin as hashSecret,
+  verifyPin as verifySecret,
+  computeCashRegisterSummary,
+  localDateKey,
+  type ProjectedState,
+} from "@passa-a-regua/sync-engine";
 import {
   openDatabase,
   createEstablishment,
@@ -213,6 +221,25 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     sendJson(res, 200, plan);
+    return;
+  }
+
+  /**
+   * PRD 6.2/NFR4 — endpoint de relatório read-only, existe desde a primeira
+   * versão do backend por requisito de arquitetura, mesmo sem tela remota
+   * nenhuma consumindo ele ainda no MVP (validação de "pronto" é só o
+   * endpoint responder certo). Mesma lógica do resumo de caixa do sidecar
+   * (PRD 6.1) via `computeCashRegisterSummary` do sync-engine — só a fonte
+   * de `orders` muda: aqui é a projeção Postgres do estabelecimento inteiro
+   * (todos os terminais já sincronizados), não a réplica SQLite de um único
+   * terminal.
+   */
+  if (req.method === "GET" && url.pathname === "/reports/cash-register") {
+    const auth = await authenticateTerminal(req, res);
+    if (!auth) return;
+    const dateKey = url.searchParams.get("date") ?? localDateKey(Date.now());
+    const projection = (await getProjection(db, auth.establishmentId)) as ProjectedState | null;
+    sendJson(res, 200, computeCashRegisterSummary(projection?.orders ?? [], dateKey));
     return;
   }
 
