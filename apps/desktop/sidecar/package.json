@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Processo sidecar Node embutido no app Tauri via SEA (Single Executable Application) — ARCH §9, M2.",
   "scripts": {
-    "typecheck": "node ./node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:bundle": "esbuild src/index.ts --bundle --platform=node --format=cjs --outfile=dist/index.js --external:node:sqlite",
     "build:sea": "node scripts/build-sea.mjs",
     "build": "npm run typecheck && npm run build:bundle && npm run build:sea",
