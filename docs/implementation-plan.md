@@ -104,9 +104,11 @@ Dois achados durante o teste manual na sessão real do app (não no isolado): (1
 
 Referência: `PRD Épico 4`. Depende de M4 (produtos) e M5 (comandas).
 
-- [ ] Adicionar item a uma comanda aberta (evento `item_added`) — PRD 4.1.
-- [ ] Observação por item (ex: "sem cebola") — PRD 4.2.
-- [ ] Cancelamento de item com motivo obrigatório (lista pré-definida + "outro"), gerando evento de auditoria — PRD 4.3, ligado ao log do M3.
+- [x] Adicionar item a uma comanda aberta (evento `item_added`) — PRD 4.1. `POST /orders/:id/items` recebe `productId`+`quantity`+`note` opcional, busca nome/preço do produto no servidor (nunca confia em preço vindo do cliente) e recusa produto inativo — reforça server-side o filtro que o `ProductSearch` (M4) já faz na UI.
+- [x] Observação por item (ex: "sem cebola") — PRD 4.2. Campo `note` do `item_added`, já suportado desde o schema do M1.
+- [x] Cancelamento de item com motivo obrigatório (lista pré-definida + "outro"), gerando evento de auditoria — PRD 4.3, ligado ao log do M3. `POST /orders/:id/items/:itemId/cancel`, só caixa/dono (garçom recebe 403 — `PRD §2`), motivo "outro" exige observação. Achado corrigido durante a implementação: a observação do cancelamento não estava sendo projetada em `ItemState` (só o motivo) — `cancelNote` adicionado ao `sync-engine` antes de UI nenhuma depender disso.
+
+**Critério de saída do M6:** ✅ atingido em 2026-09-21 — validado via API isolada: item adicionado com nome/preço vindos do servidor, produto inativo rejeitado, garçom bloqueado de cancelar (403), motivo "outro" sem observação rejeitado (400) e aceito com observação. Tela de comanda (`routes/order.tsx`) já mostra a lista de itens com subtotal corrente, formulário de adicionar (via `ProductSearch` com `onSelect`) e cancelamento com seletor de motivo — validado sem quebrar mesmo contra um sidecar de versão anterior (fallback defensivo já herdado do M5). 42 testes passando.
 
 ---
 
