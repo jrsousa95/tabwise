@@ -21,11 +21,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Instala dependências do monorepo (raiz + workspace desktop)
-        run: npm install
-
-      - name: Instala dependências do sidecar (pacote isolado, fora do workspace)
-        working-directory: apps/desktop/sidecar
+      - name: Instala dependências do monorepo (inclui o sidecar, que é membro do workspace)
         run: npm install
 
       - name: Builda o binário SEA do sidecar (nativo em Windows, sem cross-build)
