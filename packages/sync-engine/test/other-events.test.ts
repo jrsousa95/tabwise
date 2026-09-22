@@ -98,6 +98,33 @@ describe("projeção — demais tipos de evento", () => {
     expect(state.tableGroups).toEqual([{ id: "g-1", tableIds: ["table-1", "table-2"] }]);
   });
 
+  it("table_group_dissolved remove o grupo de `tableGroups`, sem apagar o evento original (PRD 2.6, emenda 2026-09-21)", () => {
+    const grouped: DomainEvent = {
+      id: "ev-1",
+      hlc: newHlc(1000),
+      aggregateType: "table_group",
+      aggregateId: "g-1",
+      type: "tables_grouped",
+      terminalId: "T1",
+      operatorId: "op-1",
+      createdAt: 1000,
+      payload: { tableIds: ["table-1", "table-2"] },
+    };
+    const dissolved: DomainEvent = {
+      id: "ev-2",
+      hlc: newHlc(2000),
+      aggregateType: "table_group",
+      aggregateId: "g-1",
+      type: "table_group_dissolved",
+      terminalId: "T1",
+      operatorId: "op-1",
+      createdAt: 2000,
+      payload: {},
+    };
+    const state = project(sortEvents([grouped, dissolved]));
+    expect(state.tableGroups).toEqual([]);
+  });
+
   it("order_closed marca status e guarda o resumo; payment_recorded acumula os splits (PRD 5.1-5.5)", () => {
     const open: DomainEvent = {
       id: "ev-1",

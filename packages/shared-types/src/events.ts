@@ -128,6 +128,20 @@ export const TablesGroupedSchema = baseEventSchema.extend({
 export type TablesGrouped = z.infer<typeof TablesGroupedSchema>;
 
 /**
+ * PRD 2.6 (emenda 2026-09-21) — desfaz um agrupamento de mesas feito por
+ * engano, sem apagar/reescrever o evento `tables_grouped` original (mesmo
+ * padrão append-only). `aggregateId` é o id do GRUPO dissolvido (não de uma
+ * mesa específica) — mesma convenção de `TablesGroupedSchema`.
+ */
+export const TableGroupDissolvedSchema = baseEventSchema.extend({
+  type: z.literal("table_group_dissolved"),
+  aggregateType: z.literal("table_group"),
+  aggregateId: z.string().min(1),
+  payload: z.object({}),
+});
+export type TableGroupDissolved = z.infer<typeof TableGroupDissolvedSchema>;
+
+/**
  * PRD 4.1/4.2 — dados do item denormalizados no próprio evento (mesmo já
  * existindo `product_registered` desde o M4): o preço no momento da venda
  * não pode mudar retroativamente se o produto for editado depois, então o
@@ -204,6 +218,7 @@ export const DomainEventSchema = z.discriminatedUnion("type", [
   OrderOpenedSchema,
   OrderTransferredSchema,
   TablesGroupedSchema,
+  TableGroupDissolvedSchema,
   ItemAddedSchema,
   ItemCanceledSchema,
   OrderClosedSchema,

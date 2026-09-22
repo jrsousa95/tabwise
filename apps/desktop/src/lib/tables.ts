@@ -80,3 +80,13 @@ export function transferOrder(orderId: string, destinationTableId: string) {
 export function groupTables(tableIds: string[]) {
   return postJson<TableGroup>("/table-groups", { tableIds });
 }
+
+/** PRD 2.6 (emenda 2026-09-21) — desfaz uma junção feita por engano; endpoint responde 204 (sem corpo). */
+export async function dissolveTableGroup(groupId: string): Promise<ApiResult<void>> {
+  const res = await fetch(`${SIDECAR_URL}/table-groups/${groupId}`, { method: "DELETE" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    return { ok: false, error: (body as { error?: string } | null)?.error ?? "não foi possível desfazer a junção" };
+  }
+  return { ok: true, data: undefined };
+}

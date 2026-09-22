@@ -111,6 +111,14 @@ function Order() {
   return (
     <section>
       <h2>{title}</h2>
+      {/* PRD 2.6 (emenda 2026-09-21) — aviso de agrupamento visível desde o
+          carregamento da comanda, antes do fechamento (era só um checkbox
+          surpresa no fechamento). */}
+      {tableGroup && (
+        <p className="status-badge status-badge-neutral">
+          Agrupada com {tableGroup.tableIds.filter((id) => id !== order.currentTableId).map((id) => tables.find((t) => t.id === id)?.identifier ?? "—").join(" + ")}
+        </p>
+      )}
       {order.status === "closed" && <p className="form-error">Comanda fechada — não aceita mais alterações.</p>}
 
       <table className="catalog-table">

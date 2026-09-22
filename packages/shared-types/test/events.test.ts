@@ -5,7 +5,7 @@ function base() {
   return { id: "ev-1", hlc: "0000000000000001-00000000", operatorId: "op-1", terminalId: "t-1", createdAt: 1700000000000 };
 }
 
-describe("DomainEventSchema — discriminated union dos 13 tipos (PRD/ARCH §3.1)", () => {
+describe("DomainEventSchema — discriminated union dos 14 tipos (PRD/ARCH §3.1)", () => {
   it("aceita um evento válido de cada tipo", () => {
     const validEvents = [
       { ...base(), type: "establishment_settings_updated", aggregateType: "establishment", aggregateId: "establishment", payload: { defaultServiceFeePercent: 10 } },
@@ -19,6 +19,7 @@ describe("DomainEventSchema — discriminated union dos 13 tipos (PRD/ARCH §3.1
       { ...base(), type: "order_opened", aggregateType: "order", aggregateId: "c-2", payload: { source: "standalone", number: 7 } },
       { ...base(), type: "order_transferred", aggregateType: "order", aggregateId: "c-1", payload: { originTableId: "m-1", destinationTableId: "m-2" } },
       { ...base(), type: "tables_grouped", aggregateType: "table_group", aggregateId: "g-1", payload: { tableIds: ["m-1", "m-2"] } },
+      { ...base(), type: "table_group_dissolved", aggregateType: "table_group", aggregateId: "g-1", payload: {} },
       { ...base(), type: "item_added", aggregateType: "order", aggregateId: "c-1", payload: { itemId: "i-1", name: "Cerveja", unitPriceCents: 1200, quantity: 2 } },
       { ...base(), type: "item_canceled", aggregateType: "order", aggregateId: "c-1", payload: { itemId: "i-1", reason: "other", note: "pedido em duplicidade" } },
       { ...base(), type: "order_closed", aggregateType: "order", aggregateId: "c-1", payload: { subtotalCents: 2400, serviceFeePercent: 10, serviceFeeCents: 240, totalCents: 2640 } },

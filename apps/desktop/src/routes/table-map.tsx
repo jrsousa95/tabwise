@@ -8,6 +8,7 @@ import {
   openStandaloneOrder,
   transferOrder,
   groupTables,
+  dissolveTableGroup,
   type Table,
 } from "../lib/tables";
 
@@ -106,7 +107,18 @@ function TableMap() {
     refresh();
   }
 
+  async function handleDissolveGroup(groupId: string) {
+    setGroupError(null);
+    const result = await dissolveTableGroup(groupId);
+    if (!result.ok) {
+      setGroupError(result.error);
+      return;
+    }
+    refresh();
+  }
+
   const tableLabel = (tableId: string) => tables.find((t) => t.id === tableId)?.identifier ?? "—";
+  const groupForTable = (tableId: string) => tableGroups.find((g) => g.tableIds.includes(tableId));
 
   return (
     <section>
@@ -139,6 +151,7 @@ function TableMap() {
           <div className="table-tile-grid">
             {tables.map((t) => {
               const order = orderForTable(t.id);
+              const group = groupForTable(t.id);
               return (
                 <div key={t.id} className={`table-tile ${order ? "table-tile-occupied" : "table-tile-free"}`}>
                   <div className="table-tile-header">
@@ -153,6 +166,11 @@ function TableMap() {
                     </label>
                   </div>
                   <span className="table-tile-status">{order ? "Ocupada" : "Livre"}</span>
+                  {/* PRD 2.6 (emenda 2026-09-21) — visibilidade do agrupamento
+                      no mapa de mesas, não só surpresa no fechamento. */}
+                  {group && (
+                    <span className="status-badge status-badge-neutral">Junta com {group.tableIds.filter((id) => id !== t.id).map(tableLabel).join(" + ")}</span>
+                  )}
                   {t.capacity ? <span className="table-tile-meta">{t.capacity} lugares</span> : null}
                   <div className="table-tile-actions">
                     {order ? (
@@ -187,7 +205,12 @@ function TableMap() {
         {groupError && <p className="form-error">{groupError}</p>}
         <ul className="catalog-list">
           {tableGroups.map((g) => (
-            <li key={g.id}>{g.tableIds.map(tableLabel).join(" + ")}</li>
+            <li key={g.id}>
+              {g.tableIds.map(tableLabel).join(" + ")}{" "}
+              <button type="button" className="button-secondary" onClick={() => handleDissolveGroup(g.id)}>
+                Desfazer
+              </button>
+            </li>
           ))}
           {tableGroups.length === 0 && <li className="catalog-empty">Nenhuma junção ainda.</li>}
         </ul>

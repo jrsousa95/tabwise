@@ -265,6 +265,11 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
         break;
       }
 
+      case "table_group_dissolved": {
+        tableGroups.delete(event.aggregateId);
+        break;
+      }
+
       case "item_added": {
         const canonical = resolveCanonical(event.aggregateId);
         canonical.items.set(event.payload.itemId, {

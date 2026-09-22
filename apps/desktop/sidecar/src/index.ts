@@ -888,9 +888,25 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 400, { error: "junção de mesas exige pelo menos 2 mesas distintas" });
         return;
       }
-      const tables = currentState().tables;
+      const state = currentState();
+      const tables = state.tables;
       if (!uniqueTableIds.every((id) => tables.some((t) => t.id === id))) {
         sendJson(res, 400, { error: "uma ou mais mesas não encontradas" });
+        return;
+      }
+
+      // PRD 2.6 (emenda 2026-09-21, achado em uso real) — trava contra
+      // sobreposição: uma mesa que já está num grupo ativo não pode entrar
+      // em outro grupo (era assim que surgiam grupos duplicados/sobrepostos
+      // sem aviso). Mensagem nomeia TODOS os grupos existentes em conflito
+      // pelos identificadores de mesa (nunca pelo id interno do grupo) —
+      // as mesas submetidas podem se sobrepor com mais de um grupo ao
+      // mesmo tempo.
+      const tableLabel = (id: string) => tables.find((t) => t.id === id)?.identifier ?? id;
+      const conflictingGroups = state.tableGroups.filter((g) => g.tableIds.some((id) => uniqueTableIds.includes(id)));
+      if (conflictingGroups.length > 0) {
+        const groupLabels = conflictingGroups.map((g) => g.tableIds.map(tableLabel).join(" + ")).join(", ");
+        sendJson(res, 400, { error: `mesa(s) já em outro grupo: ${groupLabels}` });
         return;
       }
 
@@ -910,6 +926,43 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 201, { id: groupId, tableIds: uniqueTableIds });
     } catch {
       sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  // PRD 2.6 (emenda 2026-09-21) — desfazer uma junção feita por engano.
+  // Mesma exigência de sessão de `POST /table-groups` (requireSession, sem
+  // restrição de papel adicional — qualquer operador autenticado pode
+  // agrupar, então desfazer segue a mesma regra por simetria).
+  const tableGroupDissolveMatch = url.pathname.match(/^\/table-groups\/([^/]+)$/);
+  if (req.method === "DELETE" && tableGroupDissolveMatch) {
+    const acting = requireSession(res);
+    if (!acting) return;
+
+    const groupId = tableGroupDissolveMatch[1]!;
+    const group = currentState().tableGroups.find((g) => g.id === groupId);
+    if (!group) {
+      sendJson(res, 404, { error: "grupo de mesas não encontrado" });
+      return;
+    }
+
+    try {
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "table_group_dissolved",
+        aggregateType: "table_group",
+        aggregateId: groupId,
+        payload: {},
+      });
+      insertEvent(db, event);
+      res.writeHead(204);
+      res.end();
+    } catch {
+      sendJson(res, 500, { error: "não foi possível desfazer a junção de mesas" });
     }
     return;
   }

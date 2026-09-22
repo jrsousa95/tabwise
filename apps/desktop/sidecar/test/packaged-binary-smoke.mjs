@@ -58,6 +58,11 @@ async function getJson(pathName) {
   return res.json();
 }
 
+async function delJson(pathName) {
+  const res = await fetch(`http://127.0.0.1:${PORT}${pathName}`, { method: "DELETE" });
+  return { ok: res.ok, status: res.status, data: await res.json().catch(() => null) };
+}
+
 async function main() {
   const dataDir = mkdtempSync(path.join(tmpdir(), "passa-a-regua-packaged-smoke-"));
   const child = spawn(exePath, [], {
@@ -102,6 +107,35 @@ async function main() {
     const summary = await getJson("/cash-register/summary");
     assert.equal(summary.closedOrdersCount, 1);
     assert.equal(summary.totalSoldCents, 2200);
+
+    console.log("[packaged-binary-smoke] junção de mesas: rejeição de sobreposição + desfazer (PRD 2.6)...");
+    const tableA = await postJson("/tables", { identifier: "Mesa 10" });
+    assert.equal(tableA.status, 201);
+    const tableB = await postJson("/tables", { identifier: "Mesa 11" });
+    assert.equal(tableB.status, 201);
+    const tableC = await postJson("/tables", { identifier: "Mesa 12" });
+    assert.equal(tableC.status, 201);
+
+    const group = await postJson("/table-groups", { tableIds: [tableA.data.id, tableB.data.id] });
+    assert.equal(group.status, 201, `esperado 201, veio ${group.status}: ${JSON.stringify(group.data)}`);
+
+    const overlapping = await postJson("/table-groups", { tableIds: [tableB.data.id, tableC.data.id] });
+    assert.equal(overlapping.status, 400, `esperado 400, veio ${overlapping.status}: ${JSON.stringify(overlapping.data)}`);
+    assert.match(overlapping.data.error, /Mesa 10/, "mensagem de erro deveria citar a identificação da mesa do grupo existente");
+    assert.match(overlapping.data.error, /Mesa 11/, "mensagem de erro deveria citar a identificação da mesa do grupo existente");
+
+    const dissolve = await delJson(`/table-groups/${group.data.id}`);
+    assert.equal(dissolve.status, 204, `esperado 204, veio ${dissolve.status}: ${JSON.stringify(dissolve.data)}`);
+
+    const dissolveAgain = await delJson(`/table-groups/${group.data.id}`);
+    assert.equal(dissolveAgain.status, 404, `esperado 404, veio ${dissolveAgain.status}: ${JSON.stringify(dissolveAgain.data)}`);
+
+    const stateAfterDissolve = await getJson("/state");
+    assert.equal(
+      stateAfterDissolve.tableGroups.some((g) => g.id === group.data.id),
+      false,
+      "grupo desfeito não deveria mais aparecer em tableGroups"
+    );
 
     console.log("[packaged-binary-smoke] TUDO OK — node:sqlite e a lógica de negócio completa funcionam no binário empacotado.");
   } finally {
