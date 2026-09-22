@@ -15,14 +15,24 @@
    pedido pra virar "uma logo" ou pelo menos uma fonte cursiva de
    destaque). Arquivo .woff2 baixado e embutido no app (não um @import de
    CDN) de propósito — o app roda 100% offline (ver ARCH), carregar fonte
-   de fora quebraria num estabelecimento sem internet. Pacifico é OFL
-   (Open Font License, uso comercial livre). */
+   de fora quebraria num estabelecimento sem internet. Dancing Script é
+   OFL (Open Font License, uso comercial livre).
+   Era Pacifico até este commit — trocada porque o "P" maiúsculo dela tem
+   uma cauda decorativa grande e assimétrica que puxa o peso visual do
+   texto pra esquerda mesmo com a CAIXA perfeitamente centralizada (medido
+   via getBoundingClientRect); a correção manual (translateX calibrado no
+   Chrome) não valia igual no WebView do app desktop (WebKit) — mesmo
+   texto, mesmo CSS, fonte renderiza com métricas ligeiramente diferentes
+   entre motores, achado em uso real, 2026-09-22. Dancing Script tem um
+   "P" bem mais contido — sem cauda pra compensar manualmente, o texto
+   fica ok em qualquer motor de render sem precisar de ajuste numérico
+   frágil por navegador. */
 @font-face {
-  font-family: "Pacifico";
+  font-family: "Dancing Script";
   font-style: normal;
-  font-weight: 400;
+  font-weight: 700;
   font-display: swap;
-  src: url("./assets/fonts/Pacifico-Regular.woff2") format("woff2");
+  src: url("./assets/fonts/DancingScript-Bold.woff2") format("woff2");
 }
 
 :root {
@@ -407,31 +417,23 @@ button:disabled {
 
 /* Wordmark tipográfico da marca — fonte cursiva própria (@font-face no
    topo do arquivo) + cor da marca, em vez de texto puro herdando o peso
-   700 padrão de h1/h2 (Pacifico só tem o peso Regular). Reutilizável:
-   `.app-nav-brand` (cabeçalho, pequeno) e `.brand-wordmark-lg` (título de
-   Login, grande) compartilham a base. */
+   700 padrão de h1/h2. Reutilizável: `.app-nav-brand` (cabeçalho,
+   pequeno) e `.brand-wordmark-lg` (título de Login, grande) compartilham
+   a base. */
 .brand-wordmark {
-  font-family: "Pacifico", var(--font-sans);
-  font-weight: 400;
+  font-family: "Dancing Script", var(--font-sans);
+  font-weight: 700;
   color: var(--color-primary);
 }
 
 .app-nav-brand {
-  font-size: 26px;
+  font-size: 28px;
   white-space: nowrap;
 }
 
 .brand-wordmark-lg {
-  font-size: 44px;
+  font-size: 48px;
   margin: 0 0 var(--spacing-2);
-  /* Achado em uso real, 2026-09-22: a caixa do texto já centraliza exato
-     (conferido via getBoundingClientRect — mesmo centro que "Digite seu
-     PIN"/teclado abaixo), mas a cauda decorativa grande do "P" de
-     "Passa" pesa visualmente mais que o final mais fechado de "Régua" —
-     a TINTA do texto parece puxada pra esquerda mesmo a CAIXA estando
-     centralizada. Correção óptica manual (não é algo que padding/
-     text-align resolvem), calibrada olhando o resultado, não calculada. */
-  transform: translateX(14px);
 }
 
 .app-nav nav {
