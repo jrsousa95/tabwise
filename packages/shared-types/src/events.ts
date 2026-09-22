@@ -289,6 +289,27 @@ export const ItemNoteUpdatedSchema = baseEventSchema.extend({
 export type ItemNoteUpdated = z.infer<typeof ItemNoteUpdatedSchema>;
 
 /**
+ * Achado em uso real, 2026-09-22: o "+" de adição rápida (product-search.tsx)
+ * criava um `item_added` novo a cada clique — várias linhas duplicadas do
+ * mesmo produto em vez de uma linha só com a quantidade somada. `deltaQuantity`
+ * (não um novo total absoluto) é proposital: sob merge offline-first, dois
+ * terminais incrementando o mesmo item concorrentemente somam os deltas
+ * corretamente em qualquer ordem de HLC — um "novo total" perderia os
+ * cliques do terminal que "perdeu" o last-write-wins. Só se aplica a item
+ * ainda não cancelado (validado na API), mesmo princípio de `ItemNoteUpdatedSchema`.
+ */
+export const ItemQuantityIncrementedSchema = baseEventSchema.extend({
+  type: z.literal("item_quantity_incremented"),
+  aggregateType: z.literal("order"),
+  aggregateId: z.string().min(1),
+  payload: z.object({
+    itemId: z.string().min(1),
+    deltaQuantity: z.number().int().positive(),
+  }),
+});
+export type ItemQuantityIncremented = z.infer<typeof ItemQuantityIncrementedSchema>;
+
+/**
  * PRD 5.1/5.5 — fecha a order (imutável após isso). Os pagamentos em si
  * são eventos `payment_recorded` separados (um por parte do split).
  */
@@ -340,6 +361,7 @@ export const DomainEventSchema = z.discriminatedUnion("type", [
   ItemAddedSchema,
   ItemCanceledSchema,
   ItemNoteUpdatedSchema,
+  ItemQuantityIncrementedSchema,
   OrderClosedSchema,
   PaymentRecordedSchema,
 ]);

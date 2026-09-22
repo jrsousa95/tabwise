@@ -1253,6 +1253,64 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Achado em uso real, 2026-09-22: o "+" de adição rápida do product-search
+  // criava um item_added novo a cada clique — várias linhas duplicadas do
+  // mesmo produto em vez de somar na mesma linha. deltaQuantity (nunca um
+  // total absoluto) por segurança de merge offline-first — ver comentário em
+  // shared-types/src/events.ts.
+  const itemIncrementMatch = url.pathname.match(/^\/orders\/([^/]+)\/items\/([^/]+)\/increment$/);
+  if (req.method === "POST" && itemIncrementMatch) {
+    try {
+      const acting = requireSession(res);
+      if (!acting) return;
+
+      const [, orderId, itemId] = itemIncrementMatch;
+      const state = currentState();
+      const order = state.orders.find((o) => o.id === orderId);
+      if (!order || order.mergedInto !== undefined) {
+        sendJson(res, 404, { error: "comanda não encontrada" });
+        return;
+      }
+      if (order.status !== "open") {
+        sendJson(res, 409, { error: "comanda fechada não aceita edição de item" });
+        return;
+      }
+      const item = order.items.find((i) => i.id === itemId);
+      if (!item) {
+        sendJson(res, 404, { error: "item não encontrado" });
+        return;
+      }
+      if (item.canceled) {
+        sendJson(res, 409, { error: "item cancelado não aceita edição" });
+        return;
+      }
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const deltaQuantity = typeof body?.deltaQuantity === "number" ? body.deltaQuantity : 1;
+      if (!Number.isInteger(deltaQuantity) || deltaQuantity <= 0) {
+        sendJson(res, 400, { error: "deltaQuantity precisa ser um número inteiro positivo" });
+        return;
+      }
+
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "item_quantity_incremented",
+        aggregateType: "order",
+        aggregateId: orderId!,
+        payload: { itemId: itemId!, deltaQuantity },
+      });
+      insertEvent(db, event);
+      sendJson(res, 200, { itemId, deltaQuantity });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
   const orderCloseMatch = url.pathname.match(/^\/orders\/([^/]+)\/close$/);
   if (req.method === "POST" && orderCloseMatch) {
     try {

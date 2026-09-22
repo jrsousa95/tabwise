@@ -126,4 +126,109 @@ describe("projeção — lançamento e cancelamento de item (PRD Épico 4/M6)", 
     };
     expect(() => project(sortEvents([opened, noteUpdated]))).not.toThrow();
   });
+
+  it("item_quantity_incremented soma o delta na quantidade existente (achado em uso real, 2026-09-22: '+' de adição rápida criava linha nova a cada clique em vez de somar)", () => {
+    const opened = openOrder("c-1");
+    const added: DomainEvent = {
+      id: "ev-2",
+      hlc: newHlc(1000),
+      aggregateType: "order",
+      aggregateId: "c-1",
+      type: "item_added",
+      terminalId: "T1",
+      operatorId: "op-1",
+      createdAt: 1000,
+      payload: { itemId: "i-1", name: "Cerveja", unitPriceCents: 1200, quantity: 1 },
+    };
+    const incremented1: DomainEvent = {
+      id: "ev-3",
+      hlc: newHlc(1000),
+      aggregateType: "order",
+      aggregateId: "c-1",
+      type: "item_quantity_incremented",
+      terminalId: "T1",
+      operatorId: "op-1",
+      createdAt: 1000,
+      payload: { itemId: "i-1", deltaQuantity: 1 },
+    };
+    const incremented2: DomainEvent = {
+      id: "ev-4",
+      hlc: newHlc(1000),
+      aggregateType: "order",
+      aggregateId: "c-1",
+      type: "item_quantity_incremented",
+      terminalId: "T1",
+      operatorId: "op-1",
+      createdAt: 1000,
+      payload: { itemId: "i-1", deltaQuantity: 1 },
+    };
+
+    const state = project(sortEvents([opened, added, incremented1, incremented2]));
+    const item = state.orders.find((o) => o.id === "c-1")!.items.find((i) => i.id === "i-1")!;
+    expect(item.quantity).toBe(3);
+  });
+
+  it("item_quantity_incremented soma o mesmo total independente da ordem de merge (dois terminais offline incrementando o mesmo item)", () => {
+    const opened = openOrder("c-1");
+    const added: DomainEvent = {
+      id: "ev-2",
+      hlc: newHlc(1000),
+      aggregateType: "order",
+      aggregateId: "c-1",
+      type: "item_added",
+      terminalId: "T1",
+      operatorId: "op-1",
+      createdAt: 1000,
+      payload: { itemId: "i-1", name: "Cerveja", unitPriceCents: 1200, quantity: 1 },
+    };
+    const fromTerminalA: DomainEvent = {
+      id: "ev-a",
+      hlc: newHlc(1000),
+      aggregateType: "order",
+      aggregateId: "c-1",
+      type: "item_quantity_incremented",
+      terminalId: "T-A",
+      operatorId: "op-1",
+      createdAt: 1000,
+      payload: { itemId: "i-1", deltaQuantity: 3 },
+    };
+    const fromTerminalB: DomainEvent = {
+      id: "ev-b",
+      hlc: newHlc(1000),
+      aggregateType: "order",
+      aggregateId: "c-1",
+      type: "item_quantity_incremented",
+      terminalId: "T-B",
+      operatorId: "op-2",
+      createdAt: 1000,
+      payload: { itemId: "i-1", deltaQuantity: 2 },
+    };
+
+    // Mesmo conjunto de eventos, ordem de chegada diferente (ordenação por HLC
+    // dentro de sortEvents deve produzir o mesmo total nos dois casos).
+    const stateAB = project(sortEvents([opened, added, fromTerminalA, fromTerminalB]));
+    const stateBA = project(sortEvents([opened, added, fromTerminalB, fromTerminalA]));
+
+    const itemAB = stateAB.orders.find((o) => o.id === "c-1")!.items.find((i) => i.id === "i-1")!;
+    const itemBA = stateBA.orders.find((o) => o.id === "c-1")!.items.find((i) => i.id === "i-1")!;
+
+    expect(itemAB.quantity).toBe(6); // 1 (added) + 3 (A) + 2 (B)
+    expect(itemBA.quantity).toBe(6);
+  });
+
+  it("item_quantity_incremented pra um item que não existe na order não quebra a projeção", () => {
+    const opened = openOrder("c-1");
+    const incremented: DomainEvent = {
+      id: "ev-2",
+      hlc: newHlc(1000),
+      aggregateType: "order",
+      aggregateId: "c-1",
+      type: "item_quantity_incremented",
+      terminalId: "T1",
+      operatorId: "op-1",
+      createdAt: 1000,
+      payload: { itemId: "item-que-nao-existe", deltaQuantity: 1 },
+    };
+    expect(() => project(sortEvents([opened, incremented]))).not.toThrow();
+  });
 });

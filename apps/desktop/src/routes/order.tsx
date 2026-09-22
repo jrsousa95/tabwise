@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSession } from "../lib/session";
-import { useOrder, addItemToOrder, cancelItem, updateItemNote } from "../lib/order";
+import { useOrder, addItemToOrder, cancelItem, updateItemNote, incrementItemQuantity } from "../lib/order";
 import { useTablesAndOrders } from "../lib/tables";
 import { formatCentsToBRL } from "../lib/money";
 import { cancelReasonLabel, cancelReasons, type CancelReason } from "../lib/cancel-reason";
@@ -117,10 +117,20 @@ function Order() {
   // de quantidade/observação, mesmo pro caso comum de só lançar 1 unidade sem
   // nota — clique único adiciona 1 direto; quantidade/observação continuam
   // disponíveis via handleSelectProduct (botão secundário na busca).
+  //
+  // Segundo achado, mesmo dia: a primeira versão sempre criava um item_added
+  // novo, então clicar "+" repetido no mesmo produto virava várias linhas
+  // duplicadas em vez de uma linha só com a quantidade somada. Agora, se já
+  // existe uma linha aberta (não cancelada) do mesmo produto (nome + preço —
+  // o item não guarda productId, é denormalizado de propósito, ver
+  // shared-types/events.ts), incrementa ela em vez de criar outra.
   async function handleQuickAdd(product: Product) {
     if (!orderId) return;
     setAddError(null);
-    const result = await addItemToOrder(orderId, { productId: product.id, quantity: 1 });
+    const existing = order?.items.find((i) => !i.canceled && i.name === product.name && i.unitPriceCents === product.priceCents);
+    const result = existing
+      ? await incrementItemQuantity(orderId, existing.id)
+      : await addItemToOrder(orderId, { productId: product.id, quantity: 1 });
     if (!result.ok) {
       setAddError(result.error);
       return;

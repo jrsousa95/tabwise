@@ -79,3 +79,7 @@ export function updateItemNote(orderId: string, itemId: string, note: string | u
   return postJson<{ itemId: string }>(`/orders/${orderId}/items/${itemId}/note`, { note });
 }
 
+export function incrementItemQuantity(orderId: string, itemId: string, deltaQuantity = 1) {
+  return postJson<{ itemId: string }>(`/orders/${orderId}/items/${itemId}/increment`, { deltaQuantity });
+}
+
