@@ -28,7 +28,7 @@ function Layout() {
   return (
     <div className="app-shell">
       <header className="app-nav">
-        <span className="app-nav-brand">Passa a Régua</span>
+        <span className="app-nav-brand brand-wordmark">Passa a Régua</span>
         <nav>
           <NavLink to="/tables" className={navLinkClassName}>
             Mapa de Mesas

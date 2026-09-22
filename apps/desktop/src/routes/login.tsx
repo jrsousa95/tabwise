@@ -25,7 +25,7 @@ function Login() {
   if (operators.length === 0) {
     return (
       <main className="container container-center">
-        <h1>Passa a Régua</h1>
+        <h1 className="brand-wordmark brand-wordmark-lg">Passa a Régua</h1>
         <p>Nenhum operador cadastrado neste terminal ainda.</p>
         <Link to="/operators/new">Cadastrar o primeiro operador →</Link>
         {/* M9 (ARCH §7) — terminal novo pode virar réplica de um já existente
@@ -66,7 +66,7 @@ function Login() {
 
   return (
     <main className="container container-center">
-      <h1>Passa a Régua</h1>
+      <h1 className="brand-wordmark brand-wordmark-lg">Passa a Régua</h1>
       <p>Digite seu PIN</p>
       <div className="pin-display" aria-live="polite">
         {"•".repeat(pin.length) || " "}
