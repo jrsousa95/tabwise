@@ -675,9 +675,14 @@ button:disabled {
 /* components.table-tile — grid de cartões no lugar da tabela de mesas; o
    cartão em si não tem ação própria, quem reage a toque/clique é o
    botão/checkbox dentro dele. */
+/* 260px (não mais 200px) — o cabeçalho do tile agora carrega o identificador
+   da mesa + 2 ícones de ação administrativa lado a lado (ver
+   table-tile-header); em menos espaço, o identificador quebra linha
+   (achado em uso real, 2026-09-22, ao mover renomear/remover pro
+   cabeçalho). */
 .table-tile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: var(--spacing-4);
 }
 
@@ -705,7 +710,7 @@ button:disabled {
 
 .table-tile-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--spacing-2);
 }

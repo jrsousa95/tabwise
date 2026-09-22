@@ -189,6 +189,36 @@ function TableMap() {
                 <div key={t.id} className={`table-tile ${order ? "table-tile-occupied" : "table-tile-free"}`}>
                   <div className="table-tile-header">
                     <span className="table-tile-id">{t.identifier}</span>
+                    {/* PRD 2.8 — renomear/remover mesa (dono), ao lado da identificação em
+                        vez de numa segunda faixa de botões embaixo do card: ação
+                        principal (Abrir/Ver comanda) e ações administrativas viviam no
+                        mesmo peso visual, um botão de largura total sobre dois quadrados
+                        pequenos, e liam como desalinhados (achado em uso real,
+                        2026-09-22). Remover é bloqueado (409) se a mesa tiver comanda
+                        aberta agora. */}
+                    {operator?.role === "owner" && renamingTableId !== t.id && (
+                      <span className="catalog-list-actions">
+                        <button
+                          type="button"
+                          className="button-secondary row-action-button"
+                          onClick={() => handleStartRename(t)}
+                          aria-label="Renomear"
+                          title="Renomear"
+                        >
+                          <PencilIcon />
+                        </button>
+                        <button
+                          type="button"
+                          className="button-secondary row-action-button"
+                          onClick={() => handleRemoveTable(t.id)}
+                          disabled={!!order}
+                          aria-label="Remover"
+                          title="Remover"
+                        >
+                          <TrashIcon />
+                        </button>
+                      </span>
+                    )}
                   </div>
                   <span className="table-tile-status">{order ? "Ocupada" : "Livre"}</span>
                   {t.capacity ? <span className="table-tile-meta">{t.capacity} lugares</span> : null}
@@ -207,31 +237,6 @@ function TableMap() {
                       </button>
                     )}
                   </div>
-
-                  {/* PRD 2.8 — renomear/remover mesa (dono). Remover é bloqueado (409) se a mesa tiver comanda aberta agora. */}
-                  {operator?.role === "owner" && renamingTableId !== t.id && (
-                    <div className="table-tile-actions">
-                      <button
-                        type="button"
-                        className="button-secondary row-action-button"
-                        onClick={() => handleStartRename(t)}
-                        aria-label="Renomear"
-                        title="Renomear"
-                      >
-                        <PencilIcon />
-                      </button>
-                      <button
-                        type="button"
-                        className="button-secondary row-action-button"
-                        onClick={() => handleRemoveTable(t.id)}
-                        disabled={!!order}
-                        aria-label="Remover"
-                        title="Remover"
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  )}
 
                   {operator?.role === "owner" && renamingTableId === t.id && (
                     <form onSubmit={handleConfirmRename} className="table-tile-actions">

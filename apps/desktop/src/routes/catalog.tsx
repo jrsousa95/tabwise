@@ -55,6 +55,10 @@ function Catalog() {
   const [serviceFeeError, setServiceFeeError] = useState<string | null>(null);
   const [serviceFeeSubmitting, setServiceFeeSubmitting] = useState(false);
   const [serviceFeeSaved, setServiceFeeSaved] = useState(false);
+  // Configuração raramente alterada — colapsada por padrão pra não empurrar
+  // Categorias/Produtos pra baixo com uma seção inteira de topo (achado em
+  // uso real, 2026-09-22). Expande sob demanda; volta a colapsar ao salvar.
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
 
   useEffect(() => {
     if (establishmentStatus === "ready") setServiceFeePercent(String(defaultServiceFeePercent));
@@ -205,6 +209,7 @@ function Catalog() {
       return;
     }
     setServiceFeeSaved(true);
+    setSettingsExpanded(false);
     refreshEstablishment();
   }
 
@@ -222,22 +227,36 @@ function Catalog() {
     <section>
       <div className="table-map-section settings-section">
         <h2>Configurações do estabelecimento</h2>
-        <form onSubmit={handleSaveServiceFee} className="inline-form">
-          <label>
-            Taxa de serviço padrão (%)
-            <input
-              value={serviceFeePercent}
-              onChange={(e) => {
-                setServiceFeePercent(e.target.value.replace(/[^0-9,.]/g, ""));
-                setServiceFeeSaved(false);
-              }}
-              inputMode="decimal"
-            />
-          </label>
-          <button type="submit" className="button-primary" disabled={serviceFeeSubmitting}>
-            Salvar
-          </button>
-        </form>
+        {settingsExpanded ? (
+          <form onSubmit={handleSaveServiceFee} className="inline-form">
+            <label>
+              Taxa de serviço padrão (%)
+              <input
+                value={serviceFeePercent}
+                onChange={(e) => {
+                  setServiceFeePercent(e.target.value.replace(/[^0-9,.]/g, ""));
+                  setServiceFeeSaved(false);
+                }}
+                inputMode="decimal"
+                autoFocus
+              />
+            </label>
+            <button type="submit" className="button-primary" disabled={serviceFeeSubmitting}>
+              Salvar
+            </button>
+            <button type="button" className="button-secondary" onClick={() => setSettingsExpanded(false)}>
+              Cancelar
+            </button>
+          </form>
+        ) : (
+          <div className="status-line">
+            <span className="type-label">Taxa de serviço padrão</span>
+            <span className="amount">{defaultServiceFeePercent}%</span>
+            <button type="button" className="button-secondary button-compact" onClick={() => setSettingsExpanded(true)}>
+              Editar
+            </button>
+          </div>
+        )}
         {serviceFeeError && <p className="form-error">{serviceFeeError}</p>}
         {serviceFeeSaved && <p>Taxa de serviço padrão atualizada.</p>}
       </div>
