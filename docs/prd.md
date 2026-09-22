@@ -84,6 +84,12 @@ Entregar um PDV desktop offline-first para bares e restaurantes que resolve o ci
   - Contagem inclui comandas de mesa + avulsas (brief §5).
   - Comportamento em downgrade: **confirmado** — comandas já abertas **não são bloqueadas retroativamente**; apenas novas aberturas são impedidas até a contagem cair abaixo do limite (bloquear uma comanda em andamento seria uma péssima experiência no meio do serviço).
 
+2.8. **[Adicionado 2026-09-22, achado em uso real]** Como dono, quero renomear ou remover uma mesa já cadastrada, para corrigir um cadastro errado ou desativar uma mesa que não existe mais fisicamente — hoje só existe cadastrar (2.1), sem nenhuma forma de editar ou remover.
+- **Critérios de aceite:**
+  - Renomear (identificador/capacidade) gera um evento próprio, sem reescrever o cadastro original (mesmo padrão append-only do resto do log).
+  - Remover é sempre lógico (a mesa some do mapa de mesas e de novas seleções), nunca uma exclusão física do histórico — comandas antigas dessa mesa continuam intactas.
+  - **Mesa com comanda aberta no momento não pode ser removida** — evita perder o vínculo de uma comanda em andamento com sua mesa. Mensagem clara pedindo pra fechar a comanda primeiro.
+
 ---
 
 ### Épico 3 — Cadastro de Produtos e Cardápio
@@ -97,6 +103,17 @@ Entregar um PDV desktop offline-first para bares e restaurantes que resolve o ci
   - Produto inativo não aparece na tela de lançamento do garçom, mas permanece em comandas históricas já fechadas.
 
 3.3. Como garçom, quero buscar produtos por categoria ou nome ao lançar um pedido, para lançar rápido mesmo com cardápio grande.
+
+3.4. **[Adicionado 2026-09-22, achado em uso real]** Como dono, quero renomear ou remover uma categoria já cadastrada, para corrigir um cadastro errado — hoje só existe cadastrar (3.1).
+- **Critérios de aceite:**
+  - Renomear gera um evento próprio, sem reescrever o cadastro original.
+  - Remover é sempre lógico (a categoria some da lista de cadastro), nunca exclusão física.
+  - **Categoria com algum produto vinculado (ativo ou inativo) não pode ser removida** — evita produto órfão sem categoria. Mensagem clara pedindo pra mover ou remover os produtos primeiro.
+
+3.5. **[Adicionado 2026-09-22, achado em uso real]** Como dono, quero renomear ou remover um produto já cadastrado, para corrigir um cadastro errado ou tirar da lista um produto duplicado por engano — hoje só existe cadastrar (3.2) e ativar/desativar.
+- **Critérios de aceite:**
+  - Renomear gera um evento próprio; não muda retroativamente o nome já registrado em itens de comandas antigas (mesmo princípio do preço imutável, já usado em `item_added` — ver nota de implementação da história 4.1).
+  - Remover é uma camada além de desativar: desativado ainda aparece na tela de cadastro do dono (só some da busca do garçom); removido some também do cadastro. Nenhum dos dois apaga o produto de comandas históricas que já o venderam.
 
 ---
 
