@@ -212,7 +212,14 @@ a:focus-visible {
   outline-offset: 1px;
 }
 
-button {
+/* `.button-primary`/`.button-secondary` também recebem o visual completo de
+   botão quando aplicados a um `<a>` (ex.: "Cancelar"/"Voltar" como link de
+   navegação que precisa parecer e se comportar como o botão ao lado dele —
+   achado em uso real, 2026-09-22: um link puro do meio de dois botões
+   grandes lia como quebrado). */
+button,
+.button-primary,
+.button-secondary {
   cursor: pointer;
   font-family: inherit;
   font-size: 16px;
@@ -223,6 +230,15 @@ button {
   border-radius: var(--radius-md);
   min-height: var(--spacing-touch-target-min);
   padding: var(--spacing-3) var(--spacing-5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+a.button-primary:hover,
+a.button-secondary:hover {
+  text-decoration: none;
 }
 
 button:hover:not(:disabled) {
@@ -540,6 +556,15 @@ button:disabled {
 }
 
 /* --- Cardápio --- */
+
+/* "Configurações do estabelecimento" é só um input curto + botão — sem
+   limitar a largura, a seção ficava esticada pela tela inteira (achado em
+   uso real, 2026-09-22: espaço vazio gigante do lado, antes das colunas de
+   Categorias/Produtos). Mesma largura de referência de `.container`
+   (telas de formulário único). */
+.settings-section {
+  max-width: 480px;
+}
 
 .catalog {
   display: flex;

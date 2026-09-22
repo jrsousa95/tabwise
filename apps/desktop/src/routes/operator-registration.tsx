@@ -130,7 +130,11 @@ function OperatorRegistration() {
           </button>
           {/* No bootstrap não tem pra onde voltar — sem operador nenhum,
               o app não tem mais nada pra mostrar (PRD 1.1). */}
-          {!isBootstrap && <Link to="/tables">Cancelar</Link>}
+          {!isBootstrap && (
+            <Link to="/tables" className="button-secondary">
+              Cancelar
+            </Link>
+          )}
         </div>
       </form>
     </main>

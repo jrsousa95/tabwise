@@ -220,7 +220,7 @@ function Catalog() {
 
   return (
     <section>
-      <div className="table-map-section">
+      <div className="table-map-section settings-section">
         <h2>Configurações do estabelecimento</h2>
         <form onSubmit={handleSaveServiceFee} className="inline-form">
           <label>

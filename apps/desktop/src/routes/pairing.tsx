@@ -113,6 +113,16 @@ function Pairing() {
 
   return (
     <main className="container">
+      {/* Achado em uso real (2026-09-22): esta rota fica fora do shell
+          autenticado (sem menu de navegação) — sem este link, o dono ficava
+          sem nenhuma forma de sair da tela fora do modo bootstrap. */}
+      {!isBootstrap && (
+        <p>
+          <Link to="/tables" className="button-secondary">
+            ← Voltar ao mapa de mesas
+          </Link>
+        </p>
+      )}
       <h1>Pareamento de terminais</h1>
 
       {/* M10 (PRD 8.1) — mensagem clara de upgrade quando o plano bloqueou
@@ -204,7 +214,9 @@ function Pairing() {
 
       {isBootstrap && (
         <p>
-          <Link to="/">← Voltar</Link>
+          <Link to="/" className="button-secondary">
+            ← Voltar
+          </Link>
         </p>
       )}
     </main>
