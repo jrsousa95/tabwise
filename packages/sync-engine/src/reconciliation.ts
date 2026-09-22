@@ -108,6 +108,8 @@ export interface MergeWarning {
   readonly losingOrder: string;
   readonly canonicalOrder: string;
   readonly tableId: string;
+  /** `createdAt` do `order_opened` perdedor — base pro filtro de "recente" na UI (achado em uso real, 2026-09-22: sem isso o aviso nunca some). */
+  readonly createdAt: number;
 }
 
 export interface ProjectedState {
@@ -272,7 +274,7 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
             // Conflito ARCH §4.2. A canônica já processada tem HLC menor —
             // garantido pela ordenação global do log antes de projetar.
             newOrder.mergedInto = existingCanonical;
-            mergeWarnings.push({ losingOrder: event.aggregateId, canonicalOrder: existingCanonical, tableId });
+            mergeWarnings.push({ losingOrder: event.aggregateId, canonicalOrder: existingCanonical, tableId, createdAt: event.createdAt });
           }
         }
         break;

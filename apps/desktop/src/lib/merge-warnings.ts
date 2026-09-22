@@ -1,14 +1,49 @@
 import { useEffect, useState } from "react";
 import { SIDECAR_URL } from "./sidecar";
 
-export type MergeWarning = { losingOrder: string; canonicalOrder: string; tableId: string };
+export type MergeWarning = { losingOrder: string; canonicalOrder: string; tableId: string; createdAt: number };
 type TableRef = { id: string; identifier: string };
+
+/** Achado em uso real (2026-09-22): sem um corte de tempo, um merge continuava aparecendo pra sempre neste terminal, sem forma de dispensar. */
+const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const FIRST_SEEN_STORAGE_KEY = "passa-a-regua:merge-warnings-first-seen";
+
+/**
+ * Data (`Date.now()`) em que ESTE terminal viu cada merge pela primeira
+ * vez, por `losingOrder` — não o `createdAt` do evento (esse é hora de
+ * quando a comanda perdedora foi aberta, que pode ser dias antes do
+ * terminal afetado sincronizar e descobrir o merge; usar `createdAt`
+ * pra decidir visibilidade esconderia avisos que acabaram de ser
+ * descobertos, contrariando ARCH §4.2: "assim que o terminal que
+ * 'perdeu' a comanda sincroniza e recebe o merge, ele exibe..."). Guardado
+ * em `localStorage` porque é inerentemente por-terminal — o mesmo merge
+ * pode ter sido descoberto em momentos diferentes por terminais diferentes.
+ */
+function loadFirstSeenMap(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(FIRST_SEEN_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, number>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveFirstSeenMap(map: Record<string, number>) {
+  try {
+    localStorage.setItem(FIRST_SEEN_STORAGE_KEY, JSON.stringify(map));
+  } catch {
+    // localStorage indisponível — degrada pra "sempre mostrar" (sem cortar por tempo), nunca quebra.
+  }
+}
 
 /**
  * ARCH §4.2 — decisão explícita de não deixar o merge automático de
  * comanda (duas mesas abertas offline pro mesmo lugar, resolvido por
  * menor HLC) passar em silêncio. Polling simples da projeção, mesmo
- * padrão de `useSidecarHealth`.
+ * padrão de `useSidecarHealth`. Só mostra mesclagens que este terminal
+ * viu pela primeira vez nas últimas 24h — o histórico completo segue
+ * existindo em `mergeWarnings` no sidecar (nada é descartado lá), isso
+ * é só um filtro de apresentação local.
  */
 export function useMergeWarnings(intervalMs = 4000) {
   const [warnings, setWarnings] = useState<MergeWarning[]>([]);
@@ -22,7 +57,20 @@ export function useMergeWarnings(intervalMs = 4000) {
         const res = await fetch(`${SIDECAR_URL}/state`);
         const data = (await res.json()) as Partial<{ mergeWarnings: MergeWarning[]; tables: TableRef[] }>;
         if (!cancelled) {
-          setWarnings(data.mergeWarnings ?? []);
+          const allWarnings = data.mergeWarnings ?? [];
+          const now = Date.now();
+          const firstSeen = loadFirstSeenMap();
+          let firstSeenChanged = false;
+          for (const w of allWarnings) {
+            if (!(w.losingOrder in firstSeen)) {
+              firstSeen[w.losingOrder] = now;
+              firstSeenChanged = true;
+            }
+          }
+          if (firstSeenChanged) saveFirstSeenMap(firstSeen);
+
+          const cutoff = now - RECENT_WINDOW_MS;
+          setWarnings(allWarnings.filter((w) => (firstSeen[w.losingOrder] ?? now) >= cutoff));
           setTables(data.tables ?? []);
         }
       } catch {

@@ -13,3 +13,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-renomear-remover-cadastros.md`
   summary: `table_removed` não trata a corrida entre terminais offline — terminal A remove uma mesa, terminal B (offline) abre uma comanda pra ela antes de sincronizar; depois do sync, a comanda referencia um `tableId` ausente de `tables`, sem nenhum reconhecimento do caso.
   evidence: Achado real (`edge-case-hunter`, verificado) — não quebra (fallbacks `?? "—"`/`?? "mesa"` já cobrem o label ausente), mas degrada silenciosamente. Mesma classe de trade-off arquitetural já deferida na spec de remoção de junção de mesas — resolver pediria um mecanismo tipo `mergeWarnings` aplicado a mesas removidas, trabalho de arquitetura novo fora do escopo desta spec.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-aviso-mesclagem-recente.md`
+  summary: ARCH §4.2 promete um "registro de auditoria completo... visível ao dono" de mesclagens de comanda, além da notificação transitória no terminal afetado — mas nunca existiu uma tela separada pra isso; `layout.tsx` é o único consumidor de `mergeWarnings` em todo o frontend.
+  evidence: Achado real (`blind-hunter`, verificado por grep) — gap pré-existente (não introduzido por esta spec; a versão anterior do banner "resolvia" isso incidentalmente ao nunca esconder nada, o que era justamente a fonte da confusão relatada pelo usuário). Construir uma tela de auditoria dedicada pro dono é escopo de UI novo, fora do bug pontual corrigido aqui.

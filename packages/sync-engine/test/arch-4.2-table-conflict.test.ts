@@ -76,7 +76,7 @@ describe("ARCH §4.2 — duas orders abertas na mesma mesa", () => {
     expect(canonical!.items.map((i) => i.id).sort()).toEqual(["item-beer", "item-water"]);
     expect(losing!.items).toEqual([]);
 
-    expect(state.mergeWarnings).toEqual([{ losingOrder: "order-B", canonicalOrder: "order-A", tableId: "table-5" }]);
+    expect(state.mergeWarnings).toEqual([{ losingOrder: "order-B", canonicalOrder: "order-A", tableId: "table-5", createdAt: 2000 }]);
 
     // A ordem em que os dois logs chegam pra merge não pode importar.
     expect(project(merge(logT2, logT1))).toEqual(state);
