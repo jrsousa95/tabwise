@@ -382,35 +382,37 @@ function Catalog() {
                     </span>
                   </td>
                   <td>
-                    <button
-                      type="button"
-                      className="button-secondary row-action-button"
-                      onClick={() => handleToggleActive(p.id, !p.active)}
-                      aria-label={p.active ? "Desativar" : "Ativar"}
-                      title={p.active ? "Desativar" : "Ativar"}
-                    >
-                      <PowerIcon />
-                    </button>{" "}
-                    <button
-                      type="button"
-                      className="button-secondary row-action-button"
-                      onClick={() => handleStartRenameProduct(p.id, p.name)}
-                      disabled={productActionSubmitting}
-                      aria-label="Renomear"
-                      title="Renomear"
-                    >
-                      <PencilIcon />
-                    </button>{" "}
-                    <button
-                      type="button"
-                      className="button-secondary row-action-button"
-                      onClick={() => handleRemoveProduct(p.id)}
-                      disabled={productActionSubmitting}
-                      aria-label="Remover"
-                      title="Remover"
-                    >
-                      <TrashIcon />
-                    </button>
+                    <span className="catalog-list-actions">
+                      <button
+                        type="button"
+                        className="button-secondary row-action-button"
+                        onClick={() => handleToggleActive(p.id, !p.active)}
+                        aria-label={p.active ? "Desativar" : "Ativar"}
+                        title={p.active ? "Desativar" : "Ativar"}
+                      >
+                        <PowerIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className="button-secondary row-action-button"
+                        onClick={() => handleStartRenameProduct(p.id, p.name)}
+                        disabled={productActionSubmitting}
+                        aria-label="Renomear"
+                        title="Renomear"
+                      >
+                        <PencilIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className="button-secondary row-action-button"
+                        onClick={() => handleRemoveProduct(p.id)}
+                        disabled={productActionSubmitting}
+                        aria-label="Remover"
+                        title="Remover"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </span>
                   </td>
                 </tr>
               )

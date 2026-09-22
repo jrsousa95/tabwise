@@ -173,12 +173,12 @@ function Pairing() {
           <p>Leia este código em um terminal novo pra pareá-lo com este (ele vai adotar todos os dados já cadastrados aqui).</p>
           {tokenStatus === "loading" && <p>Carregando...</p>}
           {token && (
-            <p className="pairing-token">
-              <code>{token}</code>{" "}
+            <div className="status-line pairing-token">
+              <code>{token}</code>
               <button type="button" className="button-secondary" onClick={handleCopyToken}>
                 {copied ? "Copiado!" : "Copiar"}
               </button>
-            </p>
+            </div>
           )}
         </div>
       )}
@@ -190,12 +190,13 @@ function Pairing() {
           multicast, por exemplo), configure aqui o IP e a porta do outro terminal manualmente.
         </p>
         {manualHostStatus === "ready" && manualHost && (
-          <p>
-            Configurado: <code>{manualHost.host}:{manualHost.port}</code>{" "}
+          <div className="status-line pairing-token">
+            <span>Configurado:</span>
+            <code>{manualHost.host}:{manualHost.port}</code>
             <button type="button" className="button-secondary" onClick={handleClearManualHost} disabled={manualHostSubmitting}>
               Remover
             </button>
-          </p>
+          </div>
         )}
         <form onSubmit={handleSaveManualHost} className="inline-form">
           <input value={manualHostInput} onChange={(e) => setManualHostInput(e.target.value)} placeholder="IP (ex: 192.168.1.10)" />
