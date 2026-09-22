@@ -270,6 +270,25 @@ export const ItemCanceledSchema = baseEventSchema.extend({
 export type ItemCanceled = z.infer<typeof ItemCanceledSchema>;
 
 /**
+ * Edição de observação após o lançamento (achado em uso real, 2026-09-22:
+ * a única forma de corrigir/adicionar uma observação era cancelar o item e
+ * relançar). Não altera `itemId`/`name`/`unitPriceCents`/`quantity` do
+ * `item_added` original (append-only, mesmo princípio de `ItemCanceledSchema`)
+ * — só a observação mais recente vale, projetada por ordem de HLC na
+ * reconciliação. Só se aplica a item ainda não cancelado (validado na API).
+ */
+export const ItemNoteUpdatedSchema = baseEventSchema.extend({
+  type: z.literal("item_note_updated"),
+  aggregateType: z.literal("order"),
+  aggregateId: z.string().min(1),
+  payload: z.object({
+    itemId: z.string().min(1),
+    note: z.string().optional(),
+  }),
+});
+export type ItemNoteUpdated = z.infer<typeof ItemNoteUpdatedSchema>;
+
+/**
  * PRD 5.1/5.5 — fecha a order (imutável após isso). Os pagamentos em si
  * são eventos `payment_recorded` separados (um por parte do split).
  */
@@ -320,6 +339,7 @@ export const DomainEventSchema = z.discriminatedUnion("type", [
   TableGroupDissolvedSchema,
   ItemAddedSchema,
   ItemCanceledSchema,
+  ItemNoteUpdatedSchema,
   OrderClosedSchema,
   PaymentRecordedSchema,
 ]);

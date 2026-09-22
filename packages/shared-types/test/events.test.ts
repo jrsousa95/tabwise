@@ -5,7 +5,7 @@ function base() {
   return { id: "ev-1", hlc: "0000000000000001-00000000", operatorId: "op-1", terminalId: "t-1", createdAt: 1700000000000 };
 }
 
-describe("DomainEventSchema — discriminated union dos 20 tipos (PRD/ARCH §3.1)", () => {
+describe("DomainEventSchema — discriminated union dos 21 tipos (PRD/ARCH §3.1)", () => {
   it("aceita um evento válido de cada tipo", () => {
     const validEvents = [
       { ...base(), type: "establishment_settings_updated", aggregateType: "establishment", aggregateId: "establishment", payload: { defaultServiceFeePercent: 10 } },
@@ -28,6 +28,7 @@ describe("DomainEventSchema — discriminated union dos 20 tipos (PRD/ARCH §3.1
       { ...base(), type: "table_group_dissolved", aggregateType: "table_group", aggregateId: "g-1", payload: {} },
       { ...base(), type: "item_added", aggregateType: "order", aggregateId: "c-1", payload: { itemId: "i-1", name: "Cerveja", unitPriceCents: 1200, quantity: 2 } },
       { ...base(), type: "item_canceled", aggregateType: "order", aggregateId: "c-1", payload: { itemId: "i-1", reason: "other", note: "pedido em duplicidade" } },
+      { ...base(), type: "item_note_updated", aggregateType: "order", aggregateId: "c-1", payload: { itemId: "i-1", note: "sem cebola" } },
       { ...base(), type: "order_closed", aggregateType: "order", aggregateId: "c-1", payload: { subtotalCents: 2400, serviceFeePercent: 10, serviceFeeCents: 240, totalCents: 2640 } },
       { ...base(), type: "payment_recorded", aggregateType: "order", aggregateId: "c-1", payload: { amountCents: 3000, paymentMethod: "cash", changeCents: 360 } },
     ];

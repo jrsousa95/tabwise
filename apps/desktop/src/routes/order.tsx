@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSession } from "../lib/session";
-import { useOrder, addItemToOrder, cancelItem } from "../lib/order";
+import { useOrder, addItemToOrder, cancelItem, updateItemNote } from "../lib/order";
 import { useTablesAndOrders } from "../lib/tables";
 import { formatCentsToBRL } from "../lib/money";
 import { cancelReasonLabel, cancelReasons, type CancelReason } from "../lib/cancel-reason";
@@ -21,6 +21,15 @@ function CancelIcon() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M18 6 6 18" />
       <path d="M6 6l12 12" />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
     </svg>
   );
 }
@@ -45,6 +54,11 @@ function Order() {
   const [cancelReason, setCancelReason] = useState<CancelReason>("entry_error");
   const [cancelNote, setCancelNote] = useState("");
   const [cancelError, setCancelError] = useState<string | null>(null);
+
+  const [editingNoteItemId, setEditingNoteItemId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [noteSubmitting, setNoteSubmitting] = useState(false);
 
   // PRD §2 — garçom lança item mas não cancela nem fecha comanda; só caixa/dono.
   const canManageOrder = operator?.role === "owner" || operator?.role === "cashier";
@@ -99,6 +113,43 @@ function Order() {
     refresh();
   }
 
+  // Achado em uso real, 2026-09-22: escolher produto sempre abria o formulário
+  // de quantidade/observação, mesmo pro caso comum de só lançar 1 unidade sem
+  // nota — clique único adiciona 1 direto; quantidade/observação continuam
+  // disponíveis via handleSelectProduct (botão secundário na busca).
+  async function handleQuickAdd(product: Product) {
+    if (!orderId) return;
+    setAddError(null);
+    const result = await addItemToOrder(orderId, { productId: product.id, quantity: 1 });
+    if (!result.ok) {
+      setAddError(result.error);
+      return;
+    }
+    refresh();
+  }
+
+  function handleStartEditNote(item: { id: string; note?: string }) {
+    setEditingNoteItemId(item.id);
+    setNoteDraft(item.note ?? "");
+    setNoteError(null);
+  }
+
+  // Achado em uso real, 2026-09-22: única forma de corrigir a observação de
+  // um item era cancelar e relançar — agora dá pra editar direto.
+  async function handleConfirmEditNote() {
+    if (!editingNoteItemId || !orderId) return;
+    setNoteSubmitting(true);
+    setNoteError(null);
+    const result = await updateItemNote(orderId, editingNoteItemId, noteDraft.trim() || undefined);
+    setNoteSubmitting(false);
+    if (!result.ok) {
+      setNoteError(result.error);
+      return;
+    }
+    setEditingNoteItemId(null);
+    refresh();
+  }
+
   async function handleConfirmCancel(itemId: string) {
     if (!orderId) return;
     if (cancelReason === "other" && !cancelNote.trim()) {
@@ -150,16 +201,29 @@ function Order() {
               <td className="amount">{formatCentsToBRL(item.unitPriceCents)}</td>
               <td className="amount">{formatCentsToBRL(item.unitPriceCents * item.quantity)}</td>
               <td>
-                {!item.canceled && canManageOrder && order.status === "open" && (
-                  <button
-                    type="button"
-                    className="button-secondary row-action-button"
-                    onClick={() => setCancelingItemId(item.id)}
-                    aria-label="Cancelar item"
-                    title="Cancelar"
-                  >
-                    <CancelIcon />
-                  </button>
+                {!item.canceled && order.status === "open" && (
+                  <span className="catalog-list-actions">
+                    <button
+                      type="button"
+                      className="button-secondary row-action-button"
+                      onClick={() => handleStartEditNote(item)}
+                      aria-label="Editar observação"
+                      title="Editar observação"
+                    >
+                      <PencilIcon />
+                    </button>
+                    {canManageOrder && (
+                      <button
+                        type="button"
+                        className="button-secondary row-action-button"
+                        onClick={() => setCancelingItemId(item.id)}
+                        aria-label="Cancelar item"
+                        title="Cancelar"
+                      >
+                        <CancelIcon />
+                      </button>
+                    )}
+                  </span>
                 )}
               </td>
             </tr>
@@ -179,6 +243,25 @@ function Order() {
           <span className="amount amount-display">{formatCentsToBRL(subtotalCents)}</span>
         </div>
       </div>
+
+      {editingNoteItemId && (
+        <div className="table-map-section">
+          <h3>Editar observação</h3>
+          <label>
+            Observação
+            <input value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="ex: sem cebola" autoFocus />
+          </label>
+          {noteError && <p className="form-error">{noteError}</p>}
+          <div className="operator-form-actions">
+            <button type="button" className="button-primary" onClick={handleConfirmEditNote} disabled={noteSubmitting}>
+              Salvar
+            </button>
+            <button type="button" className="button-secondary" onClick={() => setEditingNoteItemId(null)}>
+              Voltar
+            </button>
+          </div>
+        </div>
+      )}
 
       {cancelingItemId && (
         <div className="table-map-section">
@@ -236,7 +319,7 @@ function Order() {
             </div>
           )}
 
-          <ProductSearch onSelect={handleSelectProduct} />
+          <ProductSearch onQuickAdd={handleQuickAdd} onDetailedAdd={handleSelectProduct} />
 
           {canManageOrder &&
             (closing ? (

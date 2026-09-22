@@ -44,6 +44,11 @@ function Layout() {
             </NavLink>
           )}
           {operator?.role === "owner" && (
+            <NavLink to="/settings" className={navLinkClassName}>
+              Configurações
+            </NavLink>
+          )}
+          {operator?.role === "owner" && (
             <NavLink to="/operators/new" className={navLinkClassName}>
               Cadastrar operador
             </NavLink>

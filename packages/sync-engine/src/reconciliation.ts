@@ -332,6 +332,15 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
         break;
       }
 
+      case "item_note_updated": {
+        const canonical = resolveCanonical(event.aggregateId);
+        const existing = canonical.items.get(event.payload.itemId);
+        if (existing) {
+          canonical.items.set(event.payload.itemId, { ...existing, note: event.payload.note });
+        }
+        break;
+      }
+
       case "order_closed": {
         const canonical = resolveCanonical(event.aggregateId);
         canonical.status = "closed";

@@ -75,3 +75,7 @@ export function cancelItem(orderId: string, itemId: string, input: { reason: Can
   return postJson<{ itemId: string }>(`/orders/${orderId}/items/${itemId}/cancel`, input);
 }
 
+export function updateItemNote(orderId: string, itemId: string, note: string | undefined) {
+  return postJson<{ itemId: string }>(`/orders/${orderId}/items/${itemId}/note`, { note });
+}
+

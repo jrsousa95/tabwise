@@ -50,6 +50,10 @@ function TableMap() {
   const [openError, setOpenError] = useState<string | null>(null);
   const [transferTarget, setTransferTarget] = useState<Record<string, string>>({});
   const [transferError, setTransferError] = useState<string | null>(null);
+  // Achado em uso real, 2026-09-22: o select "Transferir para..." aparecia
+  // sempre que a mesa tinha comanda aberta, mesmo quando ninguém ia
+  // transferir nada — agora só aparece sob demanda, atrás de um botão.
+  const [transferringOrderId, setTransferringOrderId] = useState<string | null>(null);
 
   const [renamingTableId, setRenamingTableId] = useState<string | null>(null);
   const [renameIdentifier, setRenameIdentifier] = useState("");
@@ -117,6 +121,7 @@ function TableMap() {
       return;
     }
     setTransferTarget((prev) => ({ ...prev, [orderId]: "" }));
+    setTransferringOrderId(null);
     refresh();
   }
 
@@ -230,6 +235,9 @@ function TableMap() {
                         onChange={(value) => setTransferTarget((prev) => ({ ...prev, [order.id]: value }))}
                         onSubmit={() => handleTransfer(order.id)}
                         onOpenOrder={() => navigate(`/orders/${order.id}`)}
+                        isTransferring={transferringOrderId === order.id}
+                        onStartTransfer={() => setTransferringOrderId(order.id)}
+                        onCancelTransfer={() => setTransferringOrderId(null)}
                       />
                     ) : (
                       <button type="button" className="button-primary button-compact" onClick={() => handleOpenTableOrder(t.id)}>
@@ -296,29 +304,48 @@ function TransferControl({
   onChange,
   onSubmit,
   onOpenOrder,
+  isTransferring,
+  onStartTransfer,
+  onCancelTransfer,
 }: {
   options: Table[];
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
   onOpenOrder: () => void;
+  isTransferring: boolean;
+  onStartTransfer: () => void;
+  onCancelTransfer: () => void;
 }) {
   return (
     <span className="transfer-control">
       <button type="button" className="button-secondary" onClick={onOpenOrder}>
         Ver comanda
       </button>
-      <select value={value} onChange={(e) => onChange(e.target.value)} disabled={options.length === 0} aria-label="Transferir para">
-        <option value="">Transferir para...</option>
-        {options.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.identifier}
-          </option>
-        ))}
-      </select>
-      <button type="button" className="button-secondary" onClick={onSubmit} disabled={!value}>
-        Transferir
-      </button>
+      {isTransferring ? (
+        <>
+          <select value={value} onChange={(e) => onChange(e.target.value)} disabled={options.length === 0} aria-label="Transferir para">
+            <option value="">Transferir para...</option>
+            {options.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.identifier}
+              </option>
+            ))}
+          </select>
+          <div className="operator-form-actions">
+            <button type="button" className="button-primary" onClick={onSubmit} disabled={!value}>
+              Transferir
+            </button>
+            <button type="button" className="button-secondary" onClick={onCancelTransfer}>
+              Cancelar
+            </button>
+          </div>
+        </>
+      ) : (
+        <button type="button" className="button-secondary" onClick={onStartTransfer} disabled={options.length === 0}>
+          Transferir mesa
+        </button>
+      )}
     </span>
   );
 }

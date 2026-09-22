@@ -251,14 +251,21 @@ button:disabled {
 }
 
 /* .button-primary:disabled sobrescreve opacity (que deixaria o laranja
-   ainda lendo como clicável no modo escuro) por cor de fundo neutra própria
-   — visivelmente diferente do habilitado nos dois temas (auditoria visual
-   2026-09-22). */
+   ainda lendo como clicável no modo escuro) por cor de fundo própria —
+   visivelmente diferente do habilitado nos dois temas. A primeira versão
+   (auditoria visual 2026-09-22) usava a mesma cor neutra de
+   `.button-secondary` (fundo + borda de `--color-outline`), o que fazia o
+   par primário/secundário ficar indistinguível sempre que o formulário
+   estava vazio (ex.: Cadastrar operador, Pareamento) — sem hierarquia
+   nenhuma entre "ação principal, ainda não disponível" e "ação secundária"
+   (achado em uso real, 2026-09-22). Mantém um tom pálido da própria cor
+   primária (`primary-container`) em vez de cinza neutro — lido como "esta É
+   a ação principal, só não está pronta ainda", não como texto puro. */
 .button-primary:disabled {
   opacity: 1;
-  background: var(--color-surface-container-high);
-  color: var(--color-on-surface-variant);
-  border-color: var(--color-outline);
+  background: var(--color-primary-container);
+  color: var(--color-on-primary-container);
+  border-color: var(--color-primary-container);
 }
 
 /* --- components.button-primary --- */
@@ -744,6 +751,14 @@ button:disabled {
 .table-tile-actions .button-secondary,
 .table-tile-actions select {
   min-height: var(--spacing-touch-target-min);
+}
+
+/* "Abrir comanda" (mesa livre) é filho direto de `.table-tile-actions`, sem
+   largura própria — sobrava vazio à direita dentro do tile, lendo como
+   desalinhado com o resto do card (achado em uso real, 2026-09-22). O
+   `TransferControl` (mesa ocupada) já ocupa 100% via `.transfer-control`. */
+.table-tile-actions > .button-primary {
+  width: 100%;
 }
 
 /* Padding horizontal reduzido — nasceu pra "Abrir comanda" caber numa linha

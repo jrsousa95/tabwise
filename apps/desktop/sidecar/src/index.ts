@@ -1200,6 +1200,59 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Achado em uso real, 2026-09-22: única forma de corrigir a observação de
+  // um item era cancelar e relançar — sem restrição de papel, mesmo padrão
+  // de POST /orders/:id/items (quem lança também pode corrigir a própria
+  // observação; cancelar/fechar é que exige caixa/dono).
+  const itemNoteMatch = url.pathname.match(/^\/orders\/([^/]+)\/items\/([^/]+)\/note$/);
+  if (req.method === "POST" && itemNoteMatch) {
+    try {
+      const acting = requireSession(res);
+      if (!acting) return;
+
+      const [, orderId, itemId] = itemNoteMatch;
+      const state = currentState();
+      const order = state.orders.find((o) => o.id === orderId);
+      if (!order || order.mergedInto !== undefined) {
+        sendJson(res, 404, { error: "comanda não encontrada" });
+        return;
+      }
+      if (order.status !== "open") {
+        sendJson(res, 409, { error: "comanda fechada não aceita edição de item" });
+        return;
+      }
+      const item = order.items.find((i) => i.id === itemId);
+      if (!item) {
+        sendJson(res, 404, { error: "item não encontrado" });
+        return;
+      }
+      if (item.canceled) {
+        sendJson(res, 409, { error: "item cancelado não aceita edição" });
+        return;
+      }
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const note = typeof body?.note === "string" && body.note.trim().length > 0 ? body.note.trim() : undefined;
+
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "item_note_updated",
+        aggregateType: "order",
+        aggregateId: orderId!,
+        payload: { itemId: itemId!, note },
+      });
+      insertEvent(db, event);
+      sendJson(res, 200, { itemId, note });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
   const orderCloseMatch = url.pathname.match(/^\/orders\/([^/]+)\/close$/);
   if (req.method === "POST" && orderCloseMatch) {
     try {

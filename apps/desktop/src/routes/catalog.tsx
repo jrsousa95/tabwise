@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   useCatalog,
   createCategory,
@@ -10,7 +10,6 @@ import {
   removeProduct,
 } from "../lib/catalog";
 import { formatCentsToBRL, parseReaisToCents } from "../lib/money";
-import { useEstablishment, updateEstablishmentSettings } from "../lib/closing";
 
 /* Ícones inline (SVG, stroke=currentColor, sem preenchimento, 20×20) pra
    ações de linha compactas — sem lib de ícone nova (auditoria visual
@@ -46,23 +45,9 @@ function PowerIcon() {
   );
 }
 
-/** PRD Épico 3/M4 — cadastro de categorias e produtos (dono). PRD 5.1 — taxa de serviço padrão do estabelecimento. */
+/** PRD Épico 3/M4 — cadastro de categorias e produtos (dono). */
 function Catalog() {
   const { status, categories, products, refresh } = useCatalog();
-  const { status: establishmentStatus, defaultServiceFeePercent, refresh: refreshEstablishment } = useEstablishment();
-
-  const [serviceFeePercent, setServiceFeePercent] = useState("10");
-  const [serviceFeeError, setServiceFeeError] = useState<string | null>(null);
-  const [serviceFeeSubmitting, setServiceFeeSubmitting] = useState(false);
-  const [serviceFeeSaved, setServiceFeeSaved] = useState(false);
-  // Configuração raramente alterada — colapsada por padrão pra não empurrar
-  // Categorias/Produtos pra baixo com uma seção inteira de topo (achado em
-  // uso real, 2026-09-22). Expande sob demanda; volta a colapsar ao salvar.
-  const [settingsExpanded, setSettingsExpanded] = useState(false);
-
-  useEffect(() => {
-    if (establishmentStatus === "ready") setServiceFeePercent(String(defaultServiceFeePercent));
-  }, [establishmentStatus, defaultServiceFeePercent]);
 
   const [categoryName, setCategoryName] = useState("");
   const [categoryError, setCategoryError] = useState<string | null>(null);
@@ -195,24 +180,6 @@ function Catalog() {
     refresh();
   }
 
-  async function handleSaveServiceFee(e: React.FormEvent) {
-    e.preventDefault();
-    const percent = Number(serviceFeePercent.replace(",", "."));
-    if (!Number.isFinite(percent) || percent < 0 || serviceFeeSubmitting) return;
-    setServiceFeeSubmitting(true);
-    setServiceFeeError(null);
-    setServiceFeeSaved(false);
-    const result = await updateEstablishmentSettings(percent);
-    setServiceFeeSubmitting(false);
-    if (!result.ok) {
-      setServiceFeeError(result.error);
-      return;
-    }
-    setServiceFeeSaved(true);
-    setSettingsExpanded(false);
-    refreshEstablishment();
-  }
-
   if (status === "loading") {
     return (
       <section>
@@ -225,45 +192,10 @@ function Catalog() {
 
   return (
     <section>
-      <div className="table-map-section settings-section">
-        <h2>Configurações do estabelecimento</h2>
-        {settingsExpanded ? (
-          <form onSubmit={handleSaveServiceFee} className="inline-form">
-            <label>
-              Taxa de serviço padrão (%)
-              <input
-                value={serviceFeePercent}
-                onChange={(e) => {
-                  setServiceFeePercent(e.target.value.replace(/[^0-9,.]/g, ""));
-                  setServiceFeeSaved(false);
-                }}
-                inputMode="decimal"
-                autoFocus
-              />
-            </label>
-            <button type="submit" className="button-primary" disabled={serviceFeeSubmitting}>
-              Salvar
-            </button>
-            <button type="button" className="button-secondary" onClick={() => setSettingsExpanded(false)}>
-              Cancelar
-            </button>
-          </form>
-        ) : (
-          <div className="status-line">
-            <span className="type-label">Taxa de serviço padrão</span>
-            <span className="amount">{defaultServiceFeePercent}%</span>
-            <button type="button" className="button-secondary button-compact" onClick={() => setSettingsExpanded(true)}>
-              Editar
-            </button>
-          </div>
-        )}
-        {serviceFeeError && <p className="form-error">{serviceFeeError}</p>}
-        {serviceFeeSaved && <p>Taxa de serviço padrão atualizada.</p>}
-      </div>
-
+      <h2>Cardápio</h2>
       <div className="catalog">
         <div className="catalog-column">
-        <h2>Categorias</h2>
+        <h3>Categorias</h3>
         <form onSubmit={handleAddCategory} className="inline-form">
           <input
             value={categoryName}
@@ -328,7 +260,7 @@ function Catalog() {
       </div>
 
       <div className="catalog-column">
-        <h2>Produtos</h2>
+        <h3>Produtos</h3>
         <form onSubmit={handleAddProduct} className="operator-form">
           <label>
             Nome
