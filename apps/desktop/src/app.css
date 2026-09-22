@@ -242,6 +242,14 @@ a:focus-visible {
 button,
 .button-primary,
 .button-secondary {
+  /* No WebView do app desktop (Tauri/WKWebView), `<button>` nativo pode
+     carregar aparência própria do SO (mesmo padrão já corrigido em
+     `<select>` — ver comentário mais abaixo) por cima do nosso CSS,
+     mesmo com todas as outras propriedades idênticas ao `<a>` ao lado
+     (achado em uso real, 2026-09-22, persistiu depois do fix de
+     line-height abaixo: só reproduz no app desktop, nunca no Chrome). */
+  -webkit-appearance: none;
+  appearance: none;
   cursor: pointer;
   font-family: inherit;
   font-size: 16px;
@@ -549,6 +557,18 @@ button:disabled {
   align-items: center;
   gap: var(--spacing-4);
   flex-wrap: wrap;
+}
+
+/* Achado em uso real, 2026-09-22: dentro de `.container` (coluna única e
+   estreita, telas de formulário como Cadastro de operador), "Cadastrar"/
+   "Cancelar" ficavam do tamanho do próprio texto, alinhados à esquerda e
+   sobrando um vazio grande até a borda do input acima — os dois dividem a
+   largura toda do formulário, igual ao input. Não generalizado pra
+   `.operator-form-actions` em qualquer contexto: dentro de `.app-content`
+   (larga, ex. painéis de cancelar/editar item na Comanda) o mesmo par de
+   botões esticado até quase a largura toda da tela ficaria desproporcional. */
+.container .operator-form-actions > * {
+  flex: 1;
 }
 
 .form-error {
