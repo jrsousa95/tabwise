@@ -15,9 +15,9 @@ Entregar um PDV desktop offline-first para bares e restaurantes que resolve o ci
 
 | Persona | Acessa | Não acessa |
 |---|---|---|
-| Garçom | Mapa de mesas, abrir/consultar comanda, lançar itens | Preço de custo, configurações do estabelecimento, fechamento de caixa |
+| Garçom | Mapa de mesas, abrir/consultar comanda, lançar itens | Preço de custo, configurações do estabelecimento, resumo de caixa |
 | Caixa | Tudo do garçom + fechar comanda, split, troco, cancelamento de item (com auditoria) | Configurações de plano/assinatura |
-| Dono/Gerente | Tudo do caixa + cadastro de produtos/categorias, configuração de taxa de serviço, fechamento de caixa (resumo do dia), gestão de operadores | — |
+| Dono/Gerente | Tudo do caixa + cadastro de produtos/categorias, configuração de taxa de serviço, resumo de caixa, gestão de operadores | — |
 
 **Suposição do PM (validar):** Dono e Caixa podem ser a mesma pessoa fisicamente logada (ex: dono que também opera o caixa) — o sistema não deve forçar contas separadas por papel, apenas permissões por papel atribuído ao operador.
 
@@ -157,14 +157,16 @@ Entregar um PDV desktop offline-first para bares e restaurantes que resolve o ci
 
 ---
 
-### Épico 6 — Fechamento de Caixa
+### Épico 6 — Resumo de Caixa
+
+**Renomeado de "Fechamento de Caixa" (revisão 2026-09-22, achado em uso real):** o nome original sugeria uma ação/evento discreto ("fechar o caixa" num instante), mas a tela sempre foi um relatório somativo ao vivo — não existe um botão ou evento que "feche" o caixa do dia, e o total muda a qualquer momento em que uma comanda nova é fechada. O nome e os critérios de aceite abaixo foram ajustados pra não sugerir um momento de corte que não existe; nenhum comportamento mudou.
 
 **Histórias:**
 
-6.1. Como dono/caixa, quero ver um resumo do dia (total vendido, total por forma de pagamento, número de comandas fechadas), para conferir o caixa no fim do expediente.
+6.1. Como dono/caixa, quero ver um resumo do dia (total vendido, total por forma de pagamento, número de comandas fechadas), para conferir o caixa a qualquer momento do expediente.
 - **Critérios de aceite:**
-  - Resumo é calculado localmente a partir da réplica local (não depende de sync com a nuvem estar em dia).
-  - Comandas ainda abertas no momento do fechamento de caixa aparecem separadamente como "pendentes" (não entram no total fechado).
+  - Resumo é calculado localmente a partir da réplica local (não depende de sync com a nuvem estar em dia), recalculado a cada consulta — não existe uma ação de "fechar o caixa" que congele o total do dia.
+  - Comandas ainda abertas (não fechadas) nunca entram no total somado — aparecem à parte como "pendentes", em qualquer momento em que o resumo for consultado.
 
 6.2. Como dono, quero que esse mesmo resumo fique disponível via consulta read-only no backend, mesmo sem tela remota no MVP (brief §4.7), para preparar o terreno de relatórios remotos futuros sem retrabalho de arquitetura.
 - **Critérios de aceite:**
@@ -234,6 +236,8 @@ Nenhuma pendência bloqueante no momento — ver histórico de resolução abaix
 ~~Validação do comportamento de junção de mesas com o cliente-zero~~ — **fechado sem validação externa formal, depois revisitado com uso real**: uma conversa informal com o cliente-zero confirmou um sinal indireto relevante na época (ver histórico original abaixo), então a decisão foi seguir com o desenho registrado em 2.6 e ajustar depois com uso real, se necessário. Uso real do dono (2026-09-21) trouxe exatamente esse ajuste: o comportamento original (junção invisível até o fechamento, sem trava de sobreposição, sem como desfazer) gerou confusão e grupos duplicados/sobrepostos na prática — confirmado nos próprios dados do terminal (duas mesas agrupadas duas vezes, um grupo de 5 mesas criado sem intenção clara). 2.6 foi emendado com três critérios novos: trava contra mesa já agrupada, evento de desfazer agrupamento, e visibilidade do agrupamento durante todo o atendimento (não só no fechamento).
 
 *Histórico original (contexto, não mais a decisão vigente):* uma conversa informal com o cliente-zero confirmou um sinal indireto relevante — o estabelecimento é pequeno, opera bem hoje com comanda manual + um sisteminha simples de cálculo, o que reforça que (a) 10 comandas simultâneas é confortável para esse perfil de volume, e (b) o fluxo básico (mesa + comanda avulsa, split, taxa de serviço) já cobre o que ele faz manualmente hoje. Isso não confirma especificamente o comportamento de junção de mesas na prática, mas reduz o risco de tê-lo errado, dado o perfil de baixa complexidade operacional do estabelecimento.
+
+~~Nome "Fechamento de Caixa" (Épico 6)~~ — **resolvido, achado em uso real (2026-09-22)**: o nome sugeria uma ação de fechar o caixa num instante, mas a tela sempre foi um relatório somativo ao vivo, sem ação de fechamento nenhuma. Renomeado para "Resumo de Caixa" em 6.1 e no critério de aceite correspondente; nenhum comportamento mudou, só o nome e a redação que o cercava.
 
 ~~Transferência/junção de mesas~~ — **resolvido**: transferência move a comanda entre mesas mantendo histórico (2.5); junção é só vínculo visual + fechamento conjunto opcional, sem mesclar dados (2.6).
 
