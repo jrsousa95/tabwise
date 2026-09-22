@@ -109,7 +109,7 @@ function Catalog() {
               inputMode="decimal"
             />
           </label>
-          <button type="submit" disabled={serviceFeeSubmitting}>
+          <button type="submit" className="button-primary" disabled={serviceFeeSubmitting}>
             Salvar
           </button>
         </form>
@@ -127,7 +127,7 @@ function Catalog() {
             placeholder="Ex: Bebidas"
             aria-label="Nome da categoria"
           />
-          <button type="submit" disabled={!categoryName.trim() || categorySubmitting}>
+          <button type="submit" className="button-primary" disabled={!categoryName.trim() || categorySubmitting}>
             Adicionar
           </button>
         </form>
@@ -166,6 +166,7 @@ function Catalog() {
           {productError && <p className="form-error">{productError}</p>}
           <button
             type="submit"
+            className="button-primary"
             disabled={!productName.trim() || parseReaisToCents(productPrice) === null || !productCategoryId || productSubmitting}
           >
             Adicionar
@@ -187,10 +188,14 @@ function Catalog() {
               <tr key={p.id} className={p.active ? undefined : "catalog-row-inactive"}>
                 <td>{p.name}</td>
                 <td>{categoryLabel(p.categoryId)}</td>
-                <td>{formatCentsToBRL(p.priceCents)}</td>
-                <td>{p.active ? "Ativo" : "Inativo"}</td>
+                <td className="amount">{formatCentsToBRL(p.priceCents)}</td>
                 <td>
-                  <button type="button" onClick={() => handleToggleActive(p.id, !p.active)}>
+                  <span className={`status-badge ${p.active ? "status-badge-success" : "status-badge-neutral"}`}>
+                    {p.active ? "Ativo" : "Inativo"}
+                  </span>
+                </td>
+                <td>
+                  <button type="button" className="button-secondary" onClick={() => handleToggleActive(p.id, !p.active)}>
                     {p.active ? "Desativar" : "Ativar"}
                   </button>
                 </td>

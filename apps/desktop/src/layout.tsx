@@ -57,7 +57,7 @@ function Layout() {
         {operator && (
           <span className="current-operator">
             {operator.name} ({roleLabel[operator.role] ?? operator.role})
-            <button type="button" className="logout-button" onClick={handleLogout}>
+            <button type="button" className="logout-button button-secondary" onClick={handleLogout}>
               Sair
             </button>
           </span>
@@ -75,7 +75,7 @@ function Layout() {
             ⚠️ {mergeWarnings.length} {mergeWarnings.length === 1 ? "comanda foi mesclada" : "comandas foram mescladas"}{" "}
             automaticamente por conflito de sincronização.
           </span>
-          <button type="button" onClick={() => setShowMergeDetails((v) => !v)}>
+          <button type="button" className="button-secondary" onClick={() => setShowMergeDetails((v) => !v)}>
             {showMergeDetails ? "Ocultar detalhes" : "Ver detalhes"}
           </button>
           {showMergeDetails && (

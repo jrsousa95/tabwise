@@ -1,18 +1,71 @@
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
+/**
+ * Sistema de Design Visual — Passa a Régua
+ * Implementação literal dos tokens de DESIGN.md (cores, tipografia, rounded,
+ * spacing, components) + comportamento de EXPERIENCE.md (table-tile, status-badge).
+ * Ver _bmad-output/planning-artifacts/ux-designs/ux-passa-a-regua-2026-09-21/{DESIGN,EXPERIENCE}.md
+ *
+ * Sem framework de UI, sem lib de ícone — CSS puro, como antes.
+ * Dark mode só via `@media (prefers-color-scheme: dark)` (não há toggle
+ * `data-theme` no app hoje) — cada token é sua própria decisão, nunca uma
+ * variação de opacidade/filtro do token claro (ver DESIGN.md §Colors).
+ */
 
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafb);
-}
 :root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
+  /* --- Cor (DESIGN.md `colors`, modo claro) --- */
+  --color-surface: #f6f6f6;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container: #ffffff;
+  --color-surface-container-high: #ececec;
+  --color-on-surface: #1a1a1a;
+  --color-on-surface-variant: #4a4a4a;
+  --color-outline: rgba(0, 0, 0, 0.16);
+  --color-outline-variant: rgba(0, 0, 0, 0.08);
 
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+  --color-primary: #c2410c;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #fde4d4;
+  --color-on-primary-container: #7a290a;
+
+  --color-success: #1f7a46;
+  --color-on-success: #ffffff;
+  --color-success-container: #e1f3e8;
+
+  --color-warning: #946200;
+  --color-on-warning: #ffffff;
+  --color-warning-container: #fdf2e3;
+
+  --color-danger: #b3261e;
+  --color-on-danger: #ffffff;
+  --color-danger-container: #fce4e2;
+
+  /* --- Tipografia (DESIGN.md `typography`) --- */
+  --font-sans: Inter, Avenir, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* --- Forma (DESIGN.md `rounded`) --- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* --- Espaçamento (DESIGN.md `spacing`, base 8) --- */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 24px;
+  --spacing-6: 32px;
+  --spacing-7: 48px;
+  --spacing-8: 64px;
+  --spacing-touch-target-min: 48px;
+
+  color-scheme: light dark;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--color-on-surface);
+  background-color: var(--color-surface);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -21,14 +74,249 @@
   -webkit-text-size-adjust: 100%;
 }
 
-.container {
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-surface: #1b1b1b;
+    --color-surface-container-lowest: #141414;
+    --color-surface-container: #262626;
+    --color-surface-container-high: #323232;
+    --color-on-surface: #f2f2f2;
+    --color-on-surface-variant: #c7c7c7;
+    --color-outline: rgba(255, 255, 255, 0.18);
+    --color-outline-variant: rgba(255, 255, 255, 0.09);
+
+    --color-primary: #f0793d;
+    --color-on-primary: #3d1200;
+    --color-primary-container: #7a290a;
+    --color-on-primary-container: #fde4d4;
+
+    --color-success: #6fcf97;
+    --color-on-success: #0c3b1f;
+    /* [ASSUMPTION] success/warning/danger-container não têm par -dark em
+       DESIGN.md (só surface/primary têm). Derivados aqui seguindo o mesmo
+       padrão do par primary-container-dark/on-primary-container-dark (fundo
+       bem escuro do próprio matiz + texto claro do mesmo matiz, nunca
+       opacidade sobre a cor clara) — contraste checado ≥ 5.9:1 (AA) contra
+       `--color-success/warning/danger` usados como foreground de badge. */
+    --color-success-container: #14432a;
+
+    --color-warning: #f0b23d;
+    --color-on-warning: #3d2900;
+    --color-warning-container: #4a3400;
+
+    --color-danger: #f2857d;
+    --color-on-danger: #4a0e0a;
+    --color-danger-container: #4a1410;
+
+    color: var(--color-on-surface);
+    background-color: var(--color-surface);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
   margin: 0;
-  padding-top: 10vh;
+  min-height: 100vh;
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+}
+
+h1,
+h2 {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 var(--spacing-4);
+  color: var(--color-on-surface);
+  text-align: left;
+}
+
+h3 {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  margin: var(--spacing-5) 0 var(--spacing-2);
+  color: var(--color-on-surface);
+}
+
+h4 {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  margin: var(--spacing-4) 0 var(--spacing-2);
+  color: var(--color-on-surface-variant);
+}
+
+p {
+  margin: 0 0 var(--spacing-3);
+  line-height: 1.5;
+}
+
+a {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+code {
+  font-family: var(--font-mono);
+}
+
+/* --- Elementos de formulário (piso comum: alvo de toque ≥48px) --- */
+
+label {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  text-align: center;
+  gap: var(--spacing-1);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-on-surface-variant);
+  margin-bottom: var(--spacing-3);
 }
+
+/* Label com checkbox inline (ex: "Fechar as mesas agrupadas juntas") —
+   o rótulo em coluna do `label` acima não serve pra esse padrão. */
+.checkbox-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--spacing-touch-target-min);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: var(--color-on-surface);
+  margin-bottom: var(--spacing-3);
+  cursor: pointer;
+}
+
+input:not([type="checkbox"]),
+select {
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--color-on-surface);
+  background: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-2) var(--spacing-3);
+  min-height: var(--spacing-touch-target-min);
+}
+
+input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+/* Área de toque ≥48px em volta de um checkbox solto (fora de .checkbox-label),
+   ex: seleção de mesa pra agrupar no table-tile. */
+.tap-area {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--spacing-touch-target-min);
+  min-height: var(--spacing-touch-target-min);
+  cursor: pointer;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-on-surface);
+  background: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-md);
+  min-height: var(--spacing-touch-target-min);
+  padding: var(--spacing-3) var(--spacing-5);
+}
+
+button:hover:not(:disabled) {
+  background: var(--color-surface-container-high);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- components.button-primary --- */
+.button-primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-color: var(--color-primary);
+}
+
+.button-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: var(--color-primary);
+}
+
+.button-primary:active:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+/* --- components.button-secondary --- */
+.button-secondary {
+  background: transparent;
+  color: var(--color-on-surface);
+  border: 1px solid var(--color-outline);
+}
+
+.button-secondary:hover:not(:disabled) {
+  background: var(--color-surface-container-high);
+}
+
+.button-secondary:active:not(:disabled) {
+  background: var(--color-outline-variant);
+}
+
+/* --- Tipografia utilitária --- */
+.type-label {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-on-surface-variant);
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* typography.display — números lidos à distância/com pressa (PIN, mesa, total) */
+.amount-display {
+  font-family: var(--font-sans);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--color-on-surface);
+}
+
+/* --- Layout do app --- */
 
 .app-shell {
   display: flex;
@@ -39,123 +327,204 @@
 .app-nav {
   display: flex;
   align-items: center;
-  gap: 1.5em;
-  padding: 0.75em 1.5em;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+  gap: var(--spacing-5);
+  padding: var(--spacing-3) var(--spacing-5);
+  border-bottom: 1px solid var(--color-outline);
+  background: var(--color-surface-container-lowest);
+  flex-wrap: wrap;
 }
 
 .app-nav-brand {
+  font-size: 22px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .app-nav nav {
   display: flex;
-  gap: 1em;
+  align-items: center;
+  gap: var(--spacing-4);
   flex: 1;
+  flex-wrap: wrap;
 }
 
 .nav-link {
-  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--spacing-touch-target-min);
+  color: var(--color-on-surface-variant);
   text-decoration: none;
-  opacity: 0.7;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.nav-link:hover {
+  color: var(--color-on-surface);
+  text-decoration: none;
 }
 
 .nav-link-active {
-  opacity: 1;
-  font-weight: 600;
-}
-
-.sidecar-status {
-  font-size: 0.85em;
-  font-family: monospace;
-}
-
-.sidecar-status-ok {
-  color: #2e8b57;
-}
-
-.sidecar-status-down {
-  color: #c0392b;
-}
-
-.sidecar-status-pending {
-  color: #b8860b;
-}
-
-.app-content {
-  flex: 1;
-  padding: 2em;
+  color: var(--color-primary);
 }
 
 .current-operator {
   display: flex;
   align-items: center;
-  gap: 0.6em;
-  font-size: 0.9em;
+  gap: var(--spacing-3);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-on-surface-variant);
+  white-space: nowrap;
 }
 
 .logout-button {
-  padding: 0.3em 0.8em;
-  font-size: 0.85em;
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: 13px;
 }
 
+/* typography.mono — só o indicador técnico de sidecar */
+.sidecar-status {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.sidecar-status-ok {
+  color: var(--color-success);
+}
+
+.sidecar-status-down {
+  color: var(--color-danger);
+}
+
+.sidecar-status-pending {
+  color: var(--color-warning);
+}
+
+.app-content {
+  flex: 1;
+  width: 100%;
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: var(--spacing-6) var(--spacing-5);
+}
+
+/* Telas de entrada (login/pareamento/cadastro) fora do shell autenticado —
+   único caso do app com coluna central estreita deliberada (formulário
+   único, não uma tela de conteúdo/listagem — ver DESIGN.md §Layout). */
+.container {
+  margin: 0 auto;
+  max-width: 480px;
+  padding: var(--spacing-7) var(--spacing-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  text-align: center;
+}
+
+/* --- components.merge-warning-banner (já existia; herda paleta warning) --- */
+.merge-warning-banner {
+  background: var(--color-warning-container);
+  color: var(--color-warning);
+  padding: var(--spacing-3) var(--spacing-5);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-outline);
+}
+
+.merge-warning-banner ul {
+  flex-basis: 100%;
+  margin: var(--spacing-2) 0 0;
+  padding-left: var(--spacing-5);
+}
+
+/* --- Login: pin-display + pin-pad/pin-key --- */
+
+/* typography.display */
 .pin-display {
-  font-size: 2em;
+  font-family: var(--font-sans);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1;
   letter-spacing: 0.3em;
-  min-height: 1.4em;
-  margin: 0.5em 0 1em;
+  min-height: 1.2em;
+  margin: var(--spacing-4) 0 var(--spacing-5);
+  font-variant-numeric: tabular-nums;
 }
 
 .pin-pad {
   display: grid;
-  grid-template-columns: repeat(3, 4em);
-  gap: 0.6em;
+  grid-template-columns: repeat(3, 72px);
+  gap: var(--spacing-3);
   justify-content: center;
   margin: 0 auto;
 }
 
-.pin-pad button {
-  padding: 0.8em 0;
-  font-size: 1.2em;
+/* components.pin-key — 72×72 mínimo, dígito grande, primeira interação do turno */
+.pin-key {
+  min-width: 72px;
+  min-height: 72px;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 28px;
+  font-weight: 700;
+  background: var(--color-surface-container-lowest);
+  color: var(--color-on-surface);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-md);
 }
+
+.pin-key:hover:not(:disabled) {
+  background: var(--color-surface-container-high);
+}
+
+.pin-key:active:not(:disabled) {
+  background: var(--color-primary-container);
+  border-color: var(--color-primary);
+}
+
+/* --- Formulários --- */
 
 .operator-form {
   display: flex;
   flex-direction: column;
-  gap: 1em;
-  max-width: 320px;
+  gap: var(--spacing-2);
+  max-width: 360px;
   margin: 0 auto;
   text-align: left;
-}
-
-.operator-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3em;
-  font-size: 0.9em;
 }
 
 .operator-form-actions {
   display: flex;
   align-items: center;
-  gap: 1em;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
 }
 
 .form-error {
-  color: #c0392b;
-  font-size: 0.9em;
-  margin: 0;
+  color: var(--color-danger);
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 var(--spacing-2);
 }
 
 .inline-form {
   display: flex;
-  gap: 0.6em;
-  margin-bottom: 1em;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-4);
+  align-items: center;
+  flex-wrap: wrap;
 }
+
+/* --- Cardápio --- */
 
 .catalog {
   display: flex;
-  gap: 3em;
+  gap: var(--spacing-6);
   flex-wrap: wrap;
 }
 
@@ -168,11 +537,23 @@
   list-style: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .catalog-list li {
-  padding: 0.4em 0;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+  min-height: var(--spacing-touch-target-min);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2) 0;
+  border-bottom: 1px solid var(--color-outline-variant);
+}
+
+.catalog-list li > a {
+  display: flex;
+  align-items: center;
+  height: 100%;
 }
 
 .catalog-empty {
@@ -184,154 +565,255 @@
 .catalog-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 1em;
+  margin-top: var(--spacing-4);
 }
 
 .catalog-table th,
 .catalog-table td {
   text-align: left;
-  padding: 0.5em 0.6em;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+  padding: var(--spacing-3);
+  border-bottom: 1px solid var(--color-outline-variant);
+  vertical-align: middle;
+}
+
+.catalog-table th {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-on-surface-variant);
 }
 
 .catalog-row-inactive {
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
+/* --- Busca de produto --- */
+
 .product-search {
-  margin-top: 2em;
-  max-width: 420px;
+  margin-top: var(--spacing-6);
+  max-width: 480px;
 }
 
 .product-search-result {
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1em;
+  gap: var(--spacing-4);
 }
 
+/* --- Mapa de mesas --- */
+
 .table-map-section {
-  margin-bottom: 2.5em;
+  margin-bottom: var(--spacing-6);
+}
+
+/* components.table-tile — grid de cartões no lugar da tabela de mesas; o
+   cartão em si não tem ação própria, quem reage a toque/clique é o
+   botão/checkbox dentro dele. */
+.table-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: var(--spacing-4);
+}
+
+.table-tile {
+  border-radius: var(--radius-lg);
+  min-height: 96px;
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  justify-content: space-between;
+}
+
+.table-tile-free {
+  background: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-outline);
+  color: var(--color-on-surface);
+}
+
+.table-tile-occupied {
+  background: var(--color-primary-container);
+  border: 1px solid var(--color-primary);
+  color: var(--color-on-primary-container);
+}
+
+.table-tile-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+}
+
+.table-tile-id {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.table-tile-status {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.table-tile-meta {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.table-tile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.table-tile-actions .button-primary,
+.table-tile-actions .button-secondary,
+.table-tile-actions select {
+  min-height: var(--spacing-touch-target-min);
+}
+
+/* Ação secundária dentro de um tile ocupado (fundo já é o laranja de marca):
+   contorno usa o par on-primary-container pra manter contraste. */
+.table-tile-occupied .button-secondary {
+  border-color: var(--color-on-primary-container);
+  color: var(--color-on-primary-container);
+}
+
+.table-tile-occupied .button-secondary:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  /* No claro o tile ocupado é um container claro (overlay escuro funciona);
+     no escuro o mesmo container fica escuro (#7a290a) — precisa de um
+     overlay claro pra continuar visível. */
+  .table-tile-occupied .button-secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
 
 .transfer-control {
   display: inline-flex;
-  gap: 0.4em;
+  gap: var(--spacing-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* --- Comanda / fechamento --- */
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: var(--spacing-4) 0;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--spacing-4);
+}
+
+.summary-row-total {
+  border-top: 1px solid var(--color-outline-variant);
+  margin-top: var(--spacing-2);
+  padding-top: var(--spacing-3);
   align-items: center;
 }
 
 .split-row {
   display: flex;
-  gap: 0.6em;
+  gap: var(--spacing-3);
   align-items: center;
-  margin: 0.4em 0;
-}
-
-.merge-warning-banner {
-  background: #fdf2e3;
-  color: #7a4a00;
-  padding: 0.6em 1em;
-  display: flex;
-  align-items: center;
-  gap: 1em;
+  margin: var(--spacing-2) 0;
   flex-wrap: wrap;
-  border-bottom: 1px solid rgba(122, 74, 0, 0.2);
 }
 
-.merge-warning-banner ul {
-  flex-basis: 100%;
-  margin: 0.4em 0 0;
-  padding-left: 1.4em;
+/* Indicador falta/sobra — body-strong + cor semântica (EXPERIENCE.md, tela
+   de maior pressão de tempo do fluxo: fila no caixa). */
+.split-diff {
+  font-size: 16px;
+  font-weight: 600;
 }
+
+.split-diff-ok {
+  color: var(--color-success);
+}
+
+.split-diff-danger {
+  color: var(--color-danger);
+}
+
+.split-diff-warning {
+  color: var(--color-warning);
+}
+
+/* --- components.status-badge --- */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  border-radius: var(--radius-full);
+  padding: var(--spacing-1) var(--spacing-3);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+}
+
+.status-badge-success {
+  background: var(--color-success-container);
+  color: var(--color-success);
+}
+
+.status-badge-warning {
+  background: var(--color-warning-container);
+  color: var(--color-warning);
+}
+
+.status-badge-danger {
+  background: var(--color-danger-container);
+  color: var(--color-danger);
+}
+
+/* Estado neutro/em progresso — não é sucesso, aviso nem erro (ex: produto
+   inativo, "conectando..." antes de resolver pra conectado/bloqueado). */
+.status-badge-neutral {
+  background: var(--color-surface-container-high);
+  color: var(--color-on-surface-variant);
+}
+
+/* --- Pareamento --- */
 
 .pairing-token code {
-  padding: 0.2em 0.5em;
-  background: rgba(128, 128, 128, 0.15);
-  border-radius: 4px;
-  font-size: 1.1em;
+  padding: var(--spacing-1) var(--spacing-3);
+  background: var(--color-surface-container-high);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
+.status-line {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-button {
-  cursor: pointer;
-}
-
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
-
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
+/* --- Responsivo (EXPERIENCE.md §Responsive & Platform) --- */
+@media (max-width: 767px) {
+  .inline-form {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  a:hover {
-    color: #24c8db;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
+  .container {
+    padding: var(--spacing-5) var(--spacing-4);
   }
 }

@@ -118,9 +118,17 @@ function Pairing() {
       {/* M10 (PRD 8.1) — mensagem clara de upgrade quando o plano bloqueou
           este terminal na nuvem; sem isso o bloqueio ficaria silencioso
           (o terminal continua funcionando localmente, só não sincroniza). */}
-      {cloudStatus?.blockedReason && <p className="form-error">⚠️ {cloudStatus.blockedReason}</p>}
+      {cloudStatus?.blockedReason && (
+        <p className="status-line" role="status">
+          <span className="status-badge status-badge-danger">bloqueado</span>
+          {cloudStatus.blockedReason}
+        </p>
+      )}
       {cloudStatus && !cloudStatus.blockedReason && (
-        <p className={cloudStatus.connected ? undefined : "form-error"}>
+        <p className="status-line" role="status">
+          <span className={`status-badge ${cloudStatus.connected ? "status-badge-success" : "status-badge-neutral"}`}>
+            {cloudStatus.connected ? "conectado" : "conectando..."}
+          </span>
           {cloudStatus.connected ? "Conectado à nuvem." : "Ainda não conectado à nuvem — tentando..."}
         </p>
       )}
@@ -141,7 +149,7 @@ function Pairing() {
             placeholder="Código lido no outro terminal"
             aria-label="Código de pareamento"
           />
-          <button type="submit" disabled={!adoptInput.trim() || adoptSubmitting}>
+          <button type="submit" className="button-primary" disabled={!adoptInput.trim() || adoptSubmitting}>
             Adotar
           </button>
         </form>
@@ -157,7 +165,7 @@ function Pairing() {
           {token && (
             <p className="pairing-token">
               <code>{token}</code>{" "}
-              <button type="button" onClick={handleCopyToken}>
+              <button type="button" className="button-secondary" onClick={handleCopyToken}>
                 {copied ? "Copiado!" : "Copiar"}
               </button>
             </p>
@@ -174,7 +182,7 @@ function Pairing() {
         {manualHostStatus === "ready" && manualHost && (
           <p>
             Configurado: <code>{manualHost.host}:{manualHost.port}</code>{" "}
-            <button type="button" onClick={handleClearManualHost} disabled={manualHostSubmitting}>
+            <button type="button" className="button-secondary" onClick={handleClearManualHost} disabled={manualHostSubmitting}>
               Remover
             </button>
           </p>
@@ -187,7 +195,7 @@ function Pairing() {
             placeholder="Porta (ex: 4550)"
             inputMode="numeric"
           />
-          <button type="submit" disabled={!manualHostInput.trim() || !manualPortInput || manualHostSubmitting}>
+          <button type="submit" className="button-primary" disabled={!manualHostInput.trim() || !manualPortInput || manualHostSubmitting}>
             Salvar
           </button>
         </form>

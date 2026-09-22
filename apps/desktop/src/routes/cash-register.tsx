@@ -26,31 +26,43 @@ function CashRegister() {
 
       <div className="table-map-section">
         <h3>Resumo do dia</h3>
-        <p>
-          Comandas fechadas: {summary.closedOrdersCount}
-          <br />
-          Subtotal: {formatCentsToBRL(summary.subtotalCents)}
-          <br />
-          Taxa de serviço: {formatCentsToBRL(summary.serviceFeeCents)}
-          <br />
-          <strong>Total vendido: {formatCentsToBRL(summary.totalSoldCents)}</strong>
-        </p>
+        <p className="type-label">Comandas fechadas: {summary.closedOrdersCount}</p>
+        <div className="summary">
+          <div className="summary-row">
+            <span className="type-label">Subtotal</span>
+            <span className="amount">{formatCentsToBRL(summary.subtotalCents)}</span>
+          </div>
+          <div className="summary-row">
+            <span className="type-label">Taxa de serviço</span>
+            <span className="amount">{formatCentsToBRL(summary.serviceFeeCents)}</span>
+          </div>
+          <div className="summary-row summary-row-total">
+            <span className="type-label">Total vendido</span>
+            <span className="amount amount-display">{formatCentsToBRL(summary.totalSoldCents)}</span>
+          </div>
+        </div>
 
         <h4>Por forma de pagamento</h4>
-        <p>
-          Dinheiro: {formatCentsToBRL(summary.totalByPaymentMethod.cash)}
-          <br />
-          Cartão: {formatCentsToBRL(summary.totalByPaymentMethod.card)}
-        </p>
+        <div className="summary">
+          <div className="summary-row">
+            <span className="type-label">Dinheiro</span>
+            <span className="amount">{formatCentsToBRL(summary.totalByPaymentMethod.cash)}</span>
+          </div>
+          <div className="summary-row">
+            <span className="type-label">Cartão</span>
+            <span className="amount">{formatCentsToBRL(summary.totalByPaymentMethod.card)}</span>
+          </div>
+        </div>
       </div>
 
       <div className="table-map-section">
         <h3>Comandas pendentes ({summary.pendingOrders.length})</h3>
-        <p className="form-error">Comandas ainda abertas não entram no total fechado acima.</p>
+        <p className="type-label">Comandas ainda abertas não entram no total fechado acima.</p>
         <ul className="catalog-list">
           {summary.pendingOrders.map((o) => (
             <li key={o.id}>
               <a href={`#/orders/${o.id}`}>{orderLabel(o)}</a>
+              <span className="status-badge status-badge-warning">pendente</span>
             </li>
           ))}
           {summary.pendingOrders.length === 0 && <li className="catalog-empty">Nenhuma comanda pendente.</li>}

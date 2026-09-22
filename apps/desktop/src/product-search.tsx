@@ -41,10 +41,10 @@ function ProductSearch({ onSelect }: { onSelect?: (product: Product) => void }) 
         {results.map((p) => (
           <li key={p.id} className={onSelect ? "product-search-result" : undefined}>
             <span>
-              {p.name} — {formatCentsToBRL(p.priceCents)}
+              {p.name} — <span className="amount">{formatCentsToBRL(p.priceCents)}</span>
             </span>
             {onSelect && (
-              <button type="button" onClick={() => onSelect(p)}>
+              <button type="button" className="button-secondary" onClick={() => onSelect(p)}>
                 Adicionar
               </button>
             )}

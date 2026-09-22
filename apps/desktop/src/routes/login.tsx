@@ -74,7 +74,7 @@ function Login() {
       {error && <p className="form-error">{error}</p>}
       <div className="pin-pad">
         {PIN_DIGITS.map((key) => (
-          <button key={key} type="button" disabled={submitting} onClick={() => handleKey(key)}>
+          <button key={key} type="button" className="pin-key" disabled={submitting} onClick={() => handleKey(key)}>
             {key}
           </button>
         ))}

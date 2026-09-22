@@ -127,18 +127,24 @@ function OrderClosing({
         <input value={percentText} onChange={(e) => setServiceFeePercent(e.target.value.replace(/[^0-9,.]/g, ""))} inputMode="decimal" />
       </label>
 
-      <p>
-        {joint && <em>Resumo combinado das {groupOrderIds.length} mesas agrupadas:</em>}
-        <br />
-        Subtotal: {formatCentsToBRL(effectiveSubtotalCents)}
-        <br />
-        Taxa de serviço: {formatCentsToBRL(serviceFeeCents)}
-        <br />
-        <strong>Total: {formatCentsToBRL(totalCents)}</strong>
-      </p>
+      {joint && <p className="type-label">Resumo combinado das {groupOrderIds.length} mesas agrupadas</p>}
+      <div className="summary">
+        <div className="summary-row">
+          <span className="type-label">Subtotal</span>
+          <span className="amount">{formatCentsToBRL(effectiveSubtotalCents)}</span>
+        </div>
+        <div className="summary-row">
+          <span className="type-label">Taxa de serviço</span>
+          <span className="amount">{formatCentsToBRL(serviceFeeCents)}</span>
+        </div>
+        <div className="summary-row summary-row-total">
+          <span className="type-label">Total</span>
+          <span className="amount amount-display">{formatCentsToBRL(totalCents)}</span>
+        </div>
+      </div>
 
       {groupOrderIds.length >= 2 && (
-        <label>
+        <label className="checkbox-label">
           <input
             type="checkbox"
             checked={joint}
@@ -146,7 +152,7 @@ function OrderClosing({
               setJoint(e.target.checked);
               setSplits([]); // total muda — partes antigas não valem mais
             }}
-          />{" "}
+          />
           Fechar as {groupOrderIds.length} mesas
           agrupadas juntas numa única operação de pagamento
         </label>
@@ -155,10 +161,10 @@ function OrderClosing({
       <h4>Dividir a conta</h4>
       <div className="inline-form">
         <input value={equalParts} onChange={(e) => setEqualParts(e.target.value.replace(/\D/g, ""))} inputMode="numeric" aria-label="Número de partes" />
-        <button type="button" onClick={handleGenerateEqual}>
+        <button type="button" className="button-secondary" onClick={handleGenerateEqual}>
           Dividir igualmente
         </button>
-        <button type="button" onClick={() => setSplits((prev) => [...prev, newSplitRow()])}>
+        <button type="button" className="button-secondary" onClick={() => setSplits((prev) => [...prev, newSplitRow()])}>
           Adicionar parte manual
         </button>
       </div>
@@ -166,6 +172,7 @@ function OrderClosing({
       {splits.map((s) => (
         <div key={s.id} className="split-row">
           <input
+            className="amount"
             value={s.amountText}
             onChange={(e) => updateSplit(s.id, { amountText: e.target.value.replace(/[^0-9,.]/g, "") })}
             placeholder="Valor (R$)"
@@ -177,27 +184,28 @@ function OrderClosing({
           </select>
           {s.paymentMethod === "cash" && (
             <input
+              className="amount"
               value={s.cashReceivedText}
               onChange={(e) => updateSplit(s.id, { cashReceivedText: e.target.value.replace(/[^0-9,.]/g, "") })}
               placeholder="Valor recebido (R$)"
               inputMode="decimal"
             />
           )}
-          <button type="button" onClick={() => removeSplit(s.id)}>
+          <button type="button" className="button-secondary" onClick={() => removeSplit(s.id)}>
             Remover
           </button>
         </div>
       ))}
 
       {splits.length > 0 && (
-        <p>
+        <p className={`split-diff ${diffCents === 0 ? "split-diff-ok" : diffCents > 0 ? "split-diff-danger" : "split-diff-warning"}`}>
           {diffCents === 0 ? "Split bate certinho." : diffCents > 0 ? `Falta ${formatCentsToBRL(diffCents)}.` : `Sobra ${formatCentsToBRL(-diffCents)}.`}
         </p>
       )}
 
       {error && <p className="form-error">{error}</p>}
 
-      <button type="button" onClick={handleConfirm} disabled={!canConfirm}>
+      <button type="button" className="button-primary" onClick={handleConfirm} disabled={!canConfirm}>
         Confirmar fechamento
       </button>
     </div>

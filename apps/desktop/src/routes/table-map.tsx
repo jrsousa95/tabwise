@@ -123,7 +123,7 @@ function TableMap() {
               placeholder="Capacidade (opcional)"
               inputMode="numeric"
             />
-            <button type="submit" disabled={!identifier.trim()}>
+            <button type="submit" className="button-primary" disabled={!identifier.trim()}>
               Adicionar
             </button>
           </form>
@@ -135,26 +135,26 @@ function TableMap() {
 
       <div className="table-map-section">
         <h3>Mesas</h3>
-        <table className="catalog-table">
-          <thead>
-            <tr>
-              <th>Mesa</th>
-              <th>Status</th>
-              <th></th>
-              <th>Agrupar</th>
-            </tr>
-          </thead>
-          <tbody>
+        {tables.length > 0 ? (
+          <div className="table-tile-grid">
             {tables.map((t) => {
               const order = orderForTable(t.id);
               return (
-                <tr key={t.id}>
-                  <td>
-                    {t.identifier}
-                    {t.capacity ? ` (${t.capacity} lugares)` : ""}
-                  </td>
-                  <td>{order ? "Ocupada" : "Livre"}</td>
-                  <td>
+                <div key={t.id} className={`table-tile ${order ? "table-tile-occupied" : "table-tile-free"}`}>
+                  <div className="table-tile-header">
+                    <span className="table-tile-id">{t.identifier}</span>
+                    <label className="tap-area">
+                      <input
+                        type="checkbox"
+                        checked={selectedForGroup.includes(t.id)}
+                        onChange={() => toggleSelectedForGroup(t.id)}
+                        aria-label={`Selecionar ${t.identifier} pra agrupar`}
+                      />
+                    </label>
+                  </div>
+                  <span className="table-tile-status">{order ? "Ocupada" : "Livre"}</span>
+                  {t.capacity ? <span className="table-tile-meta">{t.capacity} lugares</span> : null}
+                  <div className="table-tile-actions">
                     {order ? (
                       <TransferControl
                         options={freeTables(t.id)}
@@ -164,37 +164,24 @@ function TableMap() {
                         onOpenOrder={() => navigate(`/orders/${order.id}`)}
                       />
                     ) : (
-                      <button type="button" onClick={() => handleOpenTableOrder(t.id)}>
+                      <button type="button" className="button-primary" onClick={() => handleOpenTableOrder(t.id)}>
                         Abrir comanda
                       </button>
                     )}
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={selectedForGroup.includes(t.id)}
-                      onChange={() => toggleSelectedForGroup(t.id)}
-                      aria-label={`Selecionar ${t.identifier} pra agrupar`}
-                    />
-                  </td>
-                </tr>
+                  </div>
+                </div>
               );
             })}
-            {tables.length === 0 && (
-              <tr>
-                <td colSpan={4} className="catalog-empty">
-                  Nenhuma mesa cadastrada ainda.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+          </div>
+        ) : (
+          <p className="catalog-empty">Nenhuma mesa cadastrada ainda.</p>
+        )}
         {transferError && <p className="form-error">{transferError}</p>}
       </div>
 
       <div className="table-map-section">
         <h3>Junção de mesas</h3>
-        <button type="button" onClick={handleGroupTables} disabled={selectedForGroup.length < 2}>
+        <button type="button" className="button-primary" onClick={handleGroupTables} disabled={selectedForGroup.length < 2}>
           Agrupar mesas selecionadas
         </button>
         {groupError && <p className="form-error">{groupError}</p>}
@@ -208,7 +195,7 @@ function TableMap() {
 
       <div className="table-map-section">
         <h3>Comandas avulsas</h3>
-        <button type="button" onClick={handleOpenStandaloneOrder}>
+        <button type="button" className="button-primary" onClick={handleOpenStandaloneOrder}>
           Abrir comanda avulsa
         </button>
         <ul className="catalog-list">
@@ -239,7 +226,7 @@ function TransferControl({
 }) {
   return (
     <span className="transfer-control">
-      <button type="button" onClick={onOpenOrder}>
+      <button type="button" className="button-secondary" onClick={onOpenOrder}>
         Ver comanda
       </button>
       <select value={value} onChange={(e) => onChange(e.target.value)} disabled={options.length === 0} aria-label="Transferir para">
@@ -250,7 +237,7 @@ function TransferControl({
           </option>
         ))}
       </select>
-      <button type="button" onClick={onSubmit} disabled={!value}>
+      <button type="button" className="button-secondary" onClick={onSubmit} disabled={!value}>
         Transferir
       </button>
     </span>

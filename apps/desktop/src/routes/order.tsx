@@ -137,12 +137,12 @@ function Order() {
                   </>
                 )}
               </td>
-              <td>{item.quantity}</td>
-              <td>{formatCentsToBRL(item.unitPriceCents)}</td>
-              <td>{formatCentsToBRL(item.unitPriceCents * item.quantity)}</td>
+              <td className="amount">{item.quantity}</td>
+              <td className="amount">{formatCentsToBRL(item.unitPriceCents)}</td>
+              <td className="amount">{formatCentsToBRL(item.unitPriceCents * item.quantity)}</td>
               <td>
                 {!item.canceled && canManageOrder && order.status === "open" && (
-                  <button type="button" onClick={() => setCancelingItemId(item.id)}>
+                  <button type="button" className="button-secondary" onClick={() => setCancelingItemId(item.id)}>
                     Cancelar
                   </button>
                 )}
@@ -158,9 +158,12 @@ function Order() {
           )}
         </tbody>
       </table>
-      <p>
-        <strong>Subtotal: {formatCentsToBRL(subtotalCents)}</strong>
-      </p>
+      <div className="summary">
+        <div className="summary-row summary-row-total">
+          <span className="type-label">Subtotal</span>
+          <span className="amount amount-display">{formatCentsToBRL(subtotalCents)}</span>
+        </div>
+      </div>
 
       {cancelingItemId && (
         <div className="table-map-section">
@@ -183,10 +186,10 @@ function Order() {
           )}
           {cancelError && <p className="form-error">{cancelError}</p>}
           <div className="operator-form-actions">
-            <button type="button" onClick={() => handleConfirmCancel(cancelingItemId)}>
+            <button type="button" className="button-primary" onClick={() => handleConfirmCancel(cancelingItemId)}>
               Confirmar cancelamento
             </button>
-            <button type="button" onClick={() => setCancelingItemId(null)}>
+            <button type="button" className="button-secondary" onClick={() => setCancelingItemId(null)}>
               Voltar
             </button>
           </div>
@@ -208,10 +211,10 @@ function Order() {
               </label>
               {addError && <p className="form-error">{addError}</p>}
               <div className="operator-form-actions">
-                <button type="button" onClick={handleConfirmAdd} disabled={adding}>
+                <button type="button" className="button-primary" onClick={handleConfirmAdd} disabled={adding}>
                   Confirmar
                 </button>
-                <button type="button" onClick={() => setPendingProduct(null)}>
+                <button type="button" className="button-secondary" onClick={() => setPendingProduct(null)}>
                   Cancelar
                 </button>
               </div>
@@ -230,7 +233,7 @@ function Order() {
               />
             ) : (
               <div className="table-map-section">
-                <button type="button" onClick={() => setClosing(true)}>
+                <button type="button" className="button-primary" onClick={() => setClosing(true)}>
                   Fechar comanda
                 </button>
               </div>

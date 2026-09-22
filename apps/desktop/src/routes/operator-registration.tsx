@@ -125,7 +125,7 @@ function OperatorRegistration() {
         {error && <p className="form-error">{error}</p>}
 
         <div className="operator-form-actions">
-          <button type="submit" disabled={!canSubmit}>
+          <button type="submit" className="button-primary" disabled={!canSubmit}>
             Cadastrar
           </button>
           {/* No bootstrap não tem pra onde voltar — sem operador nenhum,
