@@ -53,11 +53,6 @@ function Layout() {
               Cadastrar operador
             </NavLink>
           )}
-          {operator?.role === "owner" && (
-            <NavLink to="/pairing" className={navLinkClassName}>
-              Pareamento
-            </NavLink>
-          )}
         </nav>
         {operator && (
           <span className="current-operator">

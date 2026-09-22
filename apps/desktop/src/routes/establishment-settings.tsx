@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useEstablishment, updateEstablishmentSettings } from "../lib/closing";
 
 /**
@@ -73,6 +74,21 @@ function EstablishmentSettings() {
         </form>
         {serviceFeeError && <p className="form-error">{serviceFeeError}</p>}
         {serviceFeeSaved && <p>Taxa de serviço padrão atualizada.</p>}
+      </div>
+
+      {/* Achado em uso real, 2026-09-22: Pareamento também é ação
+          administrativa rara — saiu do menu principal (mesmo motivo da
+          Taxa de serviço) e mora aqui como link. Rota /pairing continua
+          própria e fora do shell autenticado (não muda): é o único fluxo
+          que também atende terminal novo, sem nenhum operador
+          cadastrado ainda, então não pode depender de login pra ser
+          alcançado. */}
+      <div className="table-map-section">
+        <h3>Pareamento de terminais</h3>
+        <p>Conecte este terminal a outro já configurado na mesma rede pra sincronizar mesas, cardápio e operadores.</p>
+        <Link to="/pairing" className="button-secondary">
+          Configurar pareamento →
+        </Link>
       </div>
     </section>
   );

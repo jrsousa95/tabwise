@@ -115,11 +115,14 @@ function Pairing() {
     <main className="container">
       {/* Achado em uso real (2026-09-22): esta rota fica fora do shell
           autenticado (sem menu de navegação) — sem este link, o dono ficava
-          sem nenhuma forma de sair da tela fora do modo bootstrap. */}
+          sem nenhuma forma de sair da tela fora do modo bootstrap. Aponta
+          pra Configurações (não mais Mapa de Mesas) porque é de lá que o
+          dono chega aqui agora — Pareamento saiu do menu principal e virou
+          um link dentro de Configurações (mesmo achado, 2026-09-22). */}
       {!isBootstrap && (
         <div className="operator-form-actions">
-          <Link to="/tables" className="button-secondary">
-            ← Voltar ao mapa de mesas
+          <Link to="/settings" className="button-secondary">
+            ← Voltar às configurações
           </Link>
         </div>
       )}
