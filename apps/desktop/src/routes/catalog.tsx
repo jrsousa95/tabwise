@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
-import { useCatalog, createCategory, createProduct, setProductActive } from "../lib/catalog";
+import {
+  useCatalog,
+  createCategory,
+  createProduct,
+  setProductActive,
+  renameCategory,
+  removeCategory,
+  renameProduct,
+  removeProduct,
+} from "../lib/catalog";
 import { formatCentsToBRL, parseReaisToCents } from "../lib/money";
 import { useEstablishment, updateEstablishmentSettings } from "../lib/closing";
 
@@ -26,6 +35,16 @@ function Catalog() {
   const [productCategoryId, setProductCategoryId] = useState("");
   const [productError, setProductError] = useState<string | null>(null);
   const [productSubmitting, setProductSubmitting] = useState(false);
+
+  const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null);
+  const [renameCategoryName, setRenameCategoryName] = useState("");
+  const [categoryActionError, setCategoryActionError] = useState<string | null>(null);
+  const [categoryActionSubmitting, setCategoryActionSubmitting] = useState(false);
+
+  const [renamingProductId, setRenamingProductId] = useState<string | null>(null);
+  const [renameProductName, setRenameProductName] = useState("");
+  const [productActionError, setProductActionError] = useState<string | null>(null);
+  const [productActionSubmitting, setProductActionSubmitting] = useState(false);
 
   async function handleAddCategory(e: React.FormEvent) {
     e.preventDefault();
@@ -63,6 +82,78 @@ function Catalog() {
 
   async function handleToggleActive(productId: string, active: boolean) {
     await setProductActive(productId, active);
+    refresh();
+  }
+
+  function handleStartRenameCategory(id: string, currentName: string) {
+    setRenamingCategoryId(id);
+    setRenameCategoryName(currentName);
+    setCategoryActionError(null);
+  }
+
+  async function handleConfirmRenameCategory(e: React.FormEvent) {
+    e.preventDefault();
+    if (!renamingCategoryId || categoryActionSubmitting) return;
+    const name = renameCategoryName.trim();
+    if (!name) return;
+    setCategoryActionSubmitting(true);
+    setCategoryActionError(null);
+    const result = await renameCategory(renamingCategoryId, name);
+    setCategoryActionSubmitting(false);
+    if (!result.ok) {
+      setCategoryActionError(result.error);
+      return;
+    }
+    setRenamingCategoryId(null);
+    refresh();
+  }
+
+  async function handleRemoveCategory(id: string) {
+    if (categoryActionSubmitting) return;
+    setCategoryActionSubmitting(true);
+    setCategoryActionError(null);
+    const result = await removeCategory(id);
+    setCategoryActionSubmitting(false);
+    if (!result.ok) {
+      setCategoryActionError(result.error);
+      return;
+    }
+    refresh();
+  }
+
+  function handleStartRenameProduct(id: string, currentName: string) {
+    setRenamingProductId(id);
+    setRenameProductName(currentName);
+    setProductActionError(null);
+  }
+
+  async function handleConfirmRenameProduct(e: React.FormEvent) {
+    e.preventDefault();
+    if (!renamingProductId || productActionSubmitting) return;
+    const name = renameProductName.trim();
+    if (!name) return;
+    setProductActionSubmitting(true);
+    setProductActionError(null);
+    const result = await renameProduct(renamingProductId, name);
+    setProductActionSubmitting(false);
+    if (!result.ok) {
+      setProductActionError(result.error);
+      return;
+    }
+    setRenamingProductId(null);
+    refresh();
+  }
+
+  async function handleRemoveProduct(id: string) {
+    if (productActionSubmitting) return;
+    setProductActionSubmitting(true);
+    setProductActionError(null);
+    const result = await removeProduct(id);
+    setProductActionSubmitting(false);
+    if (!result.ok) {
+      setProductActionError(result.error);
+      return;
+    }
     refresh();
   }
 
@@ -133,11 +224,38 @@ function Catalog() {
         </form>
         {categoryError && <p className="form-error">{categoryError}</p>}
         <ul className="catalog-list">
-          {categories.map((c) => (
-            <li key={c.id}>{c.name}</li>
-          ))}
+          {categories.map((c) =>
+            renamingCategoryId === c.id ? (
+              <li key={c.id}>
+                <form onSubmit={handleConfirmRenameCategory} className="inline-form">
+                  <input
+                    value={renameCategoryName}
+                    onChange={(e) => setRenameCategoryName(e.target.value)}
+                    aria-label="Novo nome da categoria"
+                  />
+                  <button type="submit" className="button-primary" disabled={!renameCategoryName.trim() || categoryActionSubmitting}>
+                    Salvar
+                  </button>
+                  <button type="button" className="button-secondary" onClick={() => setRenamingCategoryId(null)}>
+                    Cancelar
+                  </button>
+                </form>
+              </li>
+            ) : (
+              <li key={c.id}>
+                {c.name}{" "}
+                <button type="button" className="button-secondary" onClick={() => handleStartRenameCategory(c.id, c.name)} disabled={categoryActionSubmitting}>
+                  Renomear
+                </button>{" "}
+                <button type="button" className="button-secondary" onClick={() => handleRemoveCategory(c.id)} disabled={categoryActionSubmitting}>
+                  Remover
+                </button>
+              </li>
+            )
+          )}
           {categories.length === 0 && <li className="catalog-empty">Nenhuma categoria ainda.</li>}
         </ul>
+        {categoryActionError && <p className="form-error">{categoryActionError}</p>}
       </div>
 
       <div className="catalog-column">
@@ -184,23 +302,49 @@ function Catalog() {
             </tr>
           </thead>
           <tbody>
-            {products.map((p) => (
-              <tr key={p.id} className={p.active ? undefined : "catalog-row-inactive"}>
-                <td>{p.name}</td>
-                <td>{categoryLabel(p.categoryId)}</td>
-                <td className="amount">{formatCentsToBRL(p.priceCents)}</td>
-                <td>
-                  <span className={`status-badge ${p.active ? "status-badge-success" : "status-badge-neutral"}`}>
-                    {p.active ? "Ativo" : "Inativo"}
-                  </span>
-                </td>
-                <td>
-                  <button type="button" className="button-secondary" onClick={() => handleToggleActive(p.id, !p.active)}>
-                    {p.active ? "Desativar" : "Ativar"}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {products.map((p) =>
+              renamingProductId === p.id ? (
+                <tr key={p.id}>
+                  <td colSpan={5}>
+                    <form onSubmit={handleConfirmRenameProduct} className="inline-form">
+                      <input
+                        value={renameProductName}
+                        onChange={(e) => setRenameProductName(e.target.value)}
+                        aria-label="Novo nome do produto"
+                      />
+                      <button type="submit" className="button-primary" disabled={!renameProductName.trim() || productActionSubmitting}>
+                        Salvar
+                      </button>
+                      <button type="button" className="button-secondary" onClick={() => setRenamingProductId(null)}>
+                        Cancelar
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={p.id} className={p.active ? undefined : "catalog-row-inactive"}>
+                  <td>{p.name}</td>
+                  <td>{categoryLabel(p.categoryId)}</td>
+                  <td className="amount">{formatCentsToBRL(p.priceCents)}</td>
+                  <td>
+                    <span className={`status-badge ${p.active ? "status-badge-success" : "status-badge-neutral"}`}>
+                      {p.active ? "Ativo" : "Inativo"}
+                    </span>
+                  </td>
+                  <td>
+                    <button type="button" className="button-secondary" onClick={() => handleToggleActive(p.id, !p.active)}>
+                      {p.active ? "Desativar" : "Ativar"}
+                    </button>{" "}
+                    <button type="button" className="button-secondary" onClick={() => handleStartRenameProduct(p.id, p.name)} disabled={productActionSubmitting}>
+                      Renomear
+                    </button>{" "}
+                    <button type="button" className="button-secondary" onClick={() => handleRemoveProduct(p.id)} disabled={productActionSubmitting}>
+                      Remover
+                    </button>
+                  </td>
+                </tr>
+              )
+            )}
             {products.length === 0 && (
               <tr>
                 <td colSpan={5} className="catalog-empty">
@@ -210,6 +354,7 @@ function Catalog() {
             )}
           </tbody>
         </table>
+        {productActionError && <p className="form-error">{productActionError}</p>}
         </div>
       </div>
     </section>

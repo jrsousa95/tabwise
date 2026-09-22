@@ -187,6 +187,17 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
         break;
       }
 
+      case "category_renamed": {
+        const existing = categories.get(event.aggregateId);
+        if (existing) categories.set(event.aggregateId, { ...existing, ...event.payload });
+        break;
+      }
+
+      case "category_removed": {
+        categories.delete(event.aggregateId);
+        break;
+      }
+
       case "product_registered": {
         products.set(event.aggregateId, {
           id: event.aggregateId,
@@ -204,6 +215,17 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
         break;
       }
 
+      case "product_renamed": {
+        const existing = products.get(event.aggregateId);
+        if (existing) products.set(event.aggregateId, { ...existing, ...event.payload });
+        break;
+      }
+
+      case "product_removed": {
+        products.delete(event.aggregateId);
+        break;
+      }
+
       case "establishment_settings_updated": {
         establishment = { defaultServiceFeePercent: event.payload.defaultServiceFeePercent };
         break;
@@ -215,6 +237,17 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
           identifier: event.payload.identifier,
           capacity: event.payload.capacity,
         });
+        break;
+      }
+
+      case "table_renamed": {
+        const existing = tables.get(event.aggregateId);
+        if (existing) tables.set(event.aggregateId, { ...existing, ...event.payload });
+        break;
+      }
+
+      case "table_removed": {
+        tables.delete(event.aggregateId);
         break;
       }
 

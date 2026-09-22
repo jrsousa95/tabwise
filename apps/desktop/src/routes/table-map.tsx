@@ -7,6 +7,8 @@ import {
   openTableOrder,
   openStandaloneOrder,
   transferOrder,
+  renameTable,
+  removeTable,
   type Table,
 } from "../lib/tables";
 
@@ -23,6 +25,12 @@ function TableMap() {
   const [openError, setOpenError] = useState<string | null>(null);
   const [transferTarget, setTransferTarget] = useState<Record<string, string>>({});
   const [transferError, setTransferError] = useState<string | null>(null);
+
+  const [renamingTableId, setRenamingTableId] = useState<string | null>(null);
+  const [renameIdentifier, setRenameIdentifier] = useState("");
+  const [renameCapacity, setRenameCapacity] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   if (status === "loading") {
     return (
@@ -87,6 +95,40 @@ function TableMap() {
     refresh();
   }
 
+  function handleStartRename(t: Table) {
+    setRenamingTableId(t.id);
+    setRenameIdentifier(t.identifier);
+    setRenameCapacity(t.capacity ? String(t.capacity) : "");
+    setRenameError(null);
+  }
+
+  async function handleConfirmRename(e: React.FormEvent) {
+    e.preventDefault();
+    if (!renamingTableId) return;
+    const trimmed = renameIdentifier.trim();
+    if (!trimmed) return;
+    const capacityValue = renameCapacity.trim() ? Number(renameCapacity) : undefined;
+    setRenameError(null);
+    const result = await renameTable(renamingTableId, { identifier: trimmed, capacity: capacityValue });
+    if (!result.ok) {
+      setRenameError(result.error);
+      return;
+    }
+    setRenamingTableId(null);
+    refresh();
+  }
+
+  // PRD 2.8 — remover mesa: some do mapa; 409 (comanda aberta) exibido inline.
+  async function handleRemoveTable(tableId: string) {
+    setRemoveError(null);
+    const result = await removeTable(tableId);
+    if (!result.ok) {
+      setRemoveError(result.error);
+      return;
+    }
+    refresh();
+  }
+
   return (
     <section>
       <h2>Mapa de Mesas</h2>
@@ -140,6 +182,42 @@ function TableMap() {
                       </button>
                     )}
                   </div>
+
+                  {/* PRD 2.8 — renomear/remover mesa (dono). Remover é bloqueado (409) se a mesa tiver comanda aberta agora. */}
+                  {operator?.role === "owner" && renamingTableId !== t.id && (
+                    <div className="table-tile-actions">
+                      <button type="button" className="button-secondary" onClick={() => handleStartRename(t)}>
+                        Renomear
+                      </button>
+                      <button type="button" className="button-secondary" onClick={() => handleRemoveTable(t.id)} disabled={!!order}>
+                        Remover
+                      </button>
+                    </div>
+                  )}
+
+                  {operator?.role === "owner" && renamingTableId === t.id && (
+                    <form onSubmit={handleConfirmRename} className="table-tile-actions">
+                      <input
+                        value={renameIdentifier}
+                        onChange={(e) => setRenameIdentifier(e.target.value)}
+                        aria-label="Novo identificador da mesa"
+                      />
+                      <input
+                        value={renameCapacity}
+                        onChange={(e) => setRenameCapacity(e.target.value.replace(/\D/g, ""))}
+                        placeholder="Capacidade"
+                        inputMode="numeric"
+                        aria-label="Nova capacidade da mesa"
+                      />
+                      <button type="submit" className="button-primary" disabled={!renameIdentifier.trim()}>
+                        Salvar
+                      </button>
+                      <button type="button" className="button-secondary" onClick={() => setRenamingTableId(null)}>
+                        Cancelar
+                      </button>
+                      {renameError && <p className="form-error">{renameError}</p>}
+                    </form>
+                  )}
                 </div>
               );
             })}
@@ -148,6 +226,7 @@ function TableMap() {
           <p className="catalog-empty">Nenhuma mesa cadastrada ainda.</p>
         )}
         {transferError && <p className="form-error">{transferError}</p>}
+        {removeError && <p className="form-error">{removeError}</p>}
       </div>
 
       <div className="table-map-section">

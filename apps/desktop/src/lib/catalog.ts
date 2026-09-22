@@ -78,3 +78,51 @@ export async function setProductActive(productId: string, active: boolean): Prom
   }
   return { ok: true };
 }
+
+/** PRD 3.4 — renomear categoria já cadastrada. */
+export async function renameCategory(categoryId: string, name: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch(`${SIDECAR_URL}/categories/${categoryId}/rename`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    return { ok: false, error: body?.error ?? "não foi possível renomear a categoria" };
+  }
+  return { ok: true };
+}
+
+/** PRD 3.4 — remover categoria (lógico); 409 se houver produto vinculado (ativo ou inativo). */
+export async function removeCategory(categoryId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch(`${SIDECAR_URL}/categories/${categoryId}`, { method: "DELETE" });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    return { ok: false, error: body?.error ?? "não foi possível remover a categoria" };
+  }
+  return { ok: true };
+}
+
+/** PRD 3.5 — renomear produto já cadastrado; não afeta itens já lançados em comandas antigas. */
+export async function renameProduct(productId: string, name: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch(`${SIDECAR_URL}/products/${productId}/rename`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    return { ok: false, error: body?.error ?? "não foi possível renomear o produto" };
+  }
+  return { ok: true };
+}
+
+/** PRD 3.5 — remover produto (lógico, sem trava); comandas históricas continuam intactas. */
+export async function removeProduct(productId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch(`${SIDECAR_URL}/products/${productId}`, { method: "DELETE" });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    return { ok: false, error: body?.error ?? "não foi possível remover o produto" };
+  }
+  return { ok: true };
+}

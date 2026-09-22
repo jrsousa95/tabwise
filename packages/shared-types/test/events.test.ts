@@ -5,16 +5,22 @@ function base() {
   return { id: "ev-1", hlc: "0000000000000001-00000000", operatorId: "op-1", terminalId: "t-1", createdAt: 1700000000000 };
 }
 
-describe("DomainEventSchema — discriminated union dos 14 tipos (PRD/ARCH §3.1)", () => {
+describe("DomainEventSchema — discriminated union dos 20 tipos (PRD/ARCH §3.1)", () => {
   it("aceita um evento válido de cada tipo", () => {
     const validEvents = [
       { ...base(), type: "establishment_settings_updated", aggregateType: "establishment", aggregateId: "establishment", payload: { defaultServiceFeePercent: 10 } },
       { ...base(), type: "operator_registered", aggregateType: "operator", aggregateId: "op-1", payload: { name: "Ana", role: "waiter", pinHash: "hash" } },
       { ...base(), type: "category_registered", aggregateType: "category", aggregateId: "cat-1", payload: { name: "Bebidas" } },
+      { ...base(), type: "category_renamed", aggregateType: "category", aggregateId: "cat-1", payload: { name: "Bebidas geladas" } },
+      { ...base(), type: "category_removed", aggregateType: "category", aggregateId: "cat-1", payload: {} },
       { ...base(), type: "product_registered", aggregateType: "product", aggregateId: "p-1", payload: { name: "Cerveja", priceCents: 1200, categoryId: "cat-1", active: true } },
       { ...base(), type: "product_status_changed", aggregateType: "product", aggregateId: "p-1", payload: { active: false } },
+      { ...base(), type: "product_renamed", aggregateType: "product", aggregateId: "p-1", payload: { name: "Cerveja long neck" } },
+      { ...base(), type: "product_removed", aggregateType: "product", aggregateId: "p-1", payload: {} },
       { ...base(), type: "table_registered", aggregateType: "table", aggregateId: "m-1", payload: { identifier: "Mesa 1", capacity: 4 } },
       { ...base(), type: "table_registered", aggregateType: "table", aggregateId: "m-2", payload: { identifier: "Mesa 2" } },
+      { ...base(), type: "table_renamed", aggregateType: "table", aggregateId: "m-1", payload: { identifier: "Mesa 1B", capacity: 6 } },
+      { ...base(), type: "table_removed", aggregateType: "table", aggregateId: "m-1", payload: {} },
       { ...base(), type: "order_opened", aggregateType: "order", aggregateId: "c-1", payload: { source: "table", tableId: "m-1" } },
       { ...base(), type: "order_opened", aggregateType: "order", aggregateId: "c-2", payload: { source: "standalone", number: 7 } },
       { ...base(), type: "order_transferred", aggregateType: "order", aggregateId: "c-1", payload: { originTableId: "m-1", destinationTableId: "m-2" } },
@@ -30,6 +36,15 @@ describe("DomainEventSchema — discriminated union dos 14 tipos (PRD/ARCH §3.1
       const result = DomainEventSchema.safeParse(event);
       expect(result.success, `deveria validar: ${JSON.stringify(event)} — erro: ${JSON.stringify(!result.success && result.error.issues)}`).toBe(true);
     }
+
+    // Trava contra o título da describe (ou este teste) ficar desatualizado
+    // silenciosamente quando um tipo novo é adicionado ao schema sem vir
+    // acompanhado de um caso aqui (era só um texto livre até agora).
+    // `table_registered` aparece duas vezes de propósito (com e sem
+    // `capacity`), então comparamos tipos DISTINTOS cobertos, não a
+    // contagem bruta de `validEvents`.
+    const distinctTypesCovered = new Set(validEvents.map((e) => e.type));
+    expect(DomainEventSchema.options.length, "número de tipos no schema mudou sem atualizar este teste").toBe(distinctTypesCovered.size);
   });
 
   it("rejeita tipo desconhecido", () => {

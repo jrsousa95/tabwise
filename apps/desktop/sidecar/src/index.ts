@@ -591,6 +591,79 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  const categoryRenameMatch = url.pathname.match(/^\/categories\/([^/]+)\/rename$/);
+  if (req.method === "POST" && categoryRenameMatch) {
+    try {
+      const acting = requireOwner(res);
+      if (!acting) return;
+
+      const categoryId = categoryRenameMatch[1]!;
+      if (!currentState().categories.some((c) => c.id === categoryId)) {
+        sendJson(res, 404, { error: "categoria não encontrada" });
+        return;
+      }
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const name = typeof body?.name === "string" ? body.name.trim() : "";
+      if (name.length === 0) {
+        sendJson(res, 400, { error: "nome da categoria é obrigatório" });
+        return;
+      }
+
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "category_renamed",
+        aggregateType: "category",
+        aggregateId: categoryId,
+        payload: { name },
+      });
+      insertEvent(db, event);
+      sendJson(res, 200, { id: categoryId, name });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  const categoryDeleteMatch = url.pathname.match(/^\/categories\/([^/]+)$/);
+  if (req.method === "DELETE" && categoryDeleteMatch) {
+    const acting = requireOwner(res);
+    if (!acting) return;
+
+    const categoryId = categoryDeleteMatch[1]!;
+    const state = currentState();
+    if (!state.categories.some((c) => c.id === categoryId)) {
+      sendJson(res, 404, { error: "categoria não encontrada" });
+      return;
+    }
+    // PRD 3.4 — categoria com algum produto vinculado (ativo ou inativo) não
+    // pode ser removida, pra evitar produto órfão sem categoria.
+    if (state.products.some((p) => p.categoryId === categoryId)) {
+      sendJson(res, 409, { error: "categoria tem produtos vinculados — remova os produtos primeiro" });
+      return;
+    }
+
+    const event = DomainEventSchema.parse({
+      id: randomUUID(),
+      hlc: nextHlc(),
+      operatorId: acting.id,
+      terminalId,
+      createdAt: Date.now(),
+      type: "category_removed",
+      aggregateType: "category",
+      aggregateId: categoryId,
+      payload: {},
+    });
+    insertEvent(db, event);
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/products") {
     try {
       const acting = requireOwner(res);
@@ -669,6 +742,75 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  const productRenameMatch = url.pathname.match(/^\/products\/([^/]+)\/rename$/);
+  if (req.method === "POST" && productRenameMatch) {
+    try {
+      const acting = requireOwner(res);
+      if (!acting) return;
+
+      const productId = productRenameMatch[1]!;
+      if (!currentState().products.some((p) => p.id === productId)) {
+        sendJson(res, 404, { error: "produto não encontrado" });
+        return;
+      }
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const name = typeof body?.name === "string" ? body.name.trim() : "";
+      if (name.length === 0) {
+        sendJson(res, 400, { error: "nome do produto é obrigatório" });
+        return;
+      }
+
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "product_renamed",
+        aggregateType: "product",
+        aggregateId: productId,
+        payload: { name },
+      });
+      insertEvent(db, event);
+      sendJson(res, 200, { id: productId, name });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  const productDeleteMatch = url.pathname.match(/^\/products\/([^/]+)$/);
+  if (req.method === "DELETE" && productDeleteMatch) {
+    const acting = requireOwner(res);
+    if (!acting) return;
+
+    const productId = productDeleteMatch[1]!;
+    if (!currentState().products.some((p) => p.id === productId)) {
+      sendJson(res, 404, { error: "produto não encontrado" });
+      return;
+    }
+
+    // PRD 3.5 — remover produto não tem trava: itens de comanda já guardam
+    // sua própria cópia de nome/preço no `item_added`, o produto pode sumir
+    // do cadastro sem quebrar histórico.
+    const event = DomainEventSchema.parse({
+      id: randomUUID(),
+      hlc: nextHlc(),
+      operatorId: acting.id,
+      terminalId,
+      createdAt: Date.now(),
+      type: "product_removed",
+      aggregateType: "product",
+      aggregateId: productId,
+      payload: {},
+    });
+    insertEvent(db, event);
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/tables") {
     try {
       const acting = requireOwner(res);
@@ -703,6 +845,83 @@ const server = http.createServer(async (req, res) => {
     } catch {
       sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
     }
+    return;
+  }
+
+  const tableRenameMatch = url.pathname.match(/^\/tables\/([^/]+)\/rename$/);
+  if (req.method === "POST" && tableRenameMatch) {
+    try {
+      const acting = requireOwner(res);
+      if (!acting) return;
+
+      const tableId = tableRenameMatch[1]!;
+      if (!currentState().tables.some((t) => t.id === tableId)) {
+        sendJson(res, 404, { error: "mesa não encontrada" });
+        return;
+      }
+
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const identifier = typeof body?.identifier === "string" ? body.identifier.trim() : "";
+      const capacity = body?.capacity;
+      if (identifier.length === 0) {
+        sendJson(res, 400, { error: "identificador da mesa é obrigatório" });
+        return;
+      }
+      if (capacity !== undefined && (typeof capacity !== "number" || !Number.isInteger(capacity) || capacity <= 0)) {
+        sendJson(res, 400, { error: "capacidade precisa ser um número inteiro positivo" });
+        return;
+      }
+
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId,
+        createdAt: Date.now(),
+        type: "table_renamed",
+        aggregateType: "table",
+        aggregateId: tableId,
+        payload: capacity === undefined ? { identifier } : { identifier, capacity },
+      });
+      insertEvent(db, event);
+      sendJson(res, 200, { id: tableId, identifier, capacity });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return;
+  }
+
+  const tableDeleteMatch = url.pathname.match(/^\/tables\/([^/]+)$/);
+  if (req.method === "DELETE" && tableDeleteMatch) {
+    const acting = requireOwner(res);
+    if (!acting) return;
+
+    const tableId = tableDeleteMatch[1]!;
+    const state = currentState();
+    if (!state.tables.some((t) => t.id === tableId)) {
+      sendJson(res, 404, { error: "mesa não encontrada" });
+      return;
+    }
+    // PRD 2.8 — mesa com comanda aberta agora não pode ser removida.
+    if (!isTableFree(state, tableId)) {
+      sendJson(res, 409, { error: "mesa tem uma comanda aberta — feche a comanda antes de remover a mesa" });
+      return;
+    }
+
+    const event = DomainEventSchema.parse({
+      id: randomUUID(),
+      hlc: nextHlc(),
+      operatorId: acting.id,
+      terminalId,
+      createdAt: Date.now(),
+      type: "table_removed",
+      aggregateType: "table",
+      aggregateId: tableId,
+      payload: {},
+    });
+    insertEvent(db, event);
+    res.writeHead(204);
+    res.end();
     return;
   }
 

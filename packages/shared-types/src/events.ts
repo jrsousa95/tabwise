@@ -42,6 +42,35 @@ export const CategoryRegisteredSchema = baseEventSchema.extend({
 });
 export type CategoryRegistered = z.infer<typeof CategoryRegisteredSchema>;
 
+/**
+ * PRD 3.4 (achado em uso real, 2026-09-22) — renomeia uma categoria já
+ * cadastrada sem reescrever o `category_registered` original (mesmo padrão
+ * append-only de `ProductStatusChangedSchema`). `aggregateId` é a categoria renomeada.
+ */
+export const CategoryRenamedSchema = baseEventSchema.extend({
+  type: z.literal("category_renamed"),
+  aggregateType: z.literal("category"),
+  aggregateId: z.string().min(1),
+  payload: z.object({
+    name: z.string().min(1),
+  }),
+});
+export type CategoryRenamed = z.infer<typeof CategoryRenamedSchema>;
+
+/**
+ * PRD 3.4 — remoção lógica de categoria (some das listas ativas, nunca
+ * apaga histórico). Trava de "categoria em uso" é responsabilidade da rota
+ * (`apps/desktop/sidecar/src/index.ts`), não do schema. `aggregateId` é a
+ * categoria removida.
+ */
+export const CategoryRemovedSchema = baseEventSchema.extend({
+  type: z.literal("category_removed"),
+  aggregateType: z.literal("category"),
+  aggregateId: z.string().min(1),
+  payload: z.object({}),
+});
+export type CategoryRemoved = z.infer<typeof CategoryRemovedSchema>;
+
 /** PRD 3.2 — cadastro de produto. `aggregateId` é o id do produto criado. */
 export const ProductRegisteredSchema = baseEventSchema.extend({
   type: z.literal("product_registered"),
@@ -71,6 +100,38 @@ export const ProductStatusChangedSchema = baseEventSchema.extend({
 });
 export type ProductStatusChanged = z.infer<typeof ProductStatusChangedSchema>;
 
+/**
+ * PRD 3.5 (achado em uso real, 2026-09-22) — renomeia um produto já
+ * cadastrado; não muda retroativamente o nome já gravado em `item_added`
+ * (mesmo princípio do preço imutável, ver comentário de `ItemAddedSchema`).
+ * `aggregateId` é o produto renomeado.
+ */
+export const ProductRenamedSchema = baseEventSchema.extend({
+  type: z.literal("product_renamed"),
+  aggregateType: z.literal("product"),
+  aggregateId: z.string().min(1),
+  payload: z.object({
+    name: z.string().min(1),
+  }),
+});
+export type ProductRenamed = z.infer<typeof ProductRenamedSchema>;
+
+/**
+ * PRD 3.5 — remoção lógica de produto: some do cadastro, mas comandas
+ * históricas que já o venderam continuam intactas (`item_added` já carrega
+ * sua própria cópia de nome/preço). Camada além de `product_status_changed`
+ * (desativar), não uma substituição. Sem trava de remoção — itens de
+ * comanda não dependem do produto continuar existindo. `aggregateId` é o
+ * produto removido.
+ */
+export const ProductRemovedSchema = baseEventSchema.extend({
+  type: z.literal("product_removed"),
+  aggregateType: z.literal("product"),
+  aggregateId: z.string().min(1),
+  payload: z.object({}),
+});
+export type ProductRemoved = z.infer<typeof ProductRemovedSchema>;
+
 /** PRD 2.1 — cadastro de mesa (dono). `aggregateId` é o id da mesa criada. */
 export const TableRegisteredSchema = baseEventSchema.extend({
   type: z.literal("table_registered"),
@@ -82,6 +143,38 @@ export const TableRegisteredSchema = baseEventSchema.extend({
   }),
 });
 export type TableRegistered = z.infer<typeof TableRegisteredSchema>;
+
+/**
+ * PRD 2.8 (achado em uso real, 2026-09-22) — renomeia (identificador e/ou
+ * capacidade) uma mesa já cadastrada sem reescrever o `table_registered`
+ * original. Mesmo formato de payload de `TableRegisteredSchema`: só o(s)
+ * campo(s) presente(s) é(são) aplicado(s) na projeção. `aggregateId` é a
+ * mesa renomeada.
+ */
+export const TableRenamedSchema = baseEventSchema.extend({
+  type: z.literal("table_renamed"),
+  aggregateType: z.literal("table"),
+  aggregateId: z.string().min(1),
+  payload: z.object({
+    identifier: z.string().min(1),
+    capacity: z.number().int().positive().optional(),
+  }),
+});
+export type TableRenamed = z.infer<typeof TableRenamedSchema>;
+
+/**
+ * PRD 2.8 — remoção lógica de mesa (some do mapa de mesas e de novas
+ * seleções, nunca exclusão física — comandas antigas dessa mesa continuam
+ * intactas). Trava de "mesa com comanda aberta" é responsabilidade da rota,
+ * não do schema. `aggregateId` é a mesa removida.
+ */
+export const TableRemovedSchema = baseEventSchema.extend({
+  type: z.literal("table_removed"),
+  aggregateType: z.literal("table"),
+  aggregateId: z.string().min(1),
+  payload: z.object({}),
+});
+export type TableRemoved = z.infer<typeof TableRemovedSchema>;
 
 /**
  * PRD 2.2/2.3 — order vinculada a uma mesa OU avulsa (nunca as duas).
@@ -212,9 +305,15 @@ export const DomainEventSchema = z.discriminatedUnion("type", [
   EstablishmentSettingsUpdatedSchema,
   OperatorRegisteredSchema,
   CategoryRegisteredSchema,
+  CategoryRenamedSchema,
+  CategoryRemovedSchema,
   ProductRegisteredSchema,
   ProductStatusChangedSchema,
+  ProductRenamedSchema,
+  ProductRemovedSchema,
   TableRegisteredSchema,
+  TableRenamedSchema,
+  TableRemovedSchema,
   OrderOpenedSchema,
   OrderTransferredSchema,
   TablesGroupedSchema,

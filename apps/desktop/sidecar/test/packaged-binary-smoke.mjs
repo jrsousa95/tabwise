@@ -60,6 +60,11 @@ async function getJson(pathName) {
   return res.json();
 }
 
+async function delJson(pathName) {
+  const res = await fetch(`http://127.0.0.1:${PORT}${pathName}`, { method: "DELETE" });
+  return { ok: res.ok, status: res.status, data: await res.json().catch(() => null) };
+}
+
 /** Mesmo formato fixo em hex de `packages/sync-engine/src/hlc.ts` (`l` físico + `c` lógico) — o campo é TEXT ordenável por comparação de string, então uma linha inserida direto no SQLite precisa seguir a mesma largura pra ordenar certo entre os eventos reais do sidecar. */
 function serializeHlc(l, c) {
   return `${l.toString(16).padStart(16, "0")}-${c.toString(16).padStart(8, "0")}`;
@@ -130,6 +135,32 @@ async function main() {
     const summary = await getJson("/cash-register/summary");
     assert.equal(summary.closedOrdersCount, 1);
     assert.equal(summary.totalSoldCents, 2200);
+
+    console.log("[packaged-binary-smoke] renomear/remover mesa, categoria, produto (PRD 2.8/3.4/3.5)...");
+    const renameCategory = await postJson(`/categories/${category.data.id}/rename`, { name: "Bebidas geladas" });
+    assert.equal(renameCategory.status, 200, `esperado 200, veio ${renameCategory.status}: ${JSON.stringify(renameCategory.data)}`);
+
+    const removeCategoryInUse = await delJson(`/categories/${category.data.id}`);
+    assert.equal(removeCategoryInUse.status, 409, "categoria com produto vinculado não deveria poder ser removida");
+
+    const renameProduct = await postJson(`/products/${product.data.id}/rename`, { name: "Cerveja long neck" });
+    assert.equal(renameProduct.status, 200, `esperado 200, veio ${renameProduct.status}: ${JSON.stringify(renameProduct.data)}`);
+
+    const removeProduct = await delJson(`/products/${product.data.id}`);
+    assert.equal(removeProduct.status, 204, `esperado 204, veio ${removeProduct.status}: ${JSON.stringify(removeProduct.data)}`);
+
+    const removeCategoryNowEmpty = await delJson(`/categories/${category.data.id}`);
+    assert.equal(removeCategoryNowEmpty.status, 204, "categoria sem produtos deveria poder ser removida");
+
+    const secondTable = await postJson("/tables", { identifier: "Mesa 2" });
+    assert.equal(secondTable.status, 201);
+    const renameTable = await postJson(`/tables/${secondTable.data.id}/rename`, { identifier: "Mesa 2B", capacity: 6 });
+    assert.equal(renameTable.status, 200, `esperado 200, veio ${renameTable.status}: ${JSON.stringify(renameTable.data)}`);
+
+    const secondOrder = await postJson("/orders", { source: "table", tableId: secondTable.data.id });
+    assert.equal(secondOrder.status, 201);
+    const removeTableOccupied = await delJson(`/tables/${secondTable.data.id}`);
+    assert.equal(removeTableOccupied.status, 409, "mesa com comanda aberta não deveria poder ser removida");
 
     // PRD 2.6 (removida em 2026-09-22) — a UI/API que criava
     // `tables_grouped`/`table_group_dissolved` não existe mais, mas

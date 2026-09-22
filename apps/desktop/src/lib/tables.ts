@@ -83,3 +83,18 @@ export function transferOrder(orderId: string, destinationTableId: string) {
   return postJson<{ id: string }>(`/orders/${orderId}/transfer`, { destinationTableId });
 }
 
+/** PRD 2.8 — renomear mesa já cadastrada (identificador e/ou capacidade). */
+export function renameTable(id: string, input: { identifier: string; capacity?: number }) {
+  return postJson<Table>(`/tables/${id}/rename`, input);
+}
+
+/** PRD 2.8 — remover mesa (lógico); 409 se ela tiver comanda aberta agora. */
+export async function removeTable(id: string): Promise<ApiResult<void>> {
+  const res = await fetch(`${SIDECAR_URL}/tables/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    return { ok: false, error: body?.error ?? "não foi possível remover a mesa" };
+  }
+  return { ok: true, data: undefined };
+}
+

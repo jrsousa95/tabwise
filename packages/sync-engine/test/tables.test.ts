@@ -41,6 +41,60 @@ describe("projeção — mesas (PRD 2.1/2.5)", () => {
     expect(state.tables[0]!.capacity).toBeUndefined();
   });
 
+  it("table_renamed atualiza identifier/capacity sem tocar o registro original (PRD 2.8)", () => {
+    const registered: DomainEvent = {
+      id: "ev-1",
+      hlc: newHlc(1000),
+      aggregateType: "table",
+      aggregateId: "m-1",
+      type: "table_registered",
+      terminalId: "T1",
+      operatorId: "op-1",
+      createdAt: 1000,
+      payload: { identifier: "Mesa 1", capacity: 4 },
+    };
+    const renamed: DomainEvent = {
+      id: "ev-2",
+      hlc: newHlc(1000),
+      aggregateType: "table",
+      aggregateId: "m-1",
+      type: "table_renamed",
+      terminalId: "T1",
+      operatorId: "op-1",
+      createdAt: 1000,
+      payload: { identifier: "Mesa 1B", capacity: 6 },
+    };
+    const state = project(sortEvents([registered, renamed]));
+    expect(state.tables).toEqual([{ id: "m-1", identifier: "Mesa 1B", capacity: 6 }]);
+  });
+
+  it("table_removed some com a mesa de `tables` (remoção lógica, PRD 2.8)", () => {
+    const registered: DomainEvent = {
+      id: "ev-1",
+      hlc: newHlc(1000),
+      aggregateType: "table",
+      aggregateId: "m-1",
+      type: "table_registered",
+      terminalId: "T1",
+      operatorId: "op-1",
+      createdAt: 1000,
+      payload: { identifier: "Mesa 1" },
+    };
+    const removed: DomainEvent = {
+      id: "ev-2",
+      hlc: newHlc(1000),
+      aggregateType: "table",
+      aggregateId: "m-1",
+      type: "table_removed",
+      terminalId: "T1",
+      operatorId: "op-1",
+      createdAt: 1000,
+      payload: {},
+    };
+    const state = project(sortEvents([registered, removed]));
+    expect(state.tables).toEqual([]);
+  });
+
   it("order_transferred move a mesa atual da order e libera a mesa de origem pra uma nova (PRD 2.5)", () => {
     const open: DomainEvent = {
       id: "ev-1",
