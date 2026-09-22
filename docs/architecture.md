@@ -40,7 +40,7 @@ Cada terminal mantém uma tabela `events` no SQLite local:
 | `hlc` | TEXT | Hybrid Logical Clock — timestamp lógico usado para ordenação causal entre terminais (ver § 3.3) |
 | `aggregate_type` | TEXT | Ex: `order`, `table`, `operator` |
 | `aggregate_id` | TEXT | Id da entidade afetada (ex: id da comanda) |
-| `type` | TEXT | Ex: `item_added`, `item_canceled`, `order_opened`, `order_transferred`, `order_closed`, `tables_grouped`, `table_group_dissolved` |
+| `type` | TEXT | Ex: `item_added`, `item_canceled`, `order_opened`, `order_transferred`, `order_closed`. `tables_grouped`/`table_group_dissolved` também existem no schema (legado — feature de junção de mesas removida em 2026-09-22, PRD 2.6; mantidos só pra não quebrar a releitura de instalações com esses eventos já gravados, nenhuma rota nova os produz) |
 | `payload` | JSON | Dados específicos do evento |
 | `operator_id` | TEXT | Quem gerou o evento (obrigatório — decorre da exigência de auditoria do PRD) |
 | `terminal_id` | TEXT | De qual terminal o evento se originou |
@@ -56,7 +56,6 @@ Para a UI responder rápido, cada terminal também mantém tabelas "normais" (mu
 - `orders` (id, table_id nullable, status, opened_at, closed_at)
 - `order_items` (estado atual — já refletindo cancelamentos aplicados)
 - `payments` (registros de fechamento, splits)
-- `table_groups` (vínculo visual de mesas "juntas", PRD história 2.6)
 
 Essas tabelas são **descartáveis e reconstruíveis** a qualquer momento a partir do log de eventos — isso é o que torna a reconciliação segura: se dois terminais mesclam seus logs de eventos, cada um recalcula sua camada de leitura do zero (ou incrementalmente) e chega ao mesmo estado, porque a função "aplicar eventos em ordem de HLC" é determinística.
 

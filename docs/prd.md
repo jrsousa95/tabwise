@@ -74,17 +74,9 @@ Entregar um PDV desktop offline-first para bares e restaurantes que resolve o ci
 2.5. Como garçom/caixa, quero transferir uma comanda inteira de uma mesa para outra, para atender o caso de cliente que muda de lugar.
 - **Critérios de aceite:**
   - A comanda mantém todos os itens e histórico; apenas o `mesa_id` vinculado muda.
-  - A mesa de origem volta a ficar livre para nova comanda; a mesa de destino precisa estar livre (não é possível transferir para mesa já ocupada — nesse caso, ver história 2.6, junção).
+  - A mesa de origem volta a ficar livre para nova comanda; a mesa de destino precisa estar livre (não é possível transferir para mesa já ocupada).
 
-2.6. Como garçom/caixa, quero marcar duas ou mais mesas como "juntas" visualmente, sem mesclar as comandas, para refletir mesas fisicamente unidas sem perder o histórico separado de cada uma.
-- **Critérios de aceite:**
-  - Comandas de mesas juntas continuam sendo entidades separadas (itens, histórico e log de auditoria não se misturam) durante o consumo.
-  - No fechamento, o operador pode optar por fechar as comandas juntas em uma única operação de pagamento (aplicando split se necessário — ver Épico 5), sem que isso exija mesclar os dados históricos das comandas.
-  - **Decisão de escopo:** mesclar itens de duas comandas em uma única entidade (opção mais complexa, que reescreveria histórico e log de auditoria de duas comandas em uma) fica **fora do MVP**. O vínculo visual + fechamento conjunto cobre o caso de uso real sem essa complexidade.
-  - **Uma mesa não pode pertencer a mais de um grupo ativo ao mesmo tempo.** Tentar agrupar uma mesa já agrupada é rejeitado com mensagem clara nomeando o grupo existente — encontrado em uso real (2026-09-21): sem essa trava, o operador cria grupos sobrepostos/duplicados sem perceber, e não há como saber qual vale.
-  - **O agrupamento pode ser desfeito** (evento próprio, mesmo padrão append-only do resto do log) — sem isso, um agrupamento feito por engano é permanente.
-  - **O agrupamento de uma mesa é visível durante todo o atendimento**, não só no momento de fechar — tanto no mapa de mesas (indicação visual nas mesas do mesmo grupo) quanto na tela da própria comanda (aviso indicando com qual(is) mesa(s) ela está agrupada). Antes desta revisão, a única pista de que uma mesa estava agrupada aparecia como uma checkbox de surpresa na hora do fechamento — encontrado em uso real (2026-09-21).
-  - ~~Validar com o cliente-zero~~ — **superado por uso real (2026-09-21):** o comportamento original (junção só como vínculo visível apenas no fechamento) gerou confusão e agrupamentos sobrepostos/irreversíveis na prática — ver histórico em §6. As três correções acima substituem a validação pendente.
+2.6. ~~Como garçom/caixa, quero marcar duas ou mais mesas como "juntas" visualmente...~~ — **removido (2026-09-22)**: mesmo depois da emenda de 2026-09-21 (trava de sobreposição, desfazer, visibilidade), o dono avaliou em uso real que a feature seguia confusa e não agregava valor suficiente pro ganho de complexidade — decisão de descontinuar, não de corrigir de novo. UI e API de criar/desfazer/fechar grupos foram removidas. **Nota técnica:** os tipos de evento `tables_grouped`/`table_group_dissolved` e sua projeção continuam existindo no código (não removidos do schema) só pra manter a leitura do log de eventos válida em instalações que já tinham grupos gravados (log é append-only; remover o tipo quebraria a releitura desses eventos) — não são mais alcançáveis por nenhuma UI ou rota nova.
 
 2.7. Como sistema, ao atingir o limite de comandas simultâneas do plano (10 no free), devo impedir a abertura de novas comandas e avisar o operador.
 - **Critérios de aceite:**
@@ -143,7 +135,7 @@ Entregar um PDV desktop offline-first para bares e restaurantes que resolve o ci
   - **Split igual (N partes iguais):** o sistema calcula automaticamente e fecha exato, sem conceito de tolerância — o resto da divisão inteira (ex: 1 centavo ao dividir R$100 por 3) é atribuído de forma determinística à primeira parcela.
   - **Split manual/customizado:** a soma das partes deve ser **exatamente igual** ao total da comanda — não há faixa de tolerância. A UI mostra em tempo real quanto falta ou sobra para fechar o split, e o botão de confirmar fica desabilitado até a soma bater exato.
   - Cada split pode ter forma de pagamento diferente (ex: metade dinheiro, metade cartão).
-  - Quando mesas estão marcadas como "juntas" (história 2.6), o caixa pode fechar as comandas envolvidas em uma única operação de pagamento, usando split entre elas — sem que isso exija mesclar os dados históricos das comandas de origem.
+  - ~~Fechamento conjunto de mesas "juntas" (história 2.6)~~ — **removido (2026-09-22)** junto com a junção de mesas; cada comanda fecha individualmente.
 
 5.3. Como caixa, quero registrar a forma de pagamento (dinheiro, cartão — manual) para cada parte do pagamento.
 
@@ -233,13 +225,13 @@ Entregar um PDV desktop offline-first para bares e restaurantes que resolve o ci
 
 Nenhuma pendência bloqueante no momento — ver histórico de resolução abaixo.
 
-~~Validação do comportamento de junção de mesas com o cliente-zero~~ — **fechado sem validação externa formal, depois revisitado com uso real**: uma conversa informal com o cliente-zero confirmou um sinal indireto relevante na época (ver histórico original abaixo), então a decisão foi seguir com o desenho registrado em 2.6 e ajustar depois com uso real, se necessário. Uso real do dono (2026-09-21) trouxe exatamente esse ajuste: o comportamento original (junção invisível até o fechamento, sem trava de sobreposição, sem como desfazer) gerou confusão e grupos duplicados/sobrepostos na prática — confirmado nos próprios dados do terminal (duas mesas agrupadas duas vezes, um grupo de 5 mesas criado sem intenção clara). 2.6 foi emendado com três critérios novos: trava contra mesa já agrupada, evento de desfazer agrupamento, e visibilidade do agrupamento durante todo o atendimento (não só no fechamento).
+~~Validação do comportamento de junção de mesas com o cliente-zero~~ — **superado: feature removida (2026-09-22).** Havia sido fechado sem validação externa formal, depois revisitado com uso real: 2.6 foi emendado em 2026-09-21 com três critérios (trava de sobreposição, desfazer, visibilidade) em resposta a confusão real observada. No dia seguinte, mesmo com a emenda aplicada e testada, o dono avaliou que a feature continuava confusa e não valia a complexidade — decisão de remover 2.6 inteira em vez de corrigir de novo (ver 2.6 e §6 nota abaixo).
 
 *Histórico original (contexto, não mais a decisão vigente):* uma conversa informal com o cliente-zero confirmou um sinal indireto relevante — o estabelecimento é pequeno, opera bem hoje com comanda manual + um sisteminha simples de cálculo, o que reforça que (a) 10 comandas simultâneas é confortável para esse perfil de volume, e (b) o fluxo básico (mesa + comanda avulsa, split, taxa de serviço) já cobre o que ele faz manualmente hoje. Isso não confirma especificamente o comportamento de junção de mesas na prática, mas reduz o risco de tê-lo errado, dado o perfil de baixa complexidade operacional do estabelecimento.
 
 ~~Nome "Fechamento de Caixa" (Épico 6)~~ — **resolvido, achado em uso real (2026-09-22)**: o nome sugeria uma ação de fechar o caixa num instante, mas a tela sempre foi um relatório somativo ao vivo, sem ação de fechamento nenhuma. Renomeado para "Resumo de Caixa" em 6.1 e no critério de aceite correspondente; nenhum comportamento mudou, só o nome e a redação que o cercava.
 
-~~Transferência/junção de mesas~~ — **resolvido**: transferência move a comanda entre mesas mantendo histórico (2.5); junção é só vínculo visual + fechamento conjunto opcional, sem mesclar dados (2.6).
+~~Transferência/junção de mesas~~ — **parcialmente superado**: transferência move a comanda entre mesas mantendo histórico (2.5) — segue valendo. Junção (2.6) foi implementada, emendada uma vez, e depois removida (2026-09-22) por não agregar valor suficiente em uso real — ver 2.6 e a entrada acima.
 
 ~~Tolerância de arredondamento no split de conta~~ — **resolvido**: valores em centavos (inteiro); split igual fecha exato com resto determinístico na primeira parcela; split manual exige soma exata ao total, sem tolerância (ver 5.2, NFR7).
 
