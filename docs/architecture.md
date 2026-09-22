@@ -40,7 +40,7 @@ Cada terminal mantém uma tabela `events` no SQLite local:
 | `hlc` | TEXT | Hybrid Logical Clock — timestamp lógico usado para ordenação causal entre terminais (ver § 3.3) |
 | `aggregate_type` | TEXT | Ex: `order`, `table`, `operator` |
 | `aggregate_id` | TEXT | Id da entidade afetada (ex: id da comanda) |
-| `type` | TEXT | Ex: `item_added`, `item_canceled`, `order_opened`, `order_transferred`, `order_closed`, `tables_grouped` |
+| `type` | TEXT | Ex: `item_added`, `item_canceled`, `order_opened`, `order_transferred`, `order_closed`, `tables_grouped`, `table_group_dissolved` |
 | `payload` | JSON | Dados específicos do evento |
 | `operator_id` | TEXT | Quem gerou o evento (obrigatório — decorre da exigência de auditoria do PRD) |
 | `terminal_id` | TEXT | De qual terminal o evento se originou |
