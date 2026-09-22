@@ -723,11 +723,19 @@ form.table-tile-actions button {
   }
 }
 
+/* Empilhado, cada item ocupando a largura toda do tile — mesmo padrão do
+   formulário de renomear (form.table-tile-actions). Sem isso, o <select>
+   "Transferir para..." não tinha largura própria e ficava minúsculo ao
+   lado dos botões de largura total (achado em uso real, 2026-09-22). */
 .transfer-control {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   gap: var(--spacing-2);
-  align-items: center;
-  flex-wrap: wrap;
+  width: 100%;
+}
+
+.transfer-control > * {
+  width: 100%;
 }
 
 /* --- Comanda / fechamento --- */
