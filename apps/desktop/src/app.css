@@ -502,6 +502,16 @@ button:disabled {
   text-align: left;
 }
 
+/* No Cardápio, o mesmo `.operator-form` (form de "Adicionar produto") vive
+   dentro de uma coluna larga (`.catalog-column`, `flex: 1`), não numa
+   página estreita e centralizada como Cadastro de Operador — o teto de
+   360px deixava um vazio enorme ao lado do formulário, mais estreito até
+   que a própria tabela de produtos logo abaixo (achado em uso real,
+   2026-09-22). Nesse contexto, ocupa a coluna inteira. */
+.catalog-column .operator-form {
+  max-width: none;
+}
+
 .operator-form-actions {
   display: flex;
   align-items: center;
