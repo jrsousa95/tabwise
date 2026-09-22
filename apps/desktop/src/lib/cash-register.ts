@@ -8,7 +8,7 @@ export type CashRegisterSummary = {
   subtotalCents: number;
   serviceFeeCents: number;
   totalSoldCents: number;
-  totalByPaymentMethod: { cash: number; card: number };
+  totalByPaymentMethod: { cash: number; card: number; pix: number };
   pendingOrders: Array<{ id: string; origin: OrderOrigin; currentTableId?: string }>;
 };
 

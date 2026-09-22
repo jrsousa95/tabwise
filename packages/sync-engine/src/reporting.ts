@@ -15,7 +15,7 @@ export interface CashRegisterSummary {
   readonly subtotalCents: number;
   readonly serviceFeeCents: number;
   readonly totalSoldCents: number;
-  readonly totalByPaymentMethod: { cash: number; card: number };
+  readonly totalByPaymentMethod: { cash: number; card: number; pix: number };
   readonly pendingOrders: ReadonlyArray<{ id: string; origin: OrderState["origin"]; currentTableId?: string }>;
 }
 
@@ -32,7 +32,7 @@ export function computeCashRegisterSummary(orders: readonly OrderState[], dateKe
   );
   const pending = orders.filter((o) => o.mergedInto === undefined && o.status === "open");
 
-  const totalByPaymentMethod = { cash: 0, card: 0 };
+  const totalByPaymentMethod = { cash: 0, card: 0, pix: 0 };
   for (const order of closedToday) {
     for (const payment of order.payments) {
       totalByPaymentMethod[payment.paymentMethod] += payment.amountCents;

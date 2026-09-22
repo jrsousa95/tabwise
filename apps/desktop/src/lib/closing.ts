@@ -3,7 +3,7 @@ import { SIDECAR_URL } from "./sidecar";
 
 export type Split = {
   amountCents: number;
-  paymentMethod: "cash" | "card";
+  paymentMethod: "cash" | "card" | "pix";
   cashReceivedCents?: number;
 };
 

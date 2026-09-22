@@ -157,7 +157,7 @@ function distributeEqually(total: number, parts: number): number[] {
   return result;
 }
 
-type Payment = { amountCents: number; paymentMethod: "cash" | "card"; changeCents: number };
+type Payment = { amountCents: number; paymentMethod: "cash" | "card" | "pix"; changeCents: number };
 
 /**
  * PRD 5.2/5.3/5.4 — valida as partes do split (soma exata obrigatória, sem
@@ -175,8 +175,8 @@ function parseSplits(splitsInput: readonly unknown[], totalCents: number): { ok:
     if (typeof amountCents !== "number" || !Number.isInteger(amountCents) || amountCents <= 0) {
       return { ok: false, error: "cada parte do split precisa de um valor inteiro positivo" };
     }
-    if (paymentMethod !== "cash" && paymentMethod !== "card") {
-      return { ok: false, error: "forma de pagamento precisa ser 'cash' ou 'card'" };
+    if (paymentMethod !== "cash" && paymentMethod !== "card" && paymentMethod !== "pix") {
+      return { ok: false, error: "forma de pagamento precisa ser 'cash', 'card' ou 'pix'" };
     }
     let changeCents = 0;
     if (paymentMethod === "cash") {

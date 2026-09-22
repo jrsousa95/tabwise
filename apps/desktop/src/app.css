@@ -197,6 +197,28 @@ select {
   min-height: var(--spacing-touch-target-min);
 }
 
+/* No WebView do app desktop (Tauri/WKWebView), `<select>` usa o controle
+   nativo do SO por cima do nosso CSS — o texto renderiza bem menor que no
+   Chrome, mesmo com font-size/padding/min-height idênticos (achado em uso
+   real, 2026-09-22: "os selects estão normais na web, mas no app desktop
+   está muito pequeno"). `appearance: none` tira o controle nativo pra
+   nosso CSS valer igual nos dois; a seta precisa ser recriada à mão. */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: calc(var(--spacing-3) + 28px);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234a4a4a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--spacing-3) center;
+  background-size: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23c7c7c7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  }
+}
+
 input[type="checkbox"] {
   width: 22px;
   height: 22px;
@@ -224,6 +246,13 @@ button,
   font-family: inherit;
   font-size: 16px;
   font-weight: 600;
+  /* `<button>` usa o `line-height: normal` nativo do UA stylesheet; um `<a>`
+     com essa mesma classe herda o `line-height: 1.5` do body — sem fixar um
+     valor aqui, os dois tags computam alturas de conteúdo diferentes (ex.:
+     50px vs 48px) mesmo com padding/min-height idênticos, lendo como
+     desalinhado lado a lado (achado em uso real, 2026-09-22: "Cadastrar" x
+     "Cancelar" em operator-registration.tsx). */
+  line-height: 1;
   color: var(--color-on-surface);
   background: var(--color-surface-container-lowest);
   border: 1px solid var(--color-outline);

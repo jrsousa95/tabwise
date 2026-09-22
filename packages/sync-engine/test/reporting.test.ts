@@ -41,7 +41,7 @@ function orderClosed(id: string, createdAt: number, totals: { subtotalCents: num
   };
 }
 
-function paymentRecorded(id: string, createdAt: number, amountCents: number, paymentMethod: "cash" | "card"): DomainEvent {
+function paymentRecorded(id: string, createdAt: number, amountCents: number, paymentMethod: "cash" | "card" | "pix"): DomainEvent {
   return {
     id: `${id}-payment-${paymentMethod}`,
     hlc: nextHlc(),
@@ -70,7 +70,7 @@ describe("computeCashRegisterSummary (PRD 6.1/6.2)", () => {
       subtotalCents: 0,
       serviceFeeCents: 0,
       totalSoldCents: 0,
-      totalByPaymentMethod: { cash: 0, card: 0 },
+      totalByPaymentMethod: { cash: 0, card: 0, pix: 0 },
       pendingOrders: [],
     });
   });
@@ -84,7 +84,8 @@ describe("computeCashRegisterSummary (PRD 6.1/6.2)", () => {
       orderOpened("closed-2", "table-2", DAY_1),
       orderClosed("closed-2", DAY_1, { subtotalCents: 2000, serviceFeeCents: 200, totalCents: 2200 }),
       paymentRecorded("closed-2", DAY_1, 1200, "cash"),
-      paymentRecorded("closed-2", DAY_1, 1000, "card"),
+      paymentRecorded("closed-2", DAY_1, 500, "card"),
+      paymentRecorded("closed-2", DAY_1, 500, "pix"),
 
       // Fechada em outro dia — não deve entrar no resumo de DAY_1.
       orderOpened("closed-other-day", "table-3", DAY_2),
@@ -102,7 +103,7 @@ describe("computeCashRegisterSummary (PRD 6.1/6.2)", () => {
     expect(summary.subtotalCents).toBe(3000);
     expect(summary.serviceFeeCents).toBe(300);
     expect(summary.totalSoldCents).toBe(3300);
-    expect(summary.totalByPaymentMethod).toEqual({ cash: 2300, card: 1000 });
+    expect(summary.totalByPaymentMethod).toEqual({ cash: 2300, card: 500, pix: 500 });
     expect(summary.pendingOrders).toEqual([{ id: "pending-1", origin: { source: "table", tableId: "table-4" }, currentTableId: "table-4" }]);
   });
 });

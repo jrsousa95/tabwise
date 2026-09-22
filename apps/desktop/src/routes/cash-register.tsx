@@ -71,6 +71,12 @@ function CashRegister() {
               {formatCentsToBRL(summary.totalByPaymentMethod.card)}
             </span>
           </div>
+          <div className="summary-row">
+            <span className="type-label">Pix</span>
+            <span className="amount">
+              {formatCentsToBRL(summary.totalByPaymentMethod.pix)}
+            </span>
+          </div>
         </div>
       </div>
 

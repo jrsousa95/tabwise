@@ -7,8 +7,8 @@ export type OperatorRole = z.infer<typeof OperatorRoleSchema>;
 /** PRD 1.1 — PIN numérico de 4 a 6 dígitos, único por estabelecimento (checado na escrita, não no schema). */
 export const PinSchema = z.string().regex(/^\d{4,6}$/, "PIN deve ter de 4 a 6 dígitos numéricos");
 
-/** PRD 5.3. */
-export const PaymentMethodSchema = z.enum(["cash", "card"]);
+/** PRD 5.3. Pix adicionado 2026-09-22 — mesmo tratamento de "card" (sem troco, valor exato). */
+export const PaymentMethodSchema = z.enum(["cash", "card", "pix"]);
 export type PaymentMethod = z.infer<typeof PaymentMethodSchema>;
 
 /** PRD 1.3 — lista pré-definida + "other" com texto livre no `note`. */

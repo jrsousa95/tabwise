@@ -18,7 +18,7 @@ function TrashIcon() {
   );
 }
 
-type SplitRow = { id: string; amountText: string; paymentMethod: "cash" | "card"; cashReceivedText: string };
+type SplitRow = { id: string; amountText: string; paymentMethod: "cash" | "card" | "pix"; cashReceivedText: string };
 
 function newSplitRow(amountCents?: number): SplitRow {
   return {
@@ -169,8 +169,9 @@ function OrderClosing({
             placeholder="Valor (R$)"
             inputMode="decimal"
           />
-          <select value={s.paymentMethod} onChange={(e) => updateSplit(s.id, { paymentMethod: e.target.value as "cash" | "card" })}>
+          <select value={s.paymentMethod} onChange={(e) => updateSplit(s.id, { paymentMethod: e.target.value as "cash" | "card" | "pix" })}>
             <option value="card">Cartão</option>
+            <option value="pix">Pix</option>
             <option value="cash">Dinheiro</option>
           </select>
           {s.paymentMethod === "cash" && (
