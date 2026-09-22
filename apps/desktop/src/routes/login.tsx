@@ -16,7 +16,7 @@ function Login() {
 
   if (operatorsStatus === "loading") {
     return (
-      <main className="container">
+      <main className="container container-center">
         <p>Carregando...</p>
       </main>
     );
@@ -24,7 +24,7 @@ function Login() {
 
   if (operators.length === 0) {
     return (
-      <main className="container">
+      <main className="container container-center">
         <h1>Passa a Régua</h1>
         <p>Nenhum operador cadastrado neste terminal ainda.</p>
         <Link to="/operators/new">Cadastrar o primeiro operador →</Link>
@@ -65,7 +65,7 @@ function Login() {
   }
 
   return (
-    <main className="container">
+    <main className="container container-center">
       <h1>Passa a Régua</h1>
       <p>Digite seu PIN</p>
       <div className="pin-display" aria-live="polite">

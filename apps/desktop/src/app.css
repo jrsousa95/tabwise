@@ -234,6 +234,17 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* .button-primary:disabled sobrescreve opacity (que deixaria o laranja
+   ainda lendo como clicável no modo escuro) por cor de fundo neutra própria
+   — visivelmente diferente do habilitado nos dois temas (auditoria visual
+   2026-09-22). */
+.button-primary:disabled {
+  opacity: 1;
+  background: var(--color-surface-container-high);
+  color: var(--color-on-surface-variant);
+  border-color: var(--color-outline);
+}
+
 /* --- components.button-primary --- */
 .button-primary {
   background: var(--color-primary);
@@ -263,6 +274,18 @@ button:disabled {
 
 .button-secondary:active:not(:disabled) {
   background: var(--color-outline-variant);
+}
+
+/* Variante compacta de ação de linha de tabela/tile — ícone em vez de texto
+   pra caber em colunas/grids estreitos sem quebrar linha (auditoria visual
+   2026-09-22). Herda cor/borda de .button-secondary, nunca usada sozinha. */
+.row-action-button {
+  width: var(--spacing-touch-target-min);
+  height: var(--spacing-touch-target-min);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* --- Tipografia utilitária --- */
@@ -379,14 +402,16 @@ button:disabled {
 .app-content {
   flex: 1;
   width: 100%;
-  max-width: 1024px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: var(--spacing-6) var(--spacing-5);
 }
 
 /* Telas de entrada (login/pareamento/cadastro) fora do shell autenticado —
    único caso do app com coluna central estreita deliberada (formulário
-   único, não uma tela de conteúdo/listagem — ver DESIGN.md §Layout). */
+   único, não uma tela de conteúdo/listagem — ver DESIGN.md §Layout).
+   Alinhamento à esquerda por padrão (herda de h1,h2, já left) — só a tela
+   de Login centraliza, via .container-center (auditoria visual 2026-09-22). */
 .container {
   margin: 0 auto;
   max-width: 480px;
@@ -394,6 +419,9 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-2);
+}
+
+.container-center {
   text-align: center;
 }
 
@@ -467,7 +495,10 @@ button:disabled {
   flex-direction: column;
   gap: var(--spacing-2);
   max-width: 360px;
-  margin: 0 auto;
+  /* Sem margin:auto — centralizar essa caixa mais estreita desalinharia a
+     margem esquerda do formulário em relação ao h1 acima (auditoria visual
+     2026-09-22: título à esquerda, formulário centralizado). */
+  margin: 0;
   text-align: left;
 }
 
@@ -491,6 +522,11 @@ button:disabled {
   margin-bottom: var(--spacing-4);
   align-items: center;
   flex-wrap: wrap;
+}
+
+.inline-form input {
+  flex: 1;
+  min-width: 200px;
 }
 
 /* --- Cardápio --- */
@@ -586,7 +622,7 @@ button:disabled {
    botão/checkbox dentro dele. */
 .table-tile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--spacing-4);
 }
 
@@ -648,6 +684,13 @@ button:disabled {
 .table-tile-actions .button-secondary,
 .table-tile-actions select {
   min-height: var(--spacing-touch-target-min);
+}
+
+/* Padding horizontal reduzido só nesse contexto (grid estreito) — "Abrir
+   comanda" precisa caber numa linha; .button-primary global não muda
+   (auditoria visual 2026-09-22). */
+.table-tile-actions .button-primary {
+  padding: var(--spacing-2) var(--spacing-4);
 }
 
 /* Ação secundária dentro de um tile ocupado (fundo já é o laranja de marca):

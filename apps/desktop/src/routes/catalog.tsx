@@ -12,6 +12,40 @@ import {
 import { formatCentsToBRL, parseReaisToCents } from "../lib/money";
 import { useEstablishment, updateEstablishmentSettings } from "../lib/closing";
 
+/* Ícones inline (SVG, stroke=currentColor, sem preenchimento, 20×20) pra
+   ações de linha compactas — sem lib de ícone nova (auditoria visual
+   2026-09-22). aria-hidden porque o texto da ação vive no aria-label do
+   botão, não no ícone. */
+function PencilIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+    </svg>
+  );
+}
+
+function PowerIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2v8" />
+      <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+    </svg>
+  );
+}
+
 /** PRD Épico 3/M4 — cadastro de categorias e produtos (dono). PRD 5.1 — taxa de serviço padrão do estabelecimento. */
 function Catalog() {
   const { status, categories, products, refresh } = useCatalog();
@@ -244,11 +278,25 @@ function Catalog() {
             ) : (
               <li key={c.id}>
                 {c.name}{" "}
-                <button type="button" className="button-secondary" onClick={() => handleStartRenameCategory(c.id, c.name)} disabled={categoryActionSubmitting}>
-                  Renomear
+                <button
+                  type="button"
+                  className="button-secondary row-action-button"
+                  onClick={() => handleStartRenameCategory(c.id, c.name)}
+                  disabled={categoryActionSubmitting}
+                  aria-label="Renomear"
+                  title="Renomear"
+                >
+                  <PencilIcon />
                 </button>{" "}
-                <button type="button" className="button-secondary" onClick={() => handleRemoveCategory(c.id)} disabled={categoryActionSubmitting}>
-                  Remover
+                <button
+                  type="button"
+                  className="button-secondary row-action-button"
+                  onClick={() => handleRemoveCategory(c.id)}
+                  disabled={categoryActionSubmitting}
+                  aria-label="Remover"
+                  title="Remover"
+                >
+                  <TrashIcon />
                 </button>
               </li>
             )
@@ -332,14 +380,34 @@ function Catalog() {
                     </span>
                   </td>
                   <td>
-                    <button type="button" className="button-secondary" onClick={() => handleToggleActive(p.id, !p.active)}>
-                      {p.active ? "Desativar" : "Ativar"}
+                    <button
+                      type="button"
+                      className="button-secondary row-action-button"
+                      onClick={() => handleToggleActive(p.id, !p.active)}
+                      aria-label={p.active ? "Desativar" : "Ativar"}
+                      title={p.active ? "Desativar" : "Ativar"}
+                    >
+                      <PowerIcon />
                     </button>{" "}
-                    <button type="button" className="button-secondary" onClick={() => handleStartRenameProduct(p.id, p.name)} disabled={productActionSubmitting}>
-                      Renomear
+                    <button
+                      type="button"
+                      className="button-secondary row-action-button"
+                      onClick={() => handleStartRenameProduct(p.id, p.name)}
+                      disabled={productActionSubmitting}
+                      aria-label="Renomear"
+                      title="Renomear"
+                    >
+                      <PencilIcon />
                     </button>{" "}
-                    <button type="button" className="button-secondary" onClick={() => handleRemoveProduct(p.id)} disabled={productActionSubmitting}>
-                      Remover
+                    <button
+                      type="button"
+                      className="button-secondary row-action-button"
+                      onClick={() => handleRemoveProduct(p.id)}
+                      disabled={productActionSubmitting}
+                      aria-label="Remover"
+                      title="Remover"
+                    >
+                      <TrashIcon />
                     </button>
                   </td>
                 </tr>
