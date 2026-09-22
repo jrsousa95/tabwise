@@ -571,6 +571,20 @@ button:disabled {
   flex: 1;
 }
 
+/* Mesmo achado, escopo maior (2026-09-22): dentro de `.container`, o botão
+   ao final de uma fileira de input(s) (`.inline-form`, ex. "Adotar"/
+   "Salvar" em Pareamento) ou ao lado de um chip de código (`.pairing-token`,
+   ex. "Copiar"/"Remover") também ficava pequeno e desproporcional ao resto
+   da fileira. `.inline-form input` já é `flex: 1`; só faltava o botão
+   também dividir o espaço em vez de ficar do tamanho do próprio texto.
+   Escopado a `.container` pelo mesmo motivo do bloco acima — em telas
+   largas (`.app-content`) esses mesmos botões ficam ao lado de input(s)
+   curto(s) de propósito (ex. "Cadastrar mesa"), esticar quebraria isso. */
+.container .inline-form > button,
+.container .pairing-token > button {
+  flex: 1;
+}
+
 .form-error {
   color: var(--color-danger);
   font-size: 14px;

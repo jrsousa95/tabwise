@@ -159,7 +159,7 @@ function Pairing() {
           <input
             value={adoptInput}
             onChange={(e) => setAdoptInput(e.target.value)}
-            placeholder="Código lido no outro terminal"
+            placeholder="Código do outro terminal"
             aria-label="Código de pareamento"
           />
           <button type="submit" className="button-primary" disabled={!adoptInput.trim() || adoptSubmitting}>
