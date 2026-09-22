@@ -67,8 +67,16 @@ function Layout() {
             </button>
           </span>
         )}
-        <span className={`sidecar-status ${health ? "sidecar-status-ok" : "sidecar-status-down"}`}>
-          {health ? "sidecar ok" : `sidecar offline${error ? ` (${error})` : ""}`}
+        {/* Achado em uso real, 2026-09-22: "sidecar ok"/"sidecar offline" é
+            jargão técnico interno (o dono do estabelecimento não tem por
+            que saber o que é "sidecar") — texto visível vira linguagem
+            leiga; o detalhe técnico (erro cru) fica só no tooltip, pra
+            quando alguém for debugar. */}
+        <span
+          className={`status-badge ${health ? "status-badge-success" : "status-badge-danger"}`}
+          title={!health && error ? error : undefined}
+        >
+          {health ? "Conectado" : "Sem conexão"}
         </span>
       </header>
       {mergeWarnings.length > 0 && (

@@ -431,26 +431,6 @@ button:disabled {
   font-size: 13px;
 }
 
-/* typography.mono — só o indicador técnico de sidecar */
-.sidecar-status {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.sidecar-status-ok {
-  color: var(--color-success);
-}
-
-.sidecar-status-down {
-  color: var(--color-danger);
-}
-
-.sidecar-status-pending {
-  color: var(--color-warning);
-}
-
 .app-content {
   flex: 1;
   width: 100%;
