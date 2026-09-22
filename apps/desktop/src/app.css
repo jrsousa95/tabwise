@@ -185,22 +185,6 @@ label {
   margin-bottom: var(--spacing-3);
 }
 
-/* Label com checkbox inline (ex: "Fechar as mesas agrupadas juntas") —
-   o rótulo em coluna do `label` acima não serve pra esse padrão. */
-.checkbox-label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--spacing-2);
-  min-height: var(--spacing-touch-target-min);
-  font-size: 16px;
-  font-weight: 400;
-  letter-spacing: normal;
-  color: var(--color-on-surface);
-  margin-bottom: var(--spacing-3);
-  cursor: pointer;
-}
-
 input:not([type="checkbox"]),
 select {
   font-family: inherit;
@@ -217,17 +201,6 @@ input[type="checkbox"] {
   width: 22px;
   height: 22px;
   accent-color: var(--color-primary);
-  cursor: pointer;
-}
-
-/* Área de toque ≥48px em volta de um checkbox solto (fora de .checkbox-label),
-   ex: seleção de mesa pra agrupar no table-tile. */
-.tap-area {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--spacing-touch-target-min);
-  min-height: var(--spacing-touch-target-min);
   cursor: pointer;
 }
 

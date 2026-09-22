@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { formatCentsToBRL, parseReaisToCents } from "./lib/money";
-import { useEstablishment, closeOrder, closeOrderGroup, type Split } from "./lib/closing";
-import { fetchCombinedSubtotalCents } from "./lib/order";
+import { useEstablishment, closeOrder, type Split } from "./lib/closing";
 
 type SplitRow = { id: string; amountText: string; paymentMethod: "cash" | "card"; cashReceivedText: string };
 
@@ -24,54 +23,32 @@ function distributeEquallyCents(total: number, parts: number): number[] {
 
 /**
  * PRD Épico 5/M7 — resumo da comanda antes de fechar, taxa de serviço
- * ajustável, split (igual ou manual) e fechamento. `groupOrderIds` (quando
- * tem 2+ elementos) habilita o fechamento conjunto de mesas agrupadas
- * (PRD 2.6/5.2) sem mesclar o histórico de cada comanda.
+ * ajustável, split (igual ou manual) e fechamento. Fechamento é sempre
+ * individual (PRD 2.6 removido em 2026-09-22).
  */
 function OrderClosing({
   orderId,
   subtotalCents,
-  groupOrderIds,
   onClosed,
 }: {
   orderId: string;
   subtotalCents: number;
-  groupOrderIds: string[];
   onClosed: () => void;
 }) {
   const { status: establishmentStatus, defaultServiceFeePercent } = useEstablishment();
   const [serviceFeePercent, setServiceFeePercent] = useState<string | null>(null);
   const [splits, setSplits] = useState<SplitRow[]>([]);
   const [equalParts, setEqualParts] = useState("1");
-  const [joint, setJoint] = useState(false);
-  const [combinedSubtotalCents, setCombinedSubtotalCents] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // PRD 2.6/5.2 — quando "fechar junto" é marcado, o resumo/split precisam
-  // usar o subtotal COMBINADO das comandas do grupo, não só o desta — senão
-  // o split bateria certinho no cliente e o servidor rejeitaria (ele sempre
-  // calcula em cima do total combinado de verdade).
-  useEffect(() => {
-    if (!joint) return;
-    let cancelled = false;
-    fetchCombinedSubtotalCents(groupOrderIds).then((cents) => {
-      if (!cancelled) setCombinedSubtotalCents(cents);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [joint, groupOrderIds]);
-
   if (establishmentStatus === "loading") return null;
-  if (joint && combinedSubtotalCents === null) return <div className="table-map-section">Carregando resumo combinado...</div>;
 
-  const effectiveSubtotalCents = joint ? combinedSubtotalCents! : subtotalCents;
   const percentText = serviceFeePercent ?? String(defaultServiceFeePercent);
   const percent = Number(percentText.replace(",", "."));
   const percentValid = Number.isFinite(percent) && percent >= 0;
-  const serviceFeeCents = percentValid ? Math.round((effectiveSubtotalCents * percent) / 100) : 0;
-  const totalCents = effectiveSubtotalCents + serviceFeeCents;
+  const serviceFeeCents = percentValid ? Math.round((subtotalCents * percent) / 100) : 0;
+  const totalCents = subtotalCents + serviceFeeCents;
 
   const parsedSplits = splits.map((s) => ({ row: s, amountCents: parseReaisToCents(s.amountText) }));
   const splitSumCents = parsedSplits.reduce((sum, s) => sum + (s.amountCents ?? 0), 0);
@@ -105,10 +82,7 @@ function OrderClosing({
       return { amountCents, paymentMethod: s.paymentMethod, cashReceivedCents };
     });
 
-    const result =
-      joint && groupOrderIds.length >= 2
-        ? await closeOrderGroup(orderId, { orderIds: groupOrderIds, serviceFeePercent: percent, splits: payloadSplits })
-        : await closeOrder(orderId, { serviceFeePercent: percent, splits: payloadSplits });
+    const result = await closeOrder(orderId, { serviceFeePercent: percent, splits: payloadSplits });
 
     setSubmitting(false);
     if (!result.ok) {
@@ -127,11 +101,10 @@ function OrderClosing({
         <input value={percentText} onChange={(e) => setServiceFeePercent(e.target.value.replace(/[^0-9,.]/g, ""))} inputMode="decimal" />
       </label>
 
-      {joint && <p className="type-label">Resumo combinado das {groupOrderIds.length} mesas agrupadas</p>}
       <div className="summary">
         <div className="summary-row">
           <span className="type-label">Subtotal</span>
-          <span className="amount">{formatCentsToBRL(effectiveSubtotalCents)}</span>
+          <span className="amount">{formatCentsToBRL(subtotalCents)}</span>
         </div>
         <div className="summary-row">
           <span className="type-label">Taxa de serviço</span>
@@ -142,21 +115,6 @@ function OrderClosing({
           <span className="amount amount-display">{formatCentsToBRL(totalCents)}</span>
         </div>
       </div>
-
-      {groupOrderIds.length >= 2 && (
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={joint}
-            onChange={(e) => {
-              setJoint(e.target.checked);
-              setSplits([]); // total muda — partes antigas não valem mais
-            }}
-          />
-          Fechar as {groupOrderIds.length} mesas
-          agrupadas juntas numa única operação de pagamento
-        </label>
-      )}
 
       <h4>Dividir a conta</h4>
       <div className="inline-form">

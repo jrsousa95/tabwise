@@ -15,7 +15,7 @@ function Order() {
   const navigate = useNavigate();
   const { operator } = useSession();
   const { status, order, refresh } = useOrder(orderId);
-  const { tables, orders, tableGroups } = useTablesAndOrders();
+  const { tables } = useTablesAndOrders();
 
   const [closing, setClosing] = useState(false);
 
@@ -52,13 +52,6 @@ function Order() {
   const tableLabel = order.currentTableId ? tables.find((t) => t.id === order.currentTableId)?.identifier : undefined;
   const title = order.origin.source === "table" ? `Comanda — ${tableLabel ?? "mesa"}` : `Comanda avulsa #${order.origin.number}`;
   const subtotalCents = order.items.filter((i) => !i.canceled).reduce((sum, i) => sum + i.unitPriceCents * i.quantity, 0);
-
-  // PRD 2.6/5.2 — outras comandas abertas em mesas do mesmo grupo visual
-  // desta, se houver — habilita a opção de fechamento conjunto.
-  const tableGroup = order.currentTableId ? tableGroups.find((g) => g.tableIds.includes(order.currentTableId!)) : undefined;
-  const groupOrderIds = tableGroup
-    ? orders.filter((o) => o.mergedInto === undefined && o.status === "open" && o.currentTableId && tableGroup.tableIds.includes(o.currentTableId)).map((o) => o.id)
-    : [];
 
   function handleSelectProduct(product: Product) {
     setPendingProduct(product);
@@ -111,14 +104,6 @@ function Order() {
   return (
     <section>
       <h2>{title}</h2>
-      {/* PRD 2.6 (emenda 2026-09-21) — aviso de agrupamento visível desde o
-          carregamento da comanda, antes do fechamento (era só um checkbox
-          surpresa no fechamento). */}
-      {tableGroup && (
-        <p className="status-badge status-badge-neutral">
-          Agrupada com {tableGroup.tableIds.filter((id) => id !== order.currentTableId).map((id) => tables.find((t) => t.id === id)?.identifier ?? "—").join(" + ")}
-        </p>
-      )}
       {order.status === "closed" && <p className="form-error">Comanda fechada — não aceita mais alterações.</p>}
 
       <table className="catalog-table">
@@ -236,7 +221,6 @@ function Order() {
               <OrderClosing
                 orderId={orderId}
                 subtotalCents={subtotalCents}
-                groupOrderIds={groupOrderIds}
                 onClosed={() => navigate("/tables")}
               />
             ) : (

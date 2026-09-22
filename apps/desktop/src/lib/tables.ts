@@ -14,7 +14,13 @@ export type Order = {
 
 type TablesStatus = "loading" | "ready";
 
-/** PRD Épico 2/M5 — mesas, comandas abertas e grupos visuais, lidos da projeção (`GET /state`). */
+/**
+ * PRD Épico 2/M5 — mesas e comandas abertas, lidas da projeção (`GET /state`).
+ * `tableGroups`/`TableGroup` seguem existindo aqui só pela compatibilidade
+ * de leitura de eventos `tables_grouped`/`table_group_dissolved` já
+ * gravados em instalações antigas (PRD 2.6, removida em 2026-09-22) — não
+ * há mais UI de agrupamento que os crie ou os exiba.
+ */
 export function useTablesAndOrders() {
   const [status, setStatus] = useState<TablesStatus>("loading");
   const [tables, setTables] = useState<Table[]>([]);
@@ -77,16 +83,3 @@ export function transferOrder(orderId: string, destinationTableId: string) {
   return postJson<{ id: string }>(`/orders/${orderId}/transfer`, { destinationTableId });
 }
 
-export function groupTables(tableIds: string[]) {
-  return postJson<TableGroup>("/table-groups", { tableIds });
-}
-
-/** PRD 2.6 (emenda 2026-09-21) — desfaz uma junção feita por engano; endpoint responde 204 (sem corpo). */
-export async function dissolveTableGroup(groupId: string): Promise<ApiResult<void>> {
-  const res = await fetch(`${SIDECAR_URL}/table-groups/${groupId}`, { method: "DELETE" });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    return { ok: false, error: (body as { error?: string } | null)?.error ?? "não foi possível desfazer a junção" };
-  }
-  return { ok: true, data: undefined };
-}

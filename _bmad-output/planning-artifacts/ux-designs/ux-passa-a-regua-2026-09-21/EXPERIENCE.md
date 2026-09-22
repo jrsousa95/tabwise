@@ -24,7 +24,7 @@ Desktop nativo (Tauri + React), multi-superfície: o mesmo bundle roda tanto num
 |---|---|---|---|
 | Login (PIN) | Abertura do app / logout | Todos | Autenticar o operador do turno |
 | Cadastro de operador | Link no login (bootstrap) / nav (dono) | Ninguém logado (1º operador) / Dono | Criar operador com PIN |
-| Mapa de Mesas | Nav principal, destino pós-login | Todos | Ver mesas livres/ocupadas, abrir/transferir/agrupar mesa, abrir comanda avulsa |
+| Mapa de Mesas | Nav principal, destino pós-login | Todos | Ver mesas livres/ocupadas, abrir/transferir mesa, abrir comanda avulsa |
 | Comanda (detalhe) | Tocar numa mesa ocupada / comanda avulsa | Todos (fechar é caixa/dono) | Lançar item, cancelar item, fechar comanda com split |
 | Caixa | Nav | Caixa, Dono | Resumo do dia: total vendido, por forma de pagamento, comandas pendentes |
 | Cardápio | Nav | Dono | Categorias, produtos, taxa de serviço padrão do estabelecimento |
@@ -54,7 +54,7 @@ Comportamental — a especificação visual de cada componente vive em `DESIGN.m
 
 | Componente | Onde | Regra de comportamento |
 |---|---|---|
-| `table-tile` | Mapa de Mesas | Substitui a linha de tabela atual por um bloco tocável (mínimo 96×96px). Toque abre a comanda daquela mesa (se ocupada) ou o formulário de abrir comanda (se livre). Seleção pra "agrupar mesas" é um toque longo ou um modo explícito de seleção (checkbox visível), nunca hover — hover não existe em toque. |
+| `table-tile` | Mapa de Mesas | Substitui a linha de tabela atual por um bloco tocável (mínimo 96×96px). Toque abre a comanda daquela mesa (se ocupada) ou o formulário de abrir comanda (se livre). |
 | `pin-key` | Login | Teclado numérico de 12 teclas (`1`-`9`, `⌫`, `0`, `OK`), já existe — este sistema só aumenta a área de toque e o tamanho do dígito (ver `DESIGN.md.components.pin-key`). Nenhuma mudança de fluxo. |
 | `status-badge` | Header (sidecar ok/offline), Cardápio (produto ativo/inativo), Caixa (comanda pendente) | Cor semântica fixa (success/warning/danger) — nunca cor arbitrária por contexto. Texto sempre acompanha a cor (nunca só cor, ver Accessibility Floor). |
 | `merge-warning-banner` | Global (abaixo do header, qualquer tela) | Já existe (ARCH §4.2) — só herda a paleta `warning` deste sistema. Continua não-bloqueante: nunca modal, nunca impede a ação em andamento. |

@@ -7,16 +7,14 @@ import {
   openTableOrder,
   openStandaloneOrder,
   transferOrder,
-  groupTables,
-  dissolveTableGroup,
   type Table,
 } from "../lib/tables";
 
-/** PRD Épico 2/M5 — mapa de mesas, comandas (mesa + avulsa), transferência e junção visual. */
+/** PRD Épico 2/M5 — mapa de mesas, comandas (mesa + avulsa) e transferência. */
 function TableMap() {
   const navigate = useNavigate();
   const { operator } = useSession();
-  const { status, tables, orders, tableGroups, refresh } = useTablesAndOrders();
+  const { status, tables, orders, refresh } = useTablesAndOrders();
 
   const [identifier, setIdentifier] = useState("");
   const [capacity, setCapacity] = useState("");
@@ -25,9 +23,6 @@ function TableMap() {
   const [openError, setOpenError] = useState<string | null>(null);
   const [transferTarget, setTransferTarget] = useState<Record<string, string>>({});
   const [transferError, setTransferError] = useState<string | null>(null);
-
-  const [selectedForGroup, setSelectedForGroup] = useState<string[]>([]);
-  const [groupError, setGroupError] = useState<string | null>(null);
 
   if (status === "loading") {
     return (
@@ -92,34 +87,6 @@ function TableMap() {
     refresh();
   }
 
-  function toggleSelectedForGroup(tableId: string) {
-    setSelectedForGroup((prev) => (prev.includes(tableId) ? prev.filter((id) => id !== tableId) : [...prev, tableId]));
-  }
-
-  async function handleGroupTables() {
-    setGroupError(null);
-    const result = await groupTables(selectedForGroup);
-    if (!result.ok) {
-      setGroupError(result.error);
-      return;
-    }
-    setSelectedForGroup([]);
-    refresh();
-  }
-
-  async function handleDissolveGroup(groupId: string) {
-    setGroupError(null);
-    const result = await dissolveTableGroup(groupId);
-    if (!result.ok) {
-      setGroupError(result.error);
-      return;
-    }
-    refresh();
-  }
-
-  const tableLabel = (tableId: string) => tables.find((t) => t.id === tableId)?.identifier ?? "—";
-  const groupForTable = (tableId: string) => tableGroups.find((g) => g.tableIds.includes(tableId));
-
   return (
     <section>
       <h2>Mapa de Mesas</h2>
@@ -151,26 +118,12 @@ function TableMap() {
           <div className="table-tile-grid">
             {tables.map((t) => {
               const order = orderForTable(t.id);
-              const group = groupForTable(t.id);
               return (
                 <div key={t.id} className={`table-tile ${order ? "table-tile-occupied" : "table-tile-free"}`}>
                   <div className="table-tile-header">
                     <span className="table-tile-id">{t.identifier}</span>
-                    <label className="tap-area">
-                      <input
-                        type="checkbox"
-                        checked={selectedForGroup.includes(t.id)}
-                        onChange={() => toggleSelectedForGroup(t.id)}
-                        aria-label={`Selecionar ${t.identifier} pra agrupar`}
-                      />
-                    </label>
                   </div>
                   <span className="table-tile-status">{order ? "Ocupada" : "Livre"}</span>
-                  {/* PRD 2.6 (emenda 2026-09-21) — visibilidade do agrupamento
-                      no mapa de mesas, não só surpresa no fechamento. */}
-                  {group && (
-                    <span className="status-badge status-badge-neutral">Junta com {group.tableIds.filter((id) => id !== t.id).map(tableLabel).join(" + ")}</span>
-                  )}
                   {t.capacity ? <span className="table-tile-meta">{t.capacity} lugares</span> : null}
                   <div className="table-tile-actions">
                     {order ? (
@@ -195,25 +148,6 @@ function TableMap() {
           <p className="catalog-empty">Nenhuma mesa cadastrada ainda.</p>
         )}
         {transferError && <p className="form-error">{transferError}</p>}
-      </div>
-
-      <div className="table-map-section">
-        <h3>Junção de mesas</h3>
-        <button type="button" className="button-primary" onClick={handleGroupTables} disabled={selectedForGroup.length < 2}>
-          Agrupar mesas selecionadas
-        </button>
-        {groupError && <p className="form-error">{groupError}</p>}
-        <ul className="catalog-list">
-          {tableGroups.map((g) => (
-            <li key={g.id}>
-              {g.tableIds.map(tableLabel).join(" + ")}{" "}
-              <button type="button" className="button-secondary" onClick={() => handleDissolveGroup(g.id)}>
-                Desfazer
-              </button>
-            </li>
-          ))}
-          {tableGroups.length === 0 && <li className="catalog-empty">Nenhuma junção ainda.</li>}
-        </ul>
       </div>
 
       <div className="table-map-section">

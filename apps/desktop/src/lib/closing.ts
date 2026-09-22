@@ -27,11 +27,6 @@ export function closeOrder(orderId: string, input: { serviceFeePercent: number; 
   return postJson<{ totalCents: number }>(`/orders/${orderId}/close`, input);
 }
 
-/** PRD 2.6/5.2 — fecha várias comandas de mesas agrupadas numa única operação de pagamento. */
-export function closeOrderGroup(orderId: string, input: { orderIds: string[]; serviceFeePercent: number; splits: Split[] }) {
-  return postJson<{ combined: { totalCents: number } }>(`/orders/${orderId}/close-group`, input);
-}
-
 /** PRD 5.1 — percentual padrão de taxa de serviço do estabelecimento (dono). */
 export function updateEstablishmentSettings(defaultServiceFeePercent: number) {
   return postJson<{ defaultServiceFeePercent: number }>("/establishment/settings", { defaultServiceFeePercent });

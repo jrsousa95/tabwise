@@ -17,6 +17,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 
 const exePath = process.argv[2];
 if (!exePath) {
@@ -58,19 +60,40 @@ async function getJson(pathName) {
   return res.json();
 }
 
-async function delJson(pathName) {
-  const res = await fetch(`http://127.0.0.1:${PORT}${pathName}`, { method: "DELETE" });
-  return { ok: res.ok, status: res.status, data: await res.json().catch(() => null) };
+/** Mesmo formato fixo em hex de `packages/sync-engine/src/hlc.ts` (`l` físico + `c` lógico) — o campo é TEXT ordenável por comparação de string, então uma linha inserida direto no SQLite precisa seguir a mesma largura pra ordenar certo entre os eventos reais do sidecar. */
+function serializeHlc(l, c) {
+  return `${l.toString(16).padStart(16, "0")}-${c.toString(16).padStart(8, "0")}`;
 }
 
-async function main() {
-  const dataDir = mkdtempSync(path.join(tmpdir(), "passa-a-regua-packaged-smoke-"));
+function spawnSidecar(dataDir) {
   const child = spawn(exePath, [], {
     env: { ...process.env, PASSA_A_REGUA_PORT: String(PORT), PASSA_A_REGUA_DATA_DIR: dataDir },
     stdio: ["ignore", "pipe", "pipe"],
   });
   child.stdout.on("data", (d) => process.stdout.write(`[sidecar stdout] ${d}`));
   child.stderr.on("data", (d) => process.stderr.write(`[sidecar stderr] ${d}`));
+  return child;
+}
+
+// No Windows real (achado no CI do M12), `child.kill()` não espera o SO
+// liberar o handle do arquivo do SQLite antes de retornar. Espera o
+// processo terminar de verdade (shutdown handler do sidecar fecha o
+// `db.close()` sozinho) antes de mexer no arquivo por fora ou apagar o dataDir.
+async function stopSidecar(child) {
+  await new Promise((resolve) => {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      resolve();
+      return;
+    }
+    child.once("exit", resolve);
+    child.kill();
+    setTimeout(resolve, 3000);
+  });
+}
+
+async function main() {
+  const dataDir = mkdtempSync(path.join(tmpdir(), "passa-a-regua-packaged-smoke-"));
+  let child = spawnSidecar(dataDir);
 
   try {
     const health = await waitForHealth();
@@ -108,51 +131,72 @@ async function main() {
     assert.equal(summary.closedOrdersCount, 1);
     assert.equal(summary.totalSoldCents, 2200);
 
-    console.log("[packaged-binary-smoke] junção de mesas: rejeição de sobreposição + desfazer (PRD 2.6)...");
-    const tableA = await postJson("/tables", { identifier: "Mesa 10" });
-    assert.equal(tableA.status, 201);
-    const tableB = await postJson("/tables", { identifier: "Mesa 11" });
-    assert.equal(tableB.status, 201);
-    const tableC = await postJson("/tables", { identifier: "Mesa 12" });
-    assert.equal(tableC.status, 201);
+    // PRD 2.6 (removida em 2026-09-22) — a UI/API que criava
+    // `tables_grouped`/`table_group_dissolved` não existe mais, mas
+    // instalações existentes já têm esses eventos gravados (log
+    // append-only) e `rowToEvent`/`project` (packages/sync-engine)
+    // continuam obrigados a revalidá-los sem quebrar. Como não há mais
+    // rota que grave esses eventos, simula uma instalação antiga gravando
+    // as duas linhas direto no SQLite do binário empacotado — bypassando
+    // a API removida, do mesmo jeito que os dados de uma instalação real já
+    // existente chegariam — e confirma que o `GET /state` real (via HTTP,
+    // passando pelo processo empacotado de verdade) continua respondendo
+    // 200 depois de reler o log inteiro.
+    console.log("[packaged-binary-smoke] releitura de eventos antigos de junção de mesas (PRD 2.6)...");
+    await stopSidecar(child);
+    const dbPath = path.join(dataDir, "passa-a-regua.db");
+    const groupId = randomUUID();
+    const db = new DatabaseSync(dbPath);
+    try {
+      const insert = db.prepare(
+        `INSERT INTO events (id, hlc, aggregate_type, aggregate_id, type, payload, operator_id, terminal_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+      const legacyOperatorId = randomUUID();
+      const legacyTerminalId = randomUUID();
+      const baseTime = Date.now();
+      insert.run(
+        randomUUID(),
+        serializeHlc(baseTime, 0),
+        "table_group",
+        groupId,
+        "tables_grouped",
+        JSON.stringify({ tableIds: [randomUUID(), randomUUID()] }),
+        legacyOperatorId,
+        legacyTerminalId,
+        baseTime
+      );
+      insert.run(
+        randomUUID(),
+        serializeHlc(baseTime, 1),
+        "table_group",
+        groupId,
+        "table_group_dissolved",
+        JSON.stringify({}),
+        legacyOperatorId,
+        legacyTerminalId,
+        baseTime
+      );
+    } finally {
+      db.close();
+    }
 
-    const group = await postJson("/table-groups", { tableIds: [tableA.data.id, tableB.data.id] });
-    assert.equal(group.status, 201, `esperado 201, veio ${group.status}: ${JSON.stringify(group.data)}`);
-
-    const overlapping = await postJson("/table-groups", { tableIds: [tableB.data.id, tableC.data.id] });
-    assert.equal(overlapping.status, 400, `esperado 400, veio ${overlapping.status}: ${JSON.stringify(overlapping.data)}`);
-    assert.match(overlapping.data.error, /Mesa 10/, "mensagem de erro deveria citar a identificação da mesa do grupo existente");
-    assert.match(overlapping.data.error, /Mesa 11/, "mensagem de erro deveria citar a identificação da mesa do grupo existente");
-
-    const dissolve = await delJson(`/table-groups/${group.data.id}`);
-    assert.equal(dissolve.status, 204, `esperado 204, veio ${dissolve.status}: ${JSON.stringify(dissolve.data)}`);
-
-    const dissolveAgain = await delJson(`/table-groups/${group.data.id}`);
-    assert.equal(dissolveAgain.status, 404, `esperado 404, veio ${dissolveAgain.status}: ${JSON.stringify(dissolveAgain.data)}`);
-
-    const stateAfterDissolve = await getJson("/state");
+    child = spawnSidecar(dataDir);
+    await waitForHealth();
+    const stateRes = await fetch(`http://127.0.0.1:${PORT}/state`);
+    assert.equal(stateRes.status, 200, `GET /state esperado 200, veio ${stateRes.status}`);
+    const state = await stateRes.json();
+    assert.ok(Array.isArray(state.orders), "GET /state deveria continuar devolvendo `orders` normalmente");
+    assert.ok(Array.isArray(state.tableGroups), "GET /state deveria continuar devolvendo `tableGroups` (só projeção interna, sem UI)");
     assert.equal(
-      stateAfterDissolve.tableGroups.some((g) => g.id === group.data.id),
+      state.tableGroups.some((g) => g.id === groupId),
       false,
-      "grupo desfeito não deveria mais aparecer em tableGroups"
+      "grupo já dissolvido não deveria aparecer em tableGroups, mesmo lido via GET /state real"
     );
 
     console.log("[packaged-binary-smoke] TUDO OK — node:sqlite e a lógica de negócio completa funcionam no binário empacotado.");
   } finally {
-    // No Windows real (achado no CI do M12), `child.kill()` não espera o SO
-    // liberar o handle do arquivo do SQLite antes de retornar — apagar o
-    // dataDir logo em seguida dá EPERM. Espera o processo terminar de
-    // verdade antes de limpar; e a limpeza em si é best-effort (não deve
-    // mascarar como falha um smoke test cujo teste de negócio já passou).
-    await new Promise((resolve) => {
-      if (child.exitCode !== null || child.signalCode !== null) {
-        resolve();
-        return;
-      }
-      child.once("exit", resolve);
-      child.kill();
-      setTimeout(resolve, 3000);
-    });
+    await stopSidecar(child);
     try {
       rmSync(dataDir, { recursive: true, force: true });
     } catch (cleanupError) {
