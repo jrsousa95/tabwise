@@ -2,7 +2,7 @@ import { useCashRegisterSummary } from "../lib/cash-register";
 import { useTablesAndOrders } from "../lib/tables";
 import { formatCentsToBRL } from "../lib/money";
 
-/** PRD Épico 6.1 (M8) — resumo do dia, calculado só da réplica local. */
+/** PRD Épico 6.1 (M8) — resumo do dia, calculado só da réplica local. Renomeado de "Fechamento de Caixa" (emenda 2026-09-22): é um relatório ao vivo, nunca houve ação de fechamento. */
 function CashRegister() {
   const { status, summary } = useCashRegisterSummary();
   const { tables } = useTablesAndOrders();
@@ -22,7 +22,8 @@ function CashRegister() {
 
   return (
     <section>
-      <h2>Fechamento de Caixa — {summary.date}</h2>
+      <h2>Resumo de Caixa — {summary.date}</h2>
+      <p className="type-label">Atualiza a cada consulta, em tempo real — não existe uma ação de fechar o caixa.</p>
 
       <div className="table-map-section">
         <h3>Resumo do dia</h3>
