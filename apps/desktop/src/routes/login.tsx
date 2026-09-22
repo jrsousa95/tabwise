@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useOperators } from "../lib/operators";
 import { useSession } from "../lib/session";
@@ -13,6 +13,34 @@ function Login() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Achado em uso real, 2026-09-22: só dava pra digitar o PIN clicando no
+  // teclado numérico na tela — teclado físico (dígitos, Backspace, Enter)
+  // é bem mais rápido num terminal de verdade. Precisa ficar antes dos
+  // `return` condicionais abaixo (Rules of Hooks: hooks não podem ser
+  // condicionais); só reage de fato quando a tela normal de PIN está
+  // visível (não durante loading nem no bootstrap sem operador).
+  useEffect(() => {
+    if (operatorsStatus !== "ready" || operators.length === 0) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (submitting) return;
+      if (e.key >= "0" && e.key <= "9") {
+        e.preventDefault();
+        handleKey(Number(e.key) as (typeof PIN_DIGITS)[number]);
+      } else if (e.key === "Backspace") {
+        e.preventDefault();
+        handleKey("⌫");
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        handleKey("OK");
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operatorsStatus, operators.length, pin, submitting]);
 
   if (operatorsStatus === "loading") {
     return (

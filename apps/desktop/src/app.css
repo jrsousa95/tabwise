@@ -424,6 +424,14 @@ button:disabled {
 .brand-wordmark-lg {
   font-size: 44px;
   margin: 0 0 var(--spacing-2);
+  /* Achado em uso real, 2026-09-22: a caixa do texto já centraliza exato
+     (conferido via getBoundingClientRect — mesmo centro que "Digite seu
+     PIN"/teclado abaixo), mas a cauda decorativa grande do "P" de
+     "Passa" pesa visualmente mais que o final mais fechado de "Régua" —
+     a TINTA do texto parece puxada pra esquerda mesmo a CAIXA estando
+     centralizada. Correção óptica manual (não é algo que padding/
+     text-align resolvem), calibrada olhando o resultado, não calculada. */
+  transform: translateX(14px);
 }
 
 .app-nav nav {
