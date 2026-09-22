@@ -693,6 +693,16 @@ button:disabled {
   padding: var(--spacing-2) var(--spacing-4);
 }
 
+/* Formulário de renomear mesa (dentro do tile): input e botões ficam com a
+   mesma largura (o tile é estreito, cada item já quebra pra sua própria
+   linha) — sem isso "Salvar"/"Cancelar" tinham larguras diferentes, do
+   tamanho do próprio texto, lendo como desalinhado (achado em uso real,
+   2026-09-22). */
+form.table-tile-actions input,
+form.table-tile-actions button {
+  width: 100%;
+}
+
 /* Ação secundária dentro de um tile ocupado (fundo já é o laranja de marca):
    contorno usa o par on-primary-container pra manter contraste. */
 .table-tile-occupied .button-secondary {
