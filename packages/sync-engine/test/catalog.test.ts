@@ -22,7 +22,7 @@ describe("projeção — catálogo (categorias e produtos, PRD Épico 3/M4)", ()
       payload: { name: "Bebidas" },
     };
     const state = project(sortEvents([event]));
-    expect(state.categories).toEqual([{ id: "cat-1", name: "Bebidas" }]);
+    expect(state.categories).toEqual([{ id: "cat-1", name: "Bebidas", createdAt: 1000 }]);
   });
 
   it("product_registered materializa em `products`", () => {
@@ -38,7 +38,7 @@ describe("projeção — catálogo (categorias e produtos, PRD Épico 3/M4)", ()
       payload: { name: "Cerveja", priceCents: 1200, categoryId: "cat-1", active: true },
     };
     const state = project(sortEvents([event]));
-    expect(state.products).toEqual([{ id: "p-1", name: "Cerveja", priceCents: 1200, categoryId: "cat-1", active: true }]);
+    expect(state.products).toEqual([{ id: "p-1", name: "Cerveja", priceCents: 1200, categoryId: "cat-1", active: true, createdAt: 1000 }]);
   });
 
   it("product_status_changed atualiza `active` sem mexer no resto do produto (PRD 3.2)", () => {
@@ -66,7 +66,7 @@ describe("projeção — catálogo (categorias e produtos, PRD Épico 3/M4)", ()
     };
 
     const state = project(sortEvents([registered, deactivated]));
-    expect(state.products).toEqual([{ id: "p-1", name: "Cerveja", priceCents: 1200, categoryId: "cat-1", active: false }]);
+    expect(state.products).toEqual([{ id: "p-1", name: "Cerveja", priceCents: 1200, categoryId: "cat-1", active: false, createdAt: 1000 }]);
   });
 
   it("product_status_changed pra um produto inexistente não quebra a projeção (evento fora de ordem/corrompido)", () => {
@@ -109,7 +109,7 @@ describe("projeção — catálogo (categorias e produtos, PRD Épico 3/M4)", ()
       payload: { name: "Bebidas geladas" },
     };
     const state = project(sortEvents([registered, renamed]));
-    expect(state.categories).toEqual([{ id: "cat-1", name: "Bebidas geladas" }]);
+    expect(state.categories).toEqual([{ id: "cat-1", name: "Bebidas geladas", createdAt: 1000 }]);
   });
 
   it("category_removed some com a categoria de `categories` (remoção lógica, PRD 3.4)", () => {
@@ -163,7 +163,7 @@ describe("projeção — catálogo (categorias e produtos, PRD Épico 3/M4)", ()
       payload: { name: "Cerveja long neck" },
     };
     const state = project(sortEvents([registered, renamed]));
-    expect(state.products).toEqual([{ id: "p-1", name: "Cerveja long neck", priceCents: 1200, categoryId: "cat-1", active: true }]);
+    expect(state.products).toEqual([{ id: "p-1", name: "Cerveja long neck", priceCents: 1200, categoryId: "cat-1", active: true, createdAt: 1000 }]);
   });
 
   it("product_removed some com o produto de `products` (remoção lógica, sem trava, PRD 3.5)", () => {

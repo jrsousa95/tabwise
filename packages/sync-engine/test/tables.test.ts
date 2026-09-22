@@ -22,7 +22,7 @@ describe("projeção — mesas (PRD 2.1/2.5)", () => {
       payload: { identifier: "Mesa 1", capacity: 4 },
     };
     const state = project(sortEvents([event]));
-    expect(state.tables).toEqual([{ id: "m-1", identifier: "Mesa 1", capacity: 4 }]);
+    expect(state.tables).toEqual([{ id: "m-1", identifier: "Mesa 1", capacity: 4, createdAt: 1000 }]);
   });
 
   it("table_registered sem capacity fica com o campo undefined", () => {
@@ -65,7 +65,7 @@ describe("projeção — mesas (PRD 2.1/2.5)", () => {
       payload: { identifier: "Mesa 1B", capacity: 6 },
     };
     const state = project(sortEvents([registered, renamed]));
-    expect(state.tables).toEqual([{ id: "m-1", identifier: "Mesa 1B", capacity: 6 }]);
+    expect(state.tables).toEqual([{ id: "m-1", identifier: "Mesa 1B", capacity: 6, createdAt: 1000 }]);
   });
 
   it("table_removed some com a mesa de `tables` (remoção lógica, PRD 2.8)", () => {
@@ -93,6 +93,35 @@ describe("projeção — mesas (PRD 2.1/2.5)", () => {
     };
     const state = project(sortEvents([registered, removed]));
     expect(state.tables).toEqual([]);
+  });
+
+  it("tables fica em ordem de criação (mais antiga primeiro), não por id — achado em uso real, 2026-09-22: a lista de mesas ordenava por id (UUID aleatório) e parecia embaralhada", () => {
+    const first: DomainEvent = {
+      id: "ev-1",
+      hlc: newHlc(1000),
+      aggregateType: "table",
+      aggregateId: "zzz-mesa-criada-primeiro",
+      type: "table_registered",
+      terminalId: "T1",
+      operatorId: "op-1",
+      createdAt: 1000,
+      payload: { identifier: "Mesa 1" },
+    };
+    const second: DomainEvent = {
+      id: "ev-2",
+      hlc: newHlc(2000),
+      aggregateType: "table",
+      aggregateId: "aaa-mesa-criada-depois",
+      type: "table_registered",
+      terminalId: "T1",
+      operatorId: "op-1",
+      createdAt: 2000,
+      payload: { identifier: "Mesa 2" },
+    };
+    // "aaa-..." ordenaria antes de "zzz-..." por id — a ordem de criação
+    // (primeiro registrada primeiro) precisa vencer.
+    const state = project(sortEvents([first, second]));
+    expect(state.tables.map((t) => t.identifier)).toEqual(["Mesa 1", "Mesa 2"]);
   });
 
   it("order_transferred move a mesa atual da order e libera a mesa de origem pra uma nova (PRD 2.5)", () => {

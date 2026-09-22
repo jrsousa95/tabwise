@@ -81,6 +81,8 @@ export interface TableGroupState {
 export interface CategoryState {
   readonly id: string;
   readonly name: string;
+  /** `createdAt` do `category_registered` original — ordem de criação da lista (achado em uso real, 2026-09-22: sem isso a lista ordenava por id, que é aleatório). */
+  readonly createdAt: number;
 }
 
 export interface ProductState {
@@ -89,12 +91,16 @@ export interface ProductState {
   readonly priceCents: number;
   readonly categoryId: string;
   readonly active: boolean;
+  /** `createdAt` do `product_registered` original — ordem de criação da lista. */
+  readonly createdAt: number;
 }
 
 export interface TableState {
   readonly id: string;
   readonly identifier: string;
   readonly capacity?: number;
+  /** `createdAt` do `table_registered` original — ordem de criação da lista. */
+  readonly createdAt: number;
 }
 
 /** PRD 5.1 — 10% é o default até o dono configurar algo diferente; sem evento nenhum, vale esse valor. */
@@ -185,7 +191,7 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
       }
 
       case "category_registered": {
-        categories.set(event.aggregateId, { id: event.aggregateId, name: event.payload.name });
+        categories.set(event.aggregateId, { id: event.aggregateId, name: event.payload.name, createdAt: event.createdAt });
         break;
       }
 
@@ -207,6 +213,7 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
           priceCents: event.payload.priceCents,
           categoryId: event.payload.categoryId,
           active: event.payload.active,
+          createdAt: event.createdAt,
         });
         break;
       }
@@ -238,6 +245,7 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
           id: event.aggregateId,
           identifier: event.payload.identifier,
           capacity: event.payload.capacity,
+          createdAt: event.createdAt,
         });
         break;
       }
@@ -385,9 +393,13 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
       }))
       .sort((a, b) => compareText(a.id, b.id)),
     tableGroups: [...tableGroups.values()].sort((a, b) => compareText(a.id, b.id)),
-    categories: [...categories.values()].sort((a, b) => compareText(a.id, b.id)),
-    products: [...products.values()].sort((a, b) => compareText(a.id, b.id)),
-    tables: [...tables.values()].sort((a, b) => compareText(a.id, b.id)),
+    // Achado em uso real, 2026-09-22: essas três listas são cadastro manual
+    // do dono (mesas, categorias, produtos) — ordenar por `id` (UUID, sem
+    // significado nenhum) lia como aleatório. Ordem de criação (mais antigo
+    // primeiro) é o que o dono realmente espera ver.
+    categories: [...categories.values()].sort(compareCreatedAt),
+    products: [...products.values()].sort(compareCreatedAt),
+    tables: [...tables.values()].sort(compareCreatedAt),
     establishment,
     mergeWarnings: [...mergeWarnings].sort((a, b) => compareText(a.losingOrder, b.losingOrder)),
   };
@@ -401,4 +413,10 @@ export function reconcile(a: readonly DomainEvent[], b: readonly DomainEvent[]):
 function compareText(a: string, b: string): -1 | 0 | 1 {
   if (a === b) return 0;
   return a < b ? -1 : 1;
+}
+
+/** Ordem de criação (mais antigo primeiro) — `id` como desempate determinístico quando `createdAt` empata. */
+function compareCreatedAt(a: { id: string; createdAt: number }, b: { id: string; createdAt: number }): -1 | 0 | 1 {
+  if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1;
+  return compareText(a.id, b.id);
 }
