@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatCentsToBRL, parseReaisToCents } from "./lib/money";
 import { useEstablishment, closeOrder, type Split } from "./lib/closing";
 
@@ -58,13 +58,29 @@ function OrderClosing({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (establishmentStatus === "loading") return null;
-
   const percentText = serviceFeePercent ?? String(defaultServiceFeePercent);
   const percent = Number(percentText.replace(",", "."));
   const percentValid = Number.isFinite(percent) && percent >= 0;
   const serviceFeeCents = percentValid ? Math.round((subtotalCents * percent) / 100) : 0;
   const totalCents = subtotalCents + serviceFeeCents;
+
+  // Achado em uso real, 2026-09-22: dividir a conta era obrigatório pra
+  // conseguir fechar — mesmo o caso comum (1 pagamento, sem divisão) exigia
+  // clicar "Dividir igualmente" antes. Agora existe sempre uma parte única
+  // (o total inteiro) por padrão, sincronizada automaticamente enquanto for
+  // a única — "Dividir a conta" vira opcional, só pra quando o cliente
+  // realmente divide entre 2+ pagamentos. Precisa vir antes do "return null"
+  // de loading (hooks não podem ser condicionais — Rules of Hooks).
+  useEffect(() => {
+    if (establishmentStatus !== "ready") return;
+    setSplits((prev) => {
+      if (prev.length === 0) return [newSplitRow(totalCents)];
+      if (prev.length === 1) return [{ ...prev[0], amountText: (totalCents / 100).toFixed(2).replace(".", ",") }];
+      return prev;
+    });
+  }, [establishmentStatus, totalCents]);
+
+  if (establishmentStatus === "loading") return null;
 
   const parsedSplits = splits.map((s) => ({ row: s, amountCents: parseReaisToCents(s.amountText) }));
   const splitSumCents = parsedSplits.reduce((sum, s) => sum + (s.amountCents ?? 0), 0);
@@ -132,7 +148,8 @@ function OrderClosing({
         </div>
       </div>
 
-      <h4>Dividir a conta</h4>
+      <h4>Dividir a conta (opcional)</h4>
+      <p className="type-label">Por padrão é 1 pagamento só, o valor total. Divida só se precisar.</p>
       <div className="inline-form">
         <input value={equalParts} onChange={(e) => setEqualParts(e.target.value.replace(/\D/g, ""))} inputMode="numeric" aria-label="Número de partes" />
         <button type="button" className="button-secondary" onClick={handleGenerateEqual}>
@@ -177,7 +194,10 @@ function OrderClosing({
         </div>
       ))}
 
-      {splits.length > 0 && (
+      {/* Com 1 parte só (padrão, sem divisão) o valor já está sempre em dia —
+          o aviso de falta/sobra só é informativo quando existe divisão de
+          verdade (2+ partes). */}
+      {splits.length > 1 && (
         <p className={`split-diff ${diffCents === 0 ? "split-diff-ok" : diffCents > 0 ? "split-diff-danger" : "split-diff-warning"}`}>
           {diffCents === 0 ? "Split bate certinho." : diffCents > 0 ? `Falta ${formatCentsToBRL(diffCents)}.` : `Sobra ${formatCentsToBRL(-diffCents)}.`}
         </p>
