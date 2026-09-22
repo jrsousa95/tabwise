@@ -7,6 +7,8 @@ type TableRef = { id: string; identifier: string };
 /** Achado em uso real (2026-09-22): sem um corte de tempo, um merge continuava aparecendo pra sempre neste terminal, sem forma de dispensar. */
 const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const FIRST_SEEN_STORAGE_KEY = "passa-a-regua:merge-warnings-first-seen";
+/** Achado em uso real (2026-09-22): esperar até 24h pra sumir sozinho não bastava — o operador precisa de um jeito explícito de dizer "já vi, pode sumir". */
+const DISMISSED_STORAGE_KEY = "passa-a-regua:merge-warnings-dismissed";
 
 /**
  * Data (`Date.now()`) em que ESTE terminal viu cada merge pela primeira
@@ -36,6 +38,23 @@ function saveFirstSeenMap(map: Record<string, number>) {
   }
 }
 
+function loadDismissedSet(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DISMISSED_STORAGE_KEY);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDismissedSet(ids: Set<string>) {
+  try {
+    localStorage.setItem(DISMISSED_STORAGE_KEY, JSON.stringify([...ids]));
+  } catch {
+    // localStorage indisponível — "Dispensar" só não persiste entre reloads, não quebra o clique.
+  }
+}
+
 /**
  * ARCH §4.2 — decisão explícita de não deixar o merge automático de
  * comanda (duas mesas abertas offline pro mesmo lugar, resolvido por
@@ -46,8 +65,9 @@ function saveFirstSeenMap(map: Record<string, number>) {
  * é só um filtro de apresentação local.
  */
 export function useMergeWarnings(intervalMs = 4000) {
-  const [warnings, setWarnings] = useState<MergeWarning[]>([]);
+  const [allRecentWarnings, setAllRecentWarnings] = useState<MergeWarning[]>([]);
   const [tables, setTables] = useState<TableRef[]>([]);
+  const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissedSet());
 
   useEffect(() => {
     let cancelled = false;
@@ -70,7 +90,7 @@ export function useMergeWarnings(intervalMs = 4000) {
           if (firstSeenChanged) saveFirstSeenMap(firstSeen);
 
           const cutoff = now - RECENT_WINDOW_MS;
-          setWarnings(allWarnings.filter((w) => (firstSeen[w.losingOrder] ?? now) >= cutoff));
+          setAllRecentWarnings(allWarnings.filter((w) => (firstSeen[w.losingOrder] ?? now) >= cutoff));
           setTables(data.tables ?? []);
         }
       } catch {
@@ -86,7 +106,22 @@ export function useMergeWarnings(intervalMs = 4000) {
     };
   }, [intervalMs]);
 
-  const tableLabel = (tableId: string) => tables.find((t) => t.id === tableId)?.identifier ?? tableId;
+  function dismiss(losingOrder: string) {
+    setDismissed((prev) => {
+      const next = new Set(prev);
+      next.add(losingOrder);
+      saveDismissedSet(next);
+      return next;
+    });
+  }
 
-  return { warnings, tableLabel };
+  // Mesa pode ter sido removida (PRD 2.8) desde que o merge aconteceu — o
+  // vínculo com a mesa é só histórico nesse caso, não "mesa ainda existe e
+  // não achamos o nome" (achado em uso real, 2026-09-22: sem isso o rótulo
+  // caía pro id cru, ilegível).
+  const tableLabel = (tableId: string) => tables.find((t) => t.id === tableId)?.identifier ?? "mesa removida";
+
+  const warnings = allRecentWarnings.filter((w) => !dismissed.has(w.losingOrder));
+
+  return { warnings, tableLabel, dismiss };
 }

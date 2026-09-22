@@ -17,7 +17,7 @@ function Layout() {
   const { health, error } = useSidecarHealth();
   const { operator, logout } = useSession();
   const navigate = useNavigate();
-  const { warnings: mergeWarnings, tableLabel } = useMergeWarnings();
+  const { warnings: mergeWarnings, tableLabel, dismiss } = useMergeWarnings();
   const [showMergeDetails, setShowMergeDetails] = useState(false);
 
   async function handleLogout() {
@@ -78,12 +78,22 @@ function Layout() {
           <button type="button" className="button-secondary" onClick={() => setShowMergeDetails((v) => !v)}>
             {showMergeDetails ? "Ocultar detalhes" : "Ver detalhes"}
           </button>
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => mergeWarnings.forEach((w) => dismiss(w.losingOrder))}
+          >
+            Dispensar tudo
+          </button>
           {showMergeDetails && (
             <ul>
               {mergeWarnings.map((w) => (
                 <li key={w.losingOrder}>
                   {tableLabel(w.tableId)}: a comanda mais nova foi mesclada na comanda existente — os itens
-                  lançados nela agora aparecem na comanda que ficou aberta.
+                  lançados nela agora aparecem na comanda que ficou aberta.{" "}
+                  <button type="button" className="button-secondary" onClick={() => dismiss(w.losingOrder)}>
+                    Dispensar
+                  </button>
                 </li>
               ))}
             </ul>
