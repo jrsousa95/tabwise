@@ -429,6 +429,17 @@ button:disabled {
 .brand-wordmark-lg {
   font-size: 44px;
   margin: 0 0 var(--spacing-2);
+  /* Causa real do desalinhamento (achado em uso real, 2026-09-22, depois
+     de duas tentativas erradas trocando fonte/adicionando translateX):
+     `text-align` é herdado, mas `h1, h2 { text-align: left }` mira o
+     `<h1>` diretamente — uma regra direta sempre vence herança na
+     cascata, não importa a especificidade de `.container-center`. O
+     TEXTO ficava alinhado à esquerda dentro da caixa do h1 (que só
+     "parecia" centralizada porque o bloco se estica pra 100% da largura
+     do container via flex — a caixa tinha o centro certo, o texto dentro
+     dela não). Confirmado via Range.getBoundingClientRect() no texto
+     real, não no elemento. */
+  text-align: center;
 }
 
 .app-nav nav {
