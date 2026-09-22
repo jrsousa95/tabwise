@@ -117,11 +117,11 @@ function Pairing() {
           autenticado (sem menu de navegação) — sem este link, o dono ficava
           sem nenhuma forma de sair da tela fora do modo bootstrap. */}
       {!isBootstrap && (
-        <p>
+        <div className="operator-form-actions">
           <Link to="/tables" className="button-secondary">
             ← Voltar ao mapa de mesas
           </Link>
-        </p>
+        </div>
       )}
       <h1>Pareamento de terminais</h1>
 
@@ -214,11 +214,11 @@ function Pairing() {
       </div>
 
       {isBootstrap && (
-        <p>
+        <div className="operator-form-actions">
           <Link to="/" className="button-secondary">
             ← Voltar
           </Link>
-        </p>
+        </div>
       )}
     </main>
   );

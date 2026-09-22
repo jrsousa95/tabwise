@@ -49,18 +49,24 @@ function EstablishmentSettings() {
       <h2>Configurações do estabelecimento</h2>
       <div className="table-map-section settings-section">
         <h3>Taxa de serviço padrão</h3>
+        {/* Achado em uso real, 2026-09-22: era o único `.inline-form` do app
+            com um `<label>` de legenda visível empilhada sobre o input — o
+            bloco label+input ficava bem mais alto que o botão ao lado, que
+            centralizava contra a altura toda (legenda incluída) em vez de
+            contra o input, lendo como desalinhado. Todo outro
+            `.inline-form` do app já usa placeholder/aria-label (sem
+            legenda empilhada) por esse motivo — só padronizando aqui. */}
         <form onSubmit={handleSaveServiceFee} className="inline-form">
-          <label>
-            Taxa de serviço padrão (%)
-            <input
-              value={serviceFeePercent}
-              onChange={(e) => {
-                setServiceFeePercent(e.target.value.replace(/[^0-9,.]/g, ""));
-                setServiceFeeSaved(false);
-              }}
-              inputMode="decimal"
-            />
-          </label>
+          <input
+            value={serviceFeePercent}
+            onChange={(e) => {
+              setServiceFeePercent(e.target.value.replace(/[^0-9,.]/g, ""));
+              setServiceFeeSaved(false);
+            }}
+            inputMode="decimal"
+            placeholder="Ex: 10"
+            aria-label="Taxa de serviço padrão (%)"
+          />
           <button type="submit" className="button-primary" disabled={serviceFeeSubmitting}>
             Salvar
           </button>
