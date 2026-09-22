@@ -41,10 +41,16 @@
   --color-outline: rgba(0, 0, 0, 0.16);
   --color-outline-variant: rgba(0, 0, 0, 0.08);
 
-  --color-primary: #c2410c;
+  /* Borgonha (2026-09-22, pedido do dono) — era laranja/terracota
+     (#c2410c) antes deste commit. Mesmo padrão de derivação: primary =
+     tom saturado escuro (texto branco em cima); primary-container = tom
+     bem pálido do mesmo matiz (fundo, ex. table-tile ocupado);
+     on-primary-container = tom bem escuro do mesmo matiz (texto sobre o
+     container pálido). */
+  --color-primary: #9f1239;
   --color-on-primary: #ffffff;
-  --color-primary-container: #fde4d4;
-  --color-on-primary-container: #7a290a;
+  --color-primary-container: #ffe4e6;
+  --color-on-primary-container: #881337;
 
   --color-success: #1f7a46;
   --color-on-success: #ffffff;
@@ -105,10 +111,10 @@
     --color-outline: rgba(255, 255, 255, 0.18);
     --color-outline-variant: rgba(255, 255, 255, 0.09);
 
-    --color-primary: #f0793d;
-    --color-on-primary: #3d1200;
-    --color-primary-container: #7a290a;
-    --color-on-primary-container: #fde4d4;
+    --color-primary: #fb7185;
+    --color-on-primary: #4c0519;
+    --color-primary-container: #881337;
+    --color-on-primary-container: #ffe4e6;
 
     --color-success: #6fcf97;
     --color-on-success: #0c3b1f;
@@ -882,8 +888,8 @@ form.table-tile-actions button {
 
 @media (prefers-color-scheme: dark) {
   /* No claro o tile ocupado é um container claro (overlay escuro funciona);
-     no escuro o mesmo container fica escuro (#7a290a) — precisa de um
-     overlay claro pra continuar visível. */
+     no escuro o mesmo container fica escuro (--color-primary-container) —
+     precisa de um overlay claro pra continuar visível. */
   .table-tile-occupied .button-secondary:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.08);
   }
