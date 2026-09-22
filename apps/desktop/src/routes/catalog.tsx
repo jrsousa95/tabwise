@@ -277,27 +277,29 @@ function Catalog() {
               </li>
             ) : (
               <li key={c.id}>
-                {c.name}{" "}
-                <button
-                  type="button"
-                  className="button-secondary row-action-button"
-                  onClick={() => handleStartRenameCategory(c.id, c.name)}
-                  disabled={categoryActionSubmitting}
-                  aria-label="Renomear"
-                  title="Renomear"
-                >
-                  <PencilIcon />
-                </button>{" "}
-                <button
-                  type="button"
-                  className="button-secondary row-action-button"
-                  onClick={() => handleRemoveCategory(c.id)}
-                  disabled={categoryActionSubmitting}
-                  aria-label="Remover"
-                  title="Remover"
-                >
-                  <TrashIcon />
-                </button>
+                <span>{c.name}</span>
+                <span className="catalog-list-actions">
+                  <button
+                    type="button"
+                    className="button-secondary row-action-button"
+                    onClick={() => handleStartRenameCategory(c.id, c.name)}
+                    disabled={categoryActionSubmitting}
+                    aria-label="Renomear"
+                    title="Renomear"
+                  >
+                    <PencilIcon />
+                  </button>
+                  <button
+                    type="button"
+                    className="button-secondary row-action-button"
+                    onClick={() => handleRemoveCategory(c.id)}
+                    disabled={categoryActionSubmitting}
+                    aria-label="Remover"
+                    title="Remover"
+                  >
+                    <TrashIcon />
+                  </button>
+                </span>
               </li>
             )
           )}

@@ -202,7 +202,7 @@ function TableMap() {
                         onOpenOrder={() => navigate(`/orders/${order.id}`)}
                       />
                     ) : (
-                      <button type="button" className="button-primary" onClick={() => handleOpenTableOrder(t.id)}>
+                      <button type="button" className="button-primary button-compact" onClick={() => handleOpenTableOrder(t.id)}>
                         Abrir comanda
                       </button>
                     )}
@@ -269,7 +269,7 @@ function TableMap() {
 
       <div className="table-map-section">
         <h3>Comandas avulsas</h3>
-        <button type="button" className="button-primary" onClick={handleOpenStandaloneOrder}>
+        <button type="button" className="button-primary button-compact" onClick={handleOpenStandaloneOrder}>
           Abrir comanda avulsa
         </button>
         <ul className="catalog-list">

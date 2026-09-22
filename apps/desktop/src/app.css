@@ -585,10 +585,17 @@ button:disabled {
   flex-direction: column;
 }
 
+/* `justify-content: space-between` alinha um segundo elemento (badge de
+   status, ícones de ação) à borda direita da linha — sem isso ficava colado
+   ao texto à esquerda, com um vão vazio até a borda (achado em uso real,
+   2026-09-22: inconsistente com `.product-search-result`, que já tinha esse
+   alinhamento; afetava a lista de Categorias no Cardápio e as comandas
+   pendentes no Caixa). */
 .catalog-list li {
   min-height: var(--spacing-touch-target-min);
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--spacing-3);
   padding: var(--spacing-2) 0;
   border-bottom: 1px solid var(--color-outline-variant);
@@ -598,6 +605,16 @@ button:disabled {
   display: flex;
   align-items: center;
   height: 100%;
+}
+
+/* Agrupa 2+ ações (ex.: Renomear/Remover) num só item flex, pra
+   `justify-content: space-between` da `<li>` pai tratar "nome" + "grupo de
+   ações" como os dois lados da linha, não espalhar cada botão junto com o
+   texto (achado em uso real, 2026-09-22). */
+.catalog-list-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
 }
 
 .catalog-empty {
@@ -633,9 +650,12 @@ button:disabled {
 
 /* --- Busca de produto --- */
 
+/* Sem motivo pra limitar a 480px aqui — é o único uso do componente, dentro
+   de `.app-content` (até 1440px), e sobrava um vazio enorme do lado (mesmo
+   bug já corrigido em `.settings-section`/`.operator-form` no Cardápio;
+   achado em uso real, 2026-09-22). */
 .product-search {
   margin-top: var(--spacing-6);
-  max-width: 480px;
 }
 
 .product-search-result {
@@ -721,10 +741,12 @@ button:disabled {
   min-height: var(--spacing-touch-target-min);
 }
 
-/* Padding horizontal reduzido só nesse contexto (grid estreito) — "Abrir
-   comanda" precisa caber numa linha; .button-primary global não muda
-   (auditoria visual 2026-09-22). */
-.table-tile-actions .button-primary {
+/* Padding horizontal reduzido — nasceu pra "Abrir comanda" caber numa linha
+   dentro do tile estreito, mas "Abrir comanda avulsa" (mesma ação, mesma
+   tela, fora do tile) usa o padding padrão maior — os dois lêem como pesos
+   visuais diferentes pra a mesma ação (achado em uso real, 2026-09-22).
+   Classe reutilizável em vez de escopada só ao tile. */
+.button-compact {
   padding: var(--spacing-2) var(--spacing-4);
 }
 
@@ -775,11 +797,16 @@ form.table-tile-actions button {
 
 /* --- Comanda / fechamento --- */
 
+/* Sem teto de largura, rótulo/valor ficavam espremidos nas pontas de uma
+   linha de até 1392px (`justify-content: space-between` do `.summary-row`
+   some com o vão gigante vazio no meio) — mesma largura de referência de
+   `.settings-section`/`.container` (achado em uso real, 2026-09-22). */
 .summary {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-2);
   margin: var(--spacing-4) 0;
+  max-width: 480px;
 }
 
 .summary-row {
@@ -802,6 +829,15 @@ form.table-tile-actions button {
   align-items: center;
   margin: var(--spacing-2) 0;
   flex-wrap: wrap;
+}
+
+/* Sem `flex`/`width`, os inputs de valor ficavam na largura intrínseca do
+   browser — os campos mais estreitos do app, mesmo na tela mais larga do
+   fluxo de fechamento. Mesmo padrão de `.inline-form input` (achado em uso
+   real, 2026-09-22). */
+.split-row input {
+  flex: 1;
+  min-width: 140px;
 }
 
 /* Indicador falta/sobra — body-strong + cor semântica (EXPERIENCE.md, tela

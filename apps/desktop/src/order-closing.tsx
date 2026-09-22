@@ -2,6 +2,22 @@ import { useState } from "react";
 import { formatCentsToBRL, parseReaisToCents } from "./lib/money";
 import { useEstablishment, closeOrder, type Split } from "./lib/closing";
 
+/* Ícone inline (SVG, stroke=currentColor, sem preenchimento, 20×20) — mesmo
+   padrão já usado em catalog.tsx/table-map.tsx pra ações de linha
+   compactas (achado em uso real, 2026-09-22: "Remover" aqui era texto
+   completo, diferente do "Remover" usado nessas outras telas). */
+function TrashIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+    </svg>
+  );
+}
+
 type SplitRow = { id: string; amountText: string; paymentMethod: "cash" | "card"; cashReceivedText: string };
 
 function newSplitRow(amountCents?: number): SplitRow {
@@ -149,8 +165,14 @@ function OrderClosing({
               inputMode="decimal"
             />
           )}
-          <button type="button" className="button-secondary" onClick={() => removeSplit(s.id)}>
-            Remover
+          <button
+            type="button"
+            className="button-secondary row-action-button"
+            onClick={() => removeSplit(s.id)}
+            aria-label="Remover parte do split"
+            title="Remover"
+          >
+            <TrashIcon />
           </button>
         </div>
       ))}

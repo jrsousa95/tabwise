@@ -9,6 +9,22 @@ import type { Product } from "../lib/catalog";
 import ProductSearch from "../product-search";
 import OrderClosing from "../order-closing";
 
+/* Ícone inline (SVG, stroke=currentColor, sem preenchimento, 20×20) — mesmo
+   padrão já usado em catalog.tsx/table-map.tsx pra ações de linha
+   compactas (achado em uso real, 2026-09-22: "Cancelar" aqui era texto
+   completo numa `.catalog-table`, diferente das outras ações de linha de
+   tabela do app). X em vez de lixeira: cancelar item não apaga o histórico
+   (evento append-only), só marca como cancelado — "remover" seria a
+   metáfora errada. */
+function CancelIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 6 6 18" />
+      <path d="M6 6l12 12" />
+    </svg>
+  );
+}
+
 /** PRD Épico 4/5 (M6/M7) — lançamento/cancelamento de itens e fechamento de comanda. */
 function Order() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -135,8 +151,14 @@ function Order() {
               <td className="amount">{formatCentsToBRL(item.unitPriceCents * item.quantity)}</td>
               <td>
                 {!item.canceled && canManageOrder && order.status === "open" && (
-                  <button type="button" className="button-secondary" onClick={() => setCancelingItemId(item.id)}>
-                    Cancelar
+                  <button
+                    type="button"
+                    className="button-secondary row-action-button"
+                    onClick={() => setCancelingItemId(item.id)}
+                    aria-label="Cancelar item"
+                    title="Cancelar"
+                  >
+                    <CancelIcon />
                   </button>
                 )}
               </td>
