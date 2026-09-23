@@ -2,7 +2,7 @@
 name: Passa a Régua
 description: Sistema de PDV desktop para bares e restaurantes — mesas, comandas, cardápio e fechamento de caixa. Visual robusto/industrial, pensado pra ser tocado com pressa, em pé, muitas vezes com uma mão só.
 status: final
-updated: 2026-09-22
+updated: 2026-09-23
 colors:
   # Claro
   surface: '#F6F6F6'
@@ -142,17 +142,24 @@ components:
     background: '{colors.warning-container}'
     foreground: '{colors.warning}'
     padding: '{spacing.3} {spacing.5}'
+  inline-form:
+    gap: '{spacing.3}'
+    marginBottom: '{spacing.4}'
+  row-action-button:
+    minHeight: '{spacing.touch-target-min}'
+    minWidth: '{spacing.touch-target-min}'
+    padding: '0'
 ---
 
 # Passa a Régua — Sistema de Design
 
-> [ASSUMPTION] Valores exatos de cor/tipografia abaixo são uma proposta inicial de Sally, com base na direção "robusto/industrial pra PDV" escolhida e em continuidade com as poucas cores que já existiam no app antes deste sistema (`#2e8b57`/`#c0392b`/`#b8860b` do indicador de status do sidecar, a paleta do banner de merge, e a família Inter já usada). Ajuste livremente — nada aqui está travado.
+> [ASSUMPTION] Tipografia e demais valores abaixo são uma proposta inicial de Sally, com base na direção "robusto/industrial pra PDV" escolhida e em continuidade com o que já existia no app antes deste sistema (paleta do banner de merge, família Inter já usada). Ajuste livremente. A cor de marca (`{colors.primary}`) não é mais assunto em aberto — validada com o dono em 2026-09-22 e com contraste calculado em 2026-09-23 (ver Colors).
 
 ## Brand & Style
 
 Passa a Régua é uma ferramenta de trabalho, não um produto de vitrine. Quem olha pra tela está de pé, com uma bandeja numa mão, num salão barulhento, numa sexta-feira lotada — não navegando com calma num sofá. A postura visual é **industrial e direta**: contraste alto, alvos de toque generosos (mínimo 48px, `{spacing.touch-target-min}`), hierarquia visual óbvia à distância de um braço, zero decoração que não carregue informação.
 
-A cor é usada como sinal, não como enfeite. Laranja-queimado (`{colors.primary}`) significa "isto é uma ação" — nunca aparece decorativamente. Verde/âmbar/vermelho seguem o vocabulário de semáforo que qualquer garçom já entende sem treinamento: mesa livre é neutra, mesa ocupada é a cor de marca, aviso é âmbar, erro é vermelho. Não há gradientes, sombras dramáticas ou tipografia decorativa — a única "personalidade" do produto é a confiança de que ele nunca engana o operador sobre o que está acontecendo.
+A cor é usada como sinal, não como enfeite. Borgonha (`{colors.primary}`) significa "isto é uma ação" — nunca aparece decorativamente. Âmbar/vermelho seguem o vocabulário de semáforo que qualquer garçom já entende sem treinamento: mesa livre é neutra, mesa ocupada é a cor de marca, aviso é âmbar, erro é vermelho. Não há gradientes, sombras dramáticas ou tipografia decorativa — a única "personalidade" do produto é a confiança de que ele nunca engana o operador sobre o que está acontecendo.
 
 ## Colors
 
@@ -160,8 +167,16 @@ A cor é usada como sinal, não como enfeite. Laranja-queimado (`{colors.primary
 - **`{colors.success}` / `{colors.warning}` / `{colors.danger}`** — vocabulário de status, reaproveitando as cores que já existiam no indicador "sidecar ok/offline" e no banner de merge antes deste sistema existir (continuidade deliberada, não reinvenção). Danger é reservado pra erro de verdade (`.form-error`, sidecar offline) — nunca usado pra cancelar item: essa ação já tem sua própria fricção (motivo obrigatório), não precisa também de vermelho.
 - **`{colors.surface}` / `{colors.surface-container-*}`** — três níveis de elevação (fundo da página, cartão, cartão realçado) em vez de sombra — o app já não usava sombra nenhuma, e "robusto" pede superfícies planas e bem demarcadas por cor/borda, não por blur.
 - **Modo escuro** — cada token de cor tem seu par `-dark`. Nenhum token é reaproveitado 1:1 entre os dois modos (nem mesmo `primary`): o borgonha do modo escuro é mais claro (`#FB7185`) pra manter contraste AA sobre o fundo escuro, não é o mesmo borgonha com opacidade reduzida. Essa é exatamente a armadilha que o bloco `@media (prefers-color-scheme: dark)` de antes deste sistema nunca resolveu — aqui cada token de cada modo é uma decisão própria, não uma variação automática da outra.
+- **Razões de contraste calculadas** (achado da validação 2026-09-23 — meta era só "AA mantido", sem número; borgonha claro→escuro não deriva automaticamente um do outro, vale registrar o valor real):
 
-Evitar: mais de uma cor de marca; gradiente em qualquer superfície; borgonha usado fora de "isto é uma ação/isto está ocupado"; texto cinza-sobre-cinza com contraste abaixo de AA (o app é usado sob luz de salão variável, nunca condição ideal de tela).
+  | Par | Modo | Razão |
+  |---|---|---|
+  | `primary` / `on-primary` | Claro | 8.02:1 |
+  | `primary-container` / `on-primary-container` | Claro | 7.97:1 |
+  | `primary-dark` / `on-primary-dark` | Escuro | 5.81:1 |
+  | `primary-container-dark` / `on-primary-container-dark` | Escuro | 7.97:1 |
+
+  Todos folgados acima do piso AA de 4.5:1 pra texto normal.
 
 ## Typography
 
@@ -177,7 +192,7 @@ Números monetários usam tabular figures (Inter já suporta) em qualquer lugar 
 
 ## Layout & Spacing
 
-Escala de `{spacing.1}` (4px) a `{spacing.8}` (64px), base 8, generosa nas margens entre alvos tocáveis — o objetivo declarado é errar o toque com menos frequência, não caber mais coisa na tela. `{spacing.touch-target-min}` (48px) é o piso de altura/largura de qualquer elemento clicável em qualquer tela, inclusive num teclado numérico ou linha de tabela com botão de ação — hoje várias telas (ex: `catalog-table`, `pin-pad`) não garantem isso explicitamente.
+Escala de `{spacing.1}` (4px) a `{spacing.8}` (64px), base 8, generosa nas margens entre alvos tocáveis — o objetivo declarado é errar o toque com menos frequência, não caber mais coisa na tela. `{spacing.touch-target-min}` (48px) é o piso de altura/largura de qualquer elemento clicável em qualquer tela, inclusive num teclado numérico ou linha de tabela com botão de ação — garantido hoje via `row-action-button` (ver Components) em toda linha de `catalog-table`/`table-tile` que tem ação de editar/remover, e via `pin-key` (72×72px) no teclado numérico.
 
 Layout de conteúdo em largura total até 1024px, sem coluna central estreita artificial — o app roda tanto em desktop quanto em tablet apoiado numa bancada, e uma tela de PDV se beneficia de mostrar mais mesas/itens de uma vez, não de "ler como um artigo".
 
@@ -197,6 +212,8 @@ Cantos moderados (`{rounded.md}` = 10px na maioria dos componentes tocáveis, `{
 - **`table-tile`** — substitui a lista/tabela atual de mesas por um grid de blocos tocáveis (ver Component Patterns no EXPERIENCE.md): `table-tile-free` (superfície neutra, borda fina) vs. `table-tile-occupied` (preenchido em `{colors.primary-container}`, borda `{colors.primary}`) — o estado "esta mesa tem comanda aberta" precisa ser reconhecível num relance do salão, não lido letra por letra.
 - **`status-badge`** — pílula pequena, três variantes semânticas (success/warning/danger); usado pro indicador de sidecar, status de produto (ativo/inativo), e status de comanda.
 - **`merge-warning-banner`** — já existia; herda a paleta `warning` deste sistema em vez da cor solta que tinha antes.
+- **`inline-form`** — campo(s) + botão na mesma fileira (`{spacing.3}` de gap), botão dividindo o espaço com o(s) campo(s) em vez de ficar do tamanho do próprio texto. Usado em Cardápio (cadastrar categoria/mesa), Pareamento (adotar token/host manual). Quebra pra coluna em telas estreitas (ver Responsive & Platform no EXPERIENCE.md).
+- **`row-action-button`** — variante compacta (ícone só, sem texto) de `button-secondary` pra ação de linha de tabela/tile: 48×48px exatos (`{spacing.touch-target-min}`), sem padding de texto. Usado em toda ação de editar/remover/cancelar de linha (Cardápio, Mapa de Mesas, Comanda) — nunca com texto completo, que quebraria linha em colunas/grids estreitos.
 
 ## Do's and Don'ts
 
@@ -208,3 +225,5 @@ Cantos moderados (`{rounded.md}` = 10px na maioria dos componentes tocáveis, `{
 | Tabular figures em toda coluna monetária | Números de valor em fonte proporcional numa tabela |
 | Um único acento de marca | Segunda cor de marca "pra variar" |
 | Dark mode com tokens próprios por papel | Dark mode por opacidade/filtro sobre as cores do modo claro |
+| Superfícies planas, hierarquia por cor/borda | Gradiente em qualquer superfície |
+| Contraste ≥ AA mesmo sob luz de salão variável | Texto cinza-sobre-cinza abaixo do piso AA |

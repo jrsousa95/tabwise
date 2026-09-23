@@ -151,8 +151,6 @@
   .finding-location { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--muted); }
   .finding-note, .finding-fix { margin-top: 6px; font-size: 14px; }
   .finding-fix strong { color: var(--muted); font-weight: 500; }
-  .finding-note code, .finding-fix code { background: rgba(0,0,0,0.05); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
-  pre.fix-code { background: #1c1917; color: #e7e5e4; padding: 10px 14px; border-radius: 6px; font-size: 12.5px; overflow-x: auto; margin-top: 6px; }
 
   .reviewer-source {
     font-size: 12px;
@@ -194,254 +192,276 @@
     </header>
 
     <div class="synthesis">
-      <p>Mecanicamente o par de spines está limpo: os dois frontmatters resolvem, as fontes existem, a ordem das seções é canônica nos dois arquivos, todas as referências <code>{token}</code> resolvem por nome, e a divulgação "sem mocks nesta rodada" é explícita com a regra "spine vence conflito" declarada uma vez. Como <em>contrato de build</em>, porém, está incompleto: 3 das 7 superfícies de IA (Cadastro de operador, Cardápio, Caixa) não têm nenhum Key Flow nem State Pattern, e três histórias do PRD adicionadas um dia depois do spine ser travado como <code>final</code> (2.8/3.4/3.5 — renomear/remover mesa/categoria/produto) não têm nenhuma representação em EXPERIENCE.md. O DESIGN.md também não define os pares <code>-dark</code> de três tokens de container que <code>status-badge</code> e <code>merge-warning-banner</code> já usam em produção.</p>
-      <p><strong>A auditoria visual sobre o app rodando de verdade (segunda lente desta validação) muda o quadro de forma mais concreta e acionável</strong>: os 3 pontos que o dono levantou têm causa raiz identificável e conectada — botões de texto completo (não uma variante compacta) usados em colunas de ação de tabela e em grids estreitos quebram linha, inflam a altura de linhas/cards, e isso mesmo é o que gera o desalinhamento visual reportado (a quebra de "Nome" na tabela de produtos descola as demais colunas da mesma linha). O espaço em branco excessivo tem duas causas distintas: estados com poucos dados (aceitável, mas sem nenhum preenchimento visual) e um <code>max-width: 1024px</code> fixo em <code>.app-content</code> que contradiz o próprio texto do DESIGN.md sobre usar a largura total da tela — isso é o achado de maior impacto prático desta rodada, porque limita quantas mesas cabem na tela numa sexta-feira lotada, o cenário central do Fluxo 1 do EXPERIENCE.md.</p>
+      <p>O par de spines não está pronto pra carregar <code>status: final</code>: a forma é sólida (ordem canônica, sem inchaço, sem token quebrado), mas o conteúdo ficou pra trás do produto real em dois pontos críticos — a tela "Conflitos de Mesas" (ARCH §4.2, já em produção) não existe em nenhuma das duas spines, e o DESIGN.md se contradiz sobre a própria cor de marca (ainda chama de "laranja-queimado" oito linhas antes de documentar a troca pra borgonha).</p>
+      <p>A auditoria visual sobre o código real do app achou algo mais grave que desalinhamento: um <strong>bug de fluxo real</strong> em <code>order-closing.tsx</code> — com uma única parte de split editada manualmente, o indicador de falta/sobra fica escondido e o botão "Confirmar fechamento" trava sem nenhuma explicação, na tela de maior pressão de tempo do app (fila no caixa). A auditoria de acessibilidade confirmou que o achado já conhecido do mapa de mesas (grid de <code>&lt;div&gt;</code>s sem semântica pra leitor de tela) segue sem solução, e achou que nenhuma tela autenticada tem <code>&lt;h1&gt;</code> nem os 23 usos de <code>.form-error</code> são anunciados a leitor de tela.</p>
     </div>
 
     <div class="dimension-summary">
-      <div class="dim-card"><div class="dim-name">1. Flow coverage</div><div class="dim-verdict" style="color: var(--verdict-thin)">thin</div></div>
-      <div class="dim-card"><div class="dim-name">2. Token completeness</div><div class="dim-verdict" style="color: var(--verdict-thin)">thin</div></div>
-      <div class="dim-card"><div class="dim-name">3. Component coverage</div><div class="dim-verdict" style="color: var(--verdict-thin)">thin</div></div>
-      <div class="dim-card"><div class="dim-name">4. State coverage</div><div class="dim-verdict" style="color: var(--verdict-thin)">thin</div></div>
-      <div class="dim-card"><div class="dim-name">5. Visual reference coverage</div><div class="dim-verdict" style="color: var(--verdict-strong)">strong</div></div>
-      <div class="dim-card"><div class="dim-name">6. Bloat &amp; overspecification</div><div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div></div>
-      <div class="dim-card"><div class="dim-name">7. Inheritance discipline</div><div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div></div>
-      <div class="dim-card"><div class="dim-name">8. Shape fit</div><div class="dim-verdict" style="color: var(--verdict-strong)">strong</div></div>
+      <div class="dim-card"><div class="dim-name">Flow coverage</div><div class="dim-verdict" style="color: var(--verdict-thin)">raso</div></div>
+      <div class="dim-card"><div class="dim-name">Token completeness</div><div class="dim-verdict" style="color: var(--verdict-strong)">forte</div></div>
+      <div class="dim-card"><div class="dim-name">Component coverage</div><div class="dim-verdict" style="color: var(--verdict-thin)">raso</div></div>
+      <div class="dim-card"><div class="dim-name">State coverage</div><div class="dim-verdict" style="color: var(--verdict-thin)">raso</div></div>
+      <div class="dim-card"><div class="dim-name">Visual reference coverage</div><div class="dim-verdict" style="color: var(--verdict-strong)">forte</div></div>
+      <div class="dim-card"><div class="dim-name">Bloat &amp; overspecification</div><div class="dim-verdict" style="color: var(--verdict-strong)">forte</div></div>
+      <div class="dim-card"><div class="dim-name">Inheritance discipline</div><div class="dim-verdict" style="color: var(--verdict-thin)">raso</div></div>
+      <div class="dim-card"><div class="dim-name">Shape fit</div><div class="dim-verdict" style="color: var(--verdict-strong)">forte</div></div>
     </div>
 
-    <!-- 1. Flow coverage -->
     <section class="dimension">
       <details open>
-        <summary><h2>1. Flow coverage</h2><span class="verdict-pill verdict-thin">thin</span></summary>
-        <div class="dim-body"><div class="dim-judgment"><p>Checado: <code>sources</code> do EXPERIENCE.md (brief, PRD, architecture) contra os 8 épicos/histórias do PRD e os 3 Key Flows existentes (linhas 113–142).</p></div></div>
+        <summary><h2>1. Flow coverage</h2><span class="verdict-pill verdict-thin">raso</span></summary>
+        <div class="dim-body"><div class="dim-judgment"><p>Checado: os 3 Key Flows do EXPERIENCE.md contra os 8 épicos do PRD e a tela nova do ARCH §4.2. Cada flow existente é mecanicamente bem formado (protagonista, passos, clímax, caminho de falha).</p></div></div>
         <div class="findings-list">
-          <article class="finding"><header><span class="badge badge-sev-critical">critical</span><h3 class="finding-title">Épico 1 (Autenticação/Operadores) sem Key Flow — auditoria de cancelamento nunca vira tela</h3><span class="finding-location">EXPERIENCE.md, ausente em todo o arquivo</span></header>
-            <div class="finding-note">A história 1.3 ("ver quem cancelou um item, quando e por quê") não aparece em nenhuma superfície de IA, Component Pattern, State Pattern ou Flow. Cancelar um item está coberto; <em>ver</em> o log resultante, não.</div>
-            <div class="finding-fix"><strong>Fix:</strong> adicionar uma superfície de IA (ou seção de uma existente) pro log de auditoria, mais um Key Flow ou State Pattern pro dono revisando isso.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-critical">crítico</span><h3 class="finding-title">Conflitos de Mesas sem nenhuma cobertura</h3><span class="finding-location">EXPERIENCE.md</span></header>
+            <div class="finding-note">Nenhum Key Flow, Component Pattern ou linha de IA cobre a tela já em produção (<code>table-conflicts.tsx</code>, linkada em <code>layout.tsx:51-55,106</code>).</div>
+            <div class="finding-fix"><strong>Fix:</strong> adicionar linha na IA + um Key Flow (ou expansão do Fluxo 3) com o dono revisando/resolvendo um conflito.</div>
           </article>
-          <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title">Cardápio, Caixa e Cadastro de operador sem nenhum Key Flow</h3><span class="finding-location">EXPERIENCE.md linhas 26, 29, 30</span></header>
-            <div class="finding-note">As três jornadas de gestão do dono (montar cardápio, cadastrar equipe, conferir o resumo do dia) não têm representação nenhuma em Key Flows — os 3 flows existentes são todos focados em garçom/caixa/pareamento.</div>
-            <div class="finding-fix"><strong>Fix:</strong> adicionar ao menos um flow ancorado no dono cobrindo cardápio ou resumo, mesmo que breve.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-high">alto</span><h3 class="finding-title">Histórias 2.8/3.4/3.5 sem representação</h3><span class="finding-location">docs/prd.md:87-91,107-111,113-116</span></header>
+            <div class="finding-note">Renomear/remover mesa, categoria e produto já implementados com padrão de UI repetido e regras de bloqueio (409), ausentes de Key Flow/Component/State Pattern.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Component Pattern pro padrão de ícones editar/remover + State Patterns pros dois erros 409.</div>
           </article>
-          <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title">Limite de comandas do plano (freemium) só como State, nunca dramatizado como Flow</h3><span class="finding-location">EXPERIENCE.md linha 72</span></header>
-            <div class="finding-note">O gatilho de upgrade é o momento de conversão declarado do produto (brief §5), mas nunca vira um flow com clímax, só uma descrição de estado.</div>
-            <div class="finding-fix"><strong>Fix:</strong> dobrar num flow existente como caminho de falha, ou adicionar um flow curto.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-medium">médio</span><h3 class="finding-title">Épicos 1/6/8 só como State Pattern, nunca Key Flow</h3><span class="finding-location">EXPERIENCE.md</span></header>
+            <div class="finding-note">Inconsistente com o tratamento dado aos Épicos 2/4/5/7. O limite de comandas (gatilho de conversão do freemium, citado como tal no próprio documento) merece um Key Flow próprio.</div>
+            <div class="finding-fix"><strong>Fix:</strong> promover ao menos o limite de comandas a um 4º/5º Key Flow.</div>
           </article>
-          <article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">Histórias novas 2.8/3.4/3.5 (renomear/remover) sem nenhuma menção — gap de atualidade</h3><span class="finding-location">EXPERIENCE.md `updated: 2026-09-21`; PRD atualizado 2026-09-22</span></header>
-            <div class="finding-note">As três histórias adicionadas ao PRD um dia depois do spine ser travado como <code>final</code> (renomear/remover mesa, categoria, produto, cada uma com trava de bloqueio explícita) não têm Key Flow, State Pattern nem menção de IA — busca por "renomear/remover/editar/excluir" no EXPERIENCE.md não retorna nada.</div>
-            <div class="finding-fix"><strong>Fix:</strong> ressincronizar o spine contra o PRD atual antes de tratá-lo como contrato de build — isso é gap de atualidade, não erro de autoria.</div>
-          </article>
-          <article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title">Protagonista do Flow 3 sem nome, diferente dos Flows 1 e 2</h3><span class="finding-location">EXPERIENCE.md linha 135; `.memlog.md`, último item</span></header>
-            <div class="finding-note">Flow 1 e 2 nomeiam seus protagonistas (Jonas, Marina); Flow 3 só diz "Dono". O próprio memlog já registra isso como gap conhecido.</div>
-            <div class="finding-fix"><strong>Fix:</strong> nomear a persona do dono pra consistência, ou anotar que a omissão é intencional.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-low">baixo</span><h3 class="finding-title">Protagonista do Fluxo 3 sem nome</h3><span class="finding-location">EXPERIENCE.md</span></header>
+            <div class="finding-note">"Dono", sem nome, enquanto Fluxos 1 e 2 usam personas nomeadas (Jonas, Marina) — inconsistência de padrão, sem impacto funcional.</div>
+            <div class="finding-fix"><strong>Fix:</strong> nomear ou justificar a exceção.</div>
           </article>
         </div>
       </details>
     </section>
 
-    <!-- 2. Token completeness -->
+    <section class="dimension">
+      <details>
+        <summary><h2>2. Token completeness</h2><span class="verdict-pill verdict-strong">forte</span></summary>
+        <div class="dim-body"><div class="dim-judgment"><p>Todo token do frontmatter YAML tem hex e par <code>-dark</code>; toda referência <code>{'{path.to.token}'}</code> resolve. Nenhum crítico de token faltando.</p></div></div>
+        <div class="findings-list">
+          <article class="finding">
+            <header><span class="badge badge-sev-medium">médio</span><h3 class="finding-title">Nenhuma meta de contraste numérica declarada</h3><span class="finding-location">EXPERIENCE.md:93, DESIGN.md:164</span></header>
+            <div class="finding-note">Só a afirmação categórica "Contraste AA mantido" — importa porque o par borgonha claro→escuro não é derivação automática (o próprio DESIGN.md é explícito sobre isso).</div>
+            <div class="finding-fix"><strong>Fix:</strong> anotar a razão de contraste calculada pros pares que carregam texto.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+
     <section class="dimension">
       <details open>
-        <summary><h2>2. Token completeness</h2><span class="verdict-pill verdict-thin">thin</span></summary>
-        <div class="dim-body"><div class="dim-judgment"><p>Checado: todo token de cor/tipografia/rounded/spacing no frontmatter do DESIGN.md contra toda referência <code>{path.to.token}</code> na prosa dos dois arquivos.</p></div></div>
+        <summary><h2>3. Component coverage</h2><span class="verdict-pill verdict-thin">raso</span></summary>
+        <div class="dim-body"><div class="dim-judgment"><p>Checado: todo nome de componente usado em DESIGN.md.Components e EXPERIENCE.md.Component Patterns, nas duas direções.</p></div></div>
         <div class="findings-list">
-          <article class="finding"><header><span class="badge badge-sev-critical">critical</span><h3 class="finding-title">Faltam os pares <code>-dark</code> de success/warning/danger-container</h3><span class="finding-location">DESIGN.md linhas 22, 25, 28 (claro) vs. 30–47 (escuro)</span></header>
-            <div class="finding-note"><code>success-container</code>, <code>warning-container</code> e <code>danger-container</code> têm hex no modo claro mas nenhum par <code>-dark</code>, diferente de todo outro token do bloco escuro. Esses três alimentam <code>status-badge-success/warning/danger</code> e <code>merge-warning-banner</code> — componentes presentes em toda tela.</div>
-            <div class="finding-fix"><strong>Fix:</strong> adicionar <code>success-container-dark</code>, <code>warning-container-dark</code>, <code>danger-container-dark</code>.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-high">alto</span><h3 class="finding-title"><code>inline-form</code> sem spec visual</h3><span class="finding-location">EXPERIENCE.md:61</span></header>
+            <div class="finding-note">Tem linha comportamental em EXPERIENCE.md mas nenhuma entrada correspondente em DESIGN.md.Components.</div>
+            <div class="finding-fix"><strong>Fix:</strong> adicionar <code>inline-form</code> ao frontmatter <code>components</code> e à seção Components do DESIGN.md.</div>
           </article>
-          <article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title"><code>spacing.2/6/7</code> definidos mas nunca referenciados por <code>{path}</code></h3><span class="finding-location">DESIGN.md linhas 87, 91, 92</span></header>
-            <div class="finding-note">Não quebra o contrato (token não usado é inofensivo), mas vale podar ou usar se intencional — <code>spacing.6/7</code> parecem dimensionados pra gaps de seção que nunca foram citados.</div>
-            <div class="finding-fix"><strong>Fix:</strong> referenciar na prosa de Layout &amp; Spacing, ou remover.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-high">alto</span><h3 class="finding-title">Padrão de ícones editar/remover sem spec em nenhuma spine</h3><span class="finding-location">table-map.tsx, catalog.tsx</span></header>
+            <div class="finding-note">PencilIcon/TrashIcon usados identicamente nas duas telas pras histórias 2.8/3.4/3.5, sem nome, token ou linha de tabela em nenhuma das duas spines.</div>
+            <div class="finding-fix"><strong>Fix:</strong> nomear o componente (ex: <code>row-action-icon</code>), dar spec visual e comportamental, incluindo o hitbox mínimo de 48px — que hoje falha nessas linhas (ver Acessibilidade).</div>
+          </article>
+          <article class="finding">
+            <header><span class="badge badge-sev-medium">médio</span><h3 class="finding-title"><code>catalog-table</code> citada só como problema, nunca resolvida</h3><span class="finding-location">DESIGN.md:180, EXPERIENCE.md:90</span></header>
+            <div class="finding-note">Citada duas vezes só como exemplo de superfície que não cumpre o piso de toque — nunca promovida a uma entrada de Component com a spec corrigida.</div>
+            <div class="finding-fix"><strong>Fix:</strong> dar a <code>catalog-table</code> uma entrada de Components com a spec corrigida.</div>
           </article>
         </div>
       </details>
     </section>
 
-    <!-- 3. Component coverage -->
     <section class="dimension">
       <details open>
-        <summary><h2>3. Component coverage</h2><span class="verdict-pill verdict-thin">thin</span></summary>
-        <div class="dim-body"><div class="dim-judgment"><p>Checado: todo identificador de componente citado nos dois arquivos contra DESIGN.md §Components e EXPERIENCE.md §Component Patterns.</p></div></div>
+        <summary><h2>4. State coverage</h2><span class="verdict-pill verdict-thin">raso</span></summary>
+        <div class="dim-body"><div class="dim-judgment"><p>Checado: as superfícies da IA (documentadas + as que faltam) contra os estados esperados (vazio, carregamento frio, foco, erro, offline, permissão negada).</p></div></div>
         <div class="findings-list">
-          <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title"><code>inline-form</code> tem regra comportamental mas nenhuma especificação visual</h3><span class="finding-location">EXPERIENCE.md linha 61; ausente em DESIGN.md.Components</span></header>
-            <div class="finding-note">Usado em 2 superfícies (Cardápio, Pareamento) sem nenhum padding/cor/proporção definidos em DESIGN.md.</div>
-            <div class="finding-fix"><strong>Fix:</strong> adicionar uma linha <code>inline-form</code> em DESIGN.md.Components.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-high">alto</span><h3 class="finding-title">Erros 409 de 2.8/3.4/3.5 sem State Pattern</h3><span class="finding-location">docs/prd.md:91,111</span></header>
+            <div class="finding-note">"Mesa com comanda aberta não pode ser removida" e "categoria com produto vinculado não pode ser removida" já implementados como mensagens inline reais, ausentes da tabela.</div>
+            <div class="finding-fix"><strong>Fix:</strong> duas linhas novas na tabela State Patterns.</div>
           </article>
-          <article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title"><code>button-primary</code>/<code>button-secondary</code> sem nenhuma regra comportamental</h3><span class="finding-location">DESIGN.md linhas 96–108, 194–195; ausente em EXPERIENCE.md.Component Patterns</span></header>
-            <div class="finding-note">O componente mais reusado do produto (toda tela) não tem regra de estado de toque/desabilitado/double-submit — relevante dado que o Fluxo 2 já assume "toca 'Confirmar fechamento' uma única vez".</div>
-            <div class="finding-fix"><strong>Fix:</strong> adicionar uma linha de Component Patterns pra botões.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-medium">médio</span><h3 class="finding-title">Sem estado vazio documentado</h3><span class="finding-location">table-conflicts.tsx</span></header>
+            <div class="finding-note">Conflitos de Mesas ("Nenhum conflito de mesa registrado ainda.") e primeiro uso de Cardápio/Caixa sem dados ainda não têm linha de estado vazio.</div>
+            <div class="finding-fix"><strong>Fix:</strong> adicionar linhas de estado vazio pra essas superfícies.</div>
           </article>
-          <article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title"><code>table-tile</code>: EXPERIENCE.md afirma "mínimo 96×96px", DESIGN.md só define altura</h3><span class="finding-location">EXPERIENCE.md linha 57; DESIGN.md linha 119</span></header>
-            <div class="finding-note">EXPERIENCE.md afirma uma dimensão (largura mínima) que o token do DESIGN.md nunca comprometeu.</div>
-            <div class="finding-fix"><strong>Fix:</strong> adicionar <code>minWidth: '96px'</code> ao token, ou suavizar a afirmação em EXPERIENCE.md.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-medium">médio</span><h3 class="finding-title">"Permissão negada" sem tratamento documentado</h3><span class="finding-location">app.tsx:22-32 (RequireRole)</span></header>
+            <div class="finding-note">Guards reais já bloqueiam navegação direta a rotas como <code>/catalog</code> ou <code>/table-conflicts</code> pra quem não é dono, mas o comportamento (esconder do nav vs. redirecionar vs. bloquear) não está documentado.</div>
+            <div class="finding-fix"><strong>Fix:</strong> uma linha de State Pattern documentando o comportamento.</div>
           </article>
-          <article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title"><code>catalog-table</code>/<code>pin-pad</code> citados mas nunca formalmente spec'ados</h3><span class="finding-location">DESIGN.md linha 180 / EXPERIENCE.md linha 90</span></header>
-            <div class="finding-note">Aparecem só como elementos retrofit precisando de correção de alvo de toque, não como componentes com linha própria. <code>pin-pad</code> (container) e <code>pin-key</code> (tecla individual) nunca são explicitamente relacionados.</div>
-            <div class="finding-fix"><strong>Fix:</strong> dar linhas próprias ou declarar explicitamente que são só retrofit.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-low">baixo</span><h3 class="finding-title">Nenhum estado de foco documentado</h3><span class="finding-location">EXPERIENCE.md:91</span></header>
+            <div class="finding-note">Accessibility Floor cita a ordem de tabulação como relevante, mas falta o estado visual correspondente (focus ring) em ambas as spines.</div>
+            <div class="finding-fix"><strong>Fix:</strong> documentar o estado de foco em DESIGN.md e EXPERIENCE.md.</div>
           </article>
         </div>
       </details>
     </section>
 
-    <!-- 4. State coverage -->
+    <section class="dimension">
+      <details>
+        <summary><h2>5. Visual reference coverage</h2><span class="verdict-pill verdict-strong">forte</span></summary>
+        <div class="dim-body"><div class="dim-judgment"><p>Confirmado: não há <code>mockups/</code>, <code>wireframes/</code> nem conteúdo em <code>imports/</code> nesta rodada — caminho rápido sem ferramentas criativas, coerente com o <code>.memlog.md</code>. Tratado como esperado, não como lacuna.</p></div></div>
+        <div class="findings-list">
+          <article class="finding">
+            <header><span class="badge badge-sev-low">baixo</span><h3 class="finding-title">Referência cruzada interna quebrada</h3><span class="finding-location">EXPERIENCE.md:35</span></header>
+            <div class="finding-note">"ver Mock coverage na finalização" — não existe seção "Mock coverage" em nenhum dos dois documentos.</div>
+            <div class="finding-fix"><strong>Fix:</strong> remover a referência ou apontar pro <code>review-rubric.md</code>/<code>.memlog.md</code> corretamente.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+
+    <section class="dimension">
+      <details>
+        <summary><h2>6. Bloat &amp; overspecification</h2><span class="verdict-pill verdict-strong">forte</span></summary>
+        <div class="dim-body"><div class="dim-judgment"><p>Nenhuma spec de pixel onde token já bastaria, nenhum restatement literal de personas/FRs do PRD, tabelas usadas onde uma tabela é mais clara que prosa. Nenhuma seção parece existir só por hábito de template.</p></div></div>
+        <div class="findings-list"></div>
+      </details>
+    </section>
+
     <section class="dimension">
       <details open>
-        <summary><h2>4. State coverage</h2><span class="verdict-pill verdict-thin">thin</span></summary>
-        <div class="dim-body"><div class="dim-judgment"><p>Checado: as 7 superfícies de IA contra as 6 linhas de §State Patterns.</p></div></div>
+        <summary><h2>7. Inheritance discipline</h2><span class="verdict-pill verdict-thin">raso</span></summary>
+        <div class="dim-body"><div class="dim-judgment"><p>Checado: resolução do frontmatter <code>sources</code>, nomes de jornada/requisito batendo com o PRD, glossário entre as spines, resolução de referência de token. Fora o achado abaixo, a disciplina é limpa — nenhuma referência sobrevivente à feature removida 2.6 (junção de mesas) foi encontrada.</p></div></div>
         <div class="findings-list">
-          <article class="finding"><header><span class="badge badge-sev-critical">critical</span><h3 class="finding-title">Cadastro de operador, Cardápio e Caixa sem nenhum State Pattern</h3><span class="finding-location">EXPERIENCE.md — 3 das 7 superfícies</span></header>
-            <div class="finding-note">Nenhum estado vazio/cold-load/erro/validação especificado — incluindo a regra de PIN único por estabelecimento (PRD 1.1) e o caso "nenhuma comanda fechada ainda" (PRD 6.1).</div>
-            <div class="finding-fix"><strong>Fix:</strong> adicionar ao menos um estado vazio/erro por superfície.</div>
-          </article>
-          <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title">Comanda (detalhe) sem nenhum State Pattern, apesar de ser uma das telas mais usadas</h3><span class="finding-location">EXPERIENCE.md — ausente</span></header>
-            <div class="finding-note">Faltam: comanda fechada/imutável (PRD 5.5), divergência de soma no split (PRD 5.2 — já citado num flow mas sem State formal), comanda vazia.</div>
-            <div class="finding-fix"><strong>Fix:</strong> adicionar uma linha de State Patterns pra Comanda.</div>
-          </article>
-          <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title">Estados de bloqueio de 2.8/3.4/3.5 sem nenhum State Pattern — mesmo gap de atualidade do item 1</h3><span class="finding-location">EXPERIENCE.md — ausente</span></header>
-            <div class="finding-note">Mesa com comanda aberta não pode ser removida; categoria com produto vinculado não pode ser removida — nenhum dos dois estados de bloqueio está especificado.</div>
-            <div class="finding-fix"><strong>Fix:</strong> mesma remediação do achado de atualidade em §1.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-critical">crítico</span><h3 class="finding-title">DESIGN.md se contradiz sobre a cor de marca</h3><span class="finding-location">DESIGN.md:~155 vs. Colors section</span></header>
+            <div class="finding-note">Brand &amp; Style ainda diz "Laranja-queimado (<code>{'{colors.primary}'}</code>) significa 'isto é uma ação'", mas a seção Colors, 8 linhas depois, documenta a troca pra borgonha em 2026-09-22 — a frase mais provável de ser lida isolada (abre a seção mais importante do documento) está errada.</div>
+            <div class="finding-fix"><strong>Fix:</strong> trocar "Laranja-queimado" por "Borgonha" na linha 155.</div>
           </article>
         </div>
       </details>
     </section>
 
-    <!-- 5. Visual reference coverage -->
     <section class="dimension">
       <details>
-        <summary><h2>5. Visual reference coverage</h2><span class="verdict-pill verdict-strong">strong</span></summary>
-        <div class="dim-body"><div class="dim-judgment"><p>Checado: <code>mockups/</code>, <code>wireframes/</code>, <code>imports/</code> na pasta do workspace. <code>imports/</code> existe e está vazio; não há <code>mockups/</code>/<code>wireframes/</code>; <code>.working/</code> também existe e está vazio. Nada a falhar aqui: EXPERIENCE.md já divulga explicitamente "nenhum mock ainda nesta rodada" e declara spine-vence-conflito uma vez, batendo com as pastas vazias em disco — escolha deliberada e registrada no memlog, não descuido.</p></div></div>
+        <summary><h2>8. Shape fit</h2><span class="verdict-pill verdict-strong">forte</span></summary>
+        <div class="dim-body"><div class="dim-judgment"><p>DESIGN.md segue a ordem canônica completa. EXPERIENCE.md tem todos os padrões obrigatórios presentes e na mesma ordem dos exemplos de referência.</p></div></div>
+        <div class="findings-list"></div>
       </details>
     </section>
 
-    <!-- 6. Bloat -->
-    <section class="dimension">
-      <details>
-        <summary><h2>6. Bloat &amp; overspecification</h2><span class="verdict-pill verdict-adequate">adequate</span></summary>
-        <div class="dim-body"><div class="dim-judgment"><p>Nenhum trecho sinalizado como specs em pixel onde token já cobre, restatement de fonte, ou prosa decorativa desconectada de decisão. DESIGN.md carrega voz editorial nos lugares certos; EXPERIENCE.md se mantém funcional.</p></div></div>
-      </details>
-    </section>
-
-    <!-- 7. Inheritance -->
-    <section class="dimension">
-      <details>
-        <summary><h2>7. Inheritance discipline</h2><span class="verdict-pill verdict-adequate">adequate</span></summary>
-        <div class="dim-body"><div class="dim-judgment"><p><code>sources</code> resolve; nomes de componente idênticos nas seções onde aparecem; referências de token do EXPERIENCE.md resolvem por nome no DESIGN.md. Único desvio: persona "Dono/Gerente" (PRD §2) encurtada pra "Dono" em todo o EXPERIENCE.md.</p></div></div>
-        <div class="findings-list">
-          <article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title">"Dono/Gerente" encurtado pra "Dono", não-verbatim</h3><span class="finding-location">EXPERIENCE.md — tabela de IA, Key Flow 3</span></header>
-            <div class="finding-note">Inofensivo, mas não é cópia literal da fonte.</div>
-            <div class="finding-fix"><strong>Fix:</strong> normalizar numa linha se herança verbatim estrita importar downstream.</div>
-          </article>
-        </div>
-      </details>
-    </section>
-
-    <!-- 8. Shape fit -->
-    <section class="dimension">
-      <details>
-        <summary><h2>8. Shape fit</h2><span class="verdict-pill verdict-strong">strong</span></summary>
-        <div class="dim-body"><div class="dim-judgment"><p>DESIGN.md segue a ordem canônica exata (Brand &amp; Style → Colors → Typography → Layout &amp; Spacing → Elevation &amp; Depth → Shapes → Components → Do's and Don'ts). EXPERIENCE.md também: Foundation → IA → Voice and Tone → Component Patterns → State Patterns → Interaction Primitives → Accessibility Floor → Responsive &amp; Platform → Inspiration &amp; Anti-patterns → Key Flows — batendo com o padrão de referência (Drift/shadcn), incluindo Responsive &amp; Platform justificado (multi-superfície) e Key Flows por último, conforme o próprio memlog registra ter sido reordenado em revisão anterior.</p></div></div>
-      </details>
-    </section>
-
-    <!-- Extra reviewer: Visual/Layout Audit -->
     <section class="reviewer-section">
       <details open>
-        <summary><h2>Auditoria visual/layout (app real, screenshots)</h2><span class="reviewer-source">review-visual-audit.md</span></summary>
-        <div class="dim-body"><div class="dim-judgment"><p>Feita navegando o app real (<code>localhost:1420</code>, Vite dev), logado como dono. 7 telas com screenshot (Login, Mapa de Mesas, Comanda, Caixa, Cardápio, Cadastrar operador, Pareamento), 2 delas também em dark mode. Não foi possível reproduzir viewport &lt;768px nesta sessão — esses achados vêm de leitura direta do CSS, sinalizado em cada um. Todo achado cita a classe CSS e o componente React exatos por trás do que foi visto.</p></div></div>
+        <summary><h2>Auditoria Visual — Rodada 4 (código real do app)</h2><span class="reviewer-source">review-visual-audit-round4.md</span></summary>
+        <div class="dim-body"><div class="dim-judgment"><p>Leitura em profundidade de <code>app.css</code> cruzada com todos os componentes de tela, incluindo a tela nova (Conflitos de Mesas, primeira auditoria). Os 11 achados da Rodada 3 (2026-09-22) foram confirmados corrigidos — não repetidos aqui. A migração de cor laranja→borgonha foi conferida à parte: nenhum problema encontrado.</p></div></div>
         <div class="findings-list">
-
-          <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title">Três botões de texto completo empilhados por linha de produto — pior caso de desproporção do app</h3><span class="finding-location">catalog.tsx:334-344 · .catalog-table, app.css:538-561</span></header>
-            <div class="finding-note">"Desativar"/"Renomear"/"Remover" são 3 <code>&lt;button className="button-secondary"&gt;</code> que herdam padding 12px/24px, font-size 16px, min-height 48px do seletor <code>button</code> genérico. Numa célula estreita, quebram como texto — 3 botões de 48px+ empilhados fazem a linha do produto passar de ~170px de altura, quando o conteúdo real ocupa uma única linha de 16-20px. Empurra a coluna "Nome" a também quebrar em 3 linhas, causando o desalinhamento do achado seguinte.</div>
-            <div class="finding-fix"><strong>Fix:</strong> variante compacta 48×48 com ícone (SVG stroke 20px ou glifo Unicode, sem lib nova) + <code>aria-label</code>, em vez do botão de texto completo, só pra ações de linha de tabela.
-            <pre class="fix-code">.row-action-button {
-  width: var(--spacing-touch-target-min);
-  height: var(--spacing-touch-target-min);
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}</pre></div>
+          <article class="finding">
+            <header><span class="badge badge-sev-critical">crítico</span><h3 class="finding-title">Fechamento trava sem explicação com split de 1 parte editada</h3><span class="finding-location">order-closing.tsx:102,218,228-230</span></header>
+            <div class="finding-note">O indicador <code>.split-diff</code> só renderiza com <code>splits.length &gt; 1</code>; a parte única é editável e não resincroniza automaticamente com o total. Editando o valor manualmente, <code>canConfirm</code> vira <code>false</code> e "Confirmar fechamento" desabilita sem nenhuma mensagem, indicador ou pista — na tela de maior fila do app.</div>
+            <div class="finding-fix"><strong>Fix:</strong> trocar a condição de <code>splits.length &gt; 1</code> pra <code>splits.length &gt; 0</code> em <code>order-closing.tsx:218</code>.</div>
           </article>
-
-          <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title">"Abrir comanda" quebra em duas linhas dentro do table-tile</h3><span class="finding-location">table-map.tsx:180-182 · .table-tile-grid/.table-tile-actions, app.css:587-591, 647-651</span></header>
-            <div class="finding-note">Grid limita o tile a 170px; com padding de 16px por lado sobram ~138px pro botão, que herda padding 12px/24px + font-size 16px/600 — "Abrir comanda" (13 caracteres) não cabe e quebra em duas linhas, quase dobrando a altura do botão (48px → 80px) e deixando o card visualmente mais pesado que o esperado.</div>
-            <div class="finding-fix"><strong>Fix:</strong> aumentar o grid pra <code>minmax(200px, 1fr)</code> e reduzir o padding horizontal do botão primário só nesse contexto (<code>--spacing-2 --spacing-4</code>, 8px/16px) — cabe numa linha, card volta perto do <code>min-height: 96px</code> pretendido.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-high">alto</span><h3 class="finding-title">Linha de conflito não resolvido sem proteção de quebra</h3><span class="finding-location">table-conflicts.tsx:47-59</span></header>
+            <div class="finding-note">Dois controles de texto completo (link + botão) na mesma linha dentro de <code>.catalog-list-actions</code>, sem <code>flex-wrap</code> — único lugar do app que combina dois controles desse tamanho. Risco concreto na faixa 768-1023px (tablet paisagem).</div>
+            <div class="finding-fix"><strong>Fix:</strong> <code>flex-wrap: wrap</code> em <code>.catalog-list-actions</code>, ou encurtar os rótulos.</div>
           </article>
-
-          <article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">Ação principal e ações administrativas com o mesmo peso visual no table-tile</h3><span class="finding-location">.table-tile-actions .button-primary/.button-secondary, app.css:647-651</span></header>
-            <div class="finding-note">"Abrir comanda" (ação principal, uma por tile) e "Renomear"/"Remover" (ações raras, só do dono) compartilham <code>min-height: 48px</code> e padding generoso — contraria o próprio DESIGN.md ("button-primary usado uma vez por tela como a ação principal óbvia").</div>
-            <div class="finding-fix"><strong>Fix:</strong> aplicar a mesma variante compacta/ícone do achado acima em "Renomear"/"Remover" dentro do tile.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-high">alto</span><h3 class="finding-title">Histórico de conflitos sem paginação/priorização</h3><span class="finding-location">lib/table-conflicts.ts:16-27</span></header>
+            <div class="finding-note">Ordena só por <code>createdAt</code> desc, sem filtro por resolvido/não-resolvido. Quebra a premissa de "sem paginação" do EXPERIENCE.md, que só vale pra listas de tamanho estável (mesas/produtos) — não pra um log de auditoria que cresce pra sempre.</div>
+            <div class="finding-fix"><strong>Fix:</strong> não-resolvidos primeiro (ou seções separadas); considerar filtro/paginação antes do histórico crescer.</div>
           </article>
-
-          <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title">Desalinhamento vertical de linha inteira na tabela de produtos</h3><span class="finding-location">.catalog-table, app.css:549 (vertical-align: middle)</span></header>
-            <div class="finding-note">Consequência direta do achado de botões: "Nome" quebra em 3 linhas enquanto Categoria/Preço/Status ficam em 1 — badge e preço "flutuam" no meio de uma linha muito mais alta que o necessário. Resolvido junto ao compactar a coluna de ações.</div>
-            <div class="finding-fix"><strong>Fix:</strong> mesmo fix do achado de botões de linha de tabela acima — resolve os dois de uma vez.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-high">alto</span><h3 class="finding-title">Navegação do dono chegou a 6 itens</h3><span class="finding-location">layout.tsx:33-60</span></header>
+            <div class="finding-note">EXPERIENCE.md:101 já pedia "avaliar colapsar em menu" a partir de 5-6 itens; a rota nova (Conflitos de Mesas) cruzou esse limite de fato. Não quebra o layout (<code>flex-wrap</code> já existe), mas o cabeçalho passa a ocupar 2-3 linhas em telas estreitas.</div>
+            <div class="finding-fix"><strong>Fix:</strong> o menu compacto que já era "avaliar" virou prioridade real de implementação.</div>
           </article>
-
-          <article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">Cadastrar operador: título alinhado à esquerda, formulário centralizado numa caixa mais estreita</h3><span class="finding-location">operator-registration.tsx:84-88 · .container/.operator-form, app.css:390-398, 465-472</span></header>
-            <div class="finding-note"><code>.container</code> tem 480px (432px úteis após padding); <code>h1</code> força <code>text-align: left</code>; <code>.operator-form</code> define seu próprio <code>max-width: 360px; margin: 0 auto</code> — o título começa ~36px mais à esquerda que os campos do formulário abaixo dele. Confirmado na screenshot.</div>
-            <div class="finding-fix"><strong>Fix:</strong> remover o <code>max-width</code>/<code>margin:auto</code> próprio de <code>.operator-form</code> (herdar do container), ou aplicar o mesmo <code>max-width: 360px</code> também ao <code>h1</code> e parágrafos irmãos, pra manter margem esquerda comum.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-medium">médio</span><h3 class="finding-title"><code>.type-label</code> usado em texto corrido de 4 telas</h3><span class="finding-location">table-conflicts.tsx:30-36, cash-register.tsx:29-32,36-38,85-87, order-closing.tsx:165,169</span></header>
+            <div class="finding-note">Rótulo 13px/600/letter-spacing aberto aplicado a parágrafos explicativos de 4 frases — mais difícil de ler rápido do que texto corrido normal (16px/400), justo onde o dono precisa ler rápido.</div>
+            <div class="finding-fix"><strong>Fix:</strong> trocar pra <code>&lt;p&gt;</code> sem classe (ou uma <code>.help-text</code> neutra) nos locais citados.</div>
           </article>
-
-          <article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">Pareamento: parágrafos centralizados por herança, headings à esquerda — dois alinhamentos na mesma tela</h3><span class="finding-location">.container (text-align: center herdado) vs. h1,h2 { text-align: left }</span></header>
-            <div class="finding-note">Parágrafos de instrução ficam centralizados com bordas irregulares dos dois lados (ruim pra legibilidade de texto corrido); os <code>h2</code> de cada seção ficam à esquerda — título e corpo da mesma seção têm margens esquerdas diferentes.</div>
-            <div class="finding-fix"><strong>Fix:</strong> mover <code>text-align: center</code> de <code>.container</code> pra só a tela de Login (curta, majoritariamente numérica/centralizada por natureza); dar <code>text-align: left</code> padrão às demais rotas que usam <code>.container</code>.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-medium">médio</span><h3 class="finding-title">"Voltar" vs "Cancelar" pro mesmo botão, no mesmo arquivo</h3><span class="finding-location">order.tsx:270,301 vs. 325-327</span></header>
+            <div class="finding-note"><code>Cancelar</code> é a convenção estabelecida em 5 de 6 ocorrências desse padrão no app inteiro; <code>Voltar</code> é a exceção, e aparece duas vezes dentro do mesmo componente.</div>
+            <div class="finding-fix"><strong>Fix:</strong> trocar <code>Voltar</code> por <code>Cancelar</code> em <code>order.tsx:270</code> e <code>:301</code>.</div>
           </article>
-
-          <article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title">Mapa de Mesas com poucas mesas: grid não preenche, resto da tela vazio</h3><span class="finding-location">table-map.tsx:226 · .table-tile-grid, .catalog-empty</span></header>
-            <div class="finding-note">Com 1 mesa cadastrada, o card de 170-200px fica sozinho no canto, mais de 80% da tela em cinza liso — esperado em parte (estado com poucos dados), mas sem nenhum hint visual orientando que ali é onde mais mesas vão aparecer. Só há texto de estado vazio quando <code>tables.length === 0</code>, não no caso "só uma mesa".</div>
-            <div class="finding-fix"><strong>Fix:</strong> quando <code>tables.length</code> está entre 1 e ~4, mostrar um bloco tracejado "+ Cadastrar mais mesas" do mesmo tamanho do tile, ocupando o grid visualmente.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-low">baixo</span><h3 class="finding-title">Erro de "marcar como resolvido" no topo, não perto da ação</h3><span class="finding-location">table-conflicts.tsx:38</span></header>
+            <div class="finding-note">Aparece antes da lista onde a ação foi disparada; em todo outro lugar do app (Cardápio, Mapa de Mesas), o erro de ação de linha vem depois do bloco correspondente.</div>
+            <div class="finding-fix"><strong>Fix:</strong> mover pra depois do <code>&lt;/ul&gt;</code> (<code>table-conflicts.tsx:64</code>).</div>
           </article>
-
-          <article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title">Login/pin-pad: ~90% da tela vazio mesmo no uso real (tablet)</h3><span class="finding-location">.container, .pin-display, app.css:421-430; login.tsx:72</span></header>
-            <div class="finding-note">Pin-pad (~234×310px) ocupa uma fração pequena do centro; mesmo num tablet de 1024px sobram ~790px de vazio horizontal. Somado a <code>.pin-display</code> renderizando um espaço em branco quando <code>pin.length === 0</code>, a tela parece incompleta num primeiro olhar. Não é necessariamente errado (minimalismo é escolha válida), mas não é prioridade alta.</div>
-            <div class="finding-fix"><strong>Fix (se endereçado):</strong> reduzir o padding vertical do <code>.container</code> no login especificamente, e considerar aumentar levemente <code>pin-key</code>/gap pra que o teclado ocupe proporcionalmente mais da área central.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-low">baixo</span><h3 class="finding-title">Divisor de "linha total" numa única linha de resumo</h3><span class="finding-location">order.tsx:250-255</span></header>
+            <div class="finding-note"><code>.summary-row-total</code> foi desenhada pra separar a última linha das linhas de composição acima — sem nenhuma linha antes dela, o efeito é uma régua flutuando sozinha.</div>
+            <div class="finding-fix"><strong>Fix:</strong> remover <code>summary-row-total</code> aqui, ou remover só o <code>border-top</code>/<code>padding-top</code> quando é a única linha.</div>
           </article>
+        </div>
+      </details>
+    </section>
 
-          <article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title"><code>.app-content { max-width: 1024px }</code> contradiz o próprio DESIGN.md e limita quantas mesas cabem na tela</h3><span class="finding-location">.app-content, app.css:379-385</span></header>
-            <div class="finding-note">Numa viewport de 1568px (monitor comum de caixa/dono), sobram 272px de vazio de cada lado — quase 35% da largura ociosa. O DESIGN.md (§Layout &amp; Spacing) declara explicitamente "layout em largura total até 1024px, sem coluna central estreita artificial... uma tela de PDV se beneficia de mostrar mais mesas/itens de uma vez". Um teto fixo com <code>margin:auto</code> é exatamente essa "coluna central estreita" em telas maiores. Efeito prático: no Fluxo 1 (sexta-feira lotada, 20 mesas), o garçom vê 4 linhas com scroll quando caberiam menos sem scroll usando a tela inteira.</div>
-            <div class="finding-fix"><strong>Fix:</strong> aumentar ou remover o <code>max-width</code> de <code>.app-content</code> nas telas de grid/lista densa (Mapa de Mesas, Cardápio) — ex. <code>max-width: 1440px</code> ou <code>none</code> com padding lateral generoso; manter 1024px só onde uma coluna estreita ajuda leitura (já coberto por <code>.container</code>, não <code>.app-content</code>).</div>
+    <section class="reviewer-section">
+      <details open>
+        <summary><h2>Acessibilidade</h2><span class="reviewer-source">review-accessibility.md</span></summary>
+        <div class="dim-body"><div class="dim-judgment"><p>Leitura de código (JSX + app.css), sem browser/leitor de tela real. Contraste estimado via fórmula de luminância relativa WCAG aplicada aos hex declarados em <code>app.css</code>.</p></div></div>
+        <div class="findings-list">
+          <article class="finding">
+            <header><span class="badge badge-sev-critical">crítico</span><h3 class="finding-title">Mapa de mesas sem semântica de lista/tabela</h3><span class="finding-location">table-map.tsx:190,194</span></header>
+            <div class="finding-note">Achado conhecido (<code>deferred-work.md</code>), confirmado ainda presente. Grid inteiro de <code>&lt;div&gt;</code>, nenhum <code>role</code>/elemento semântico substitui a tabela perdida. É a tela de maior tráfego do app (destino pós-login).</div>
+            <div class="finding-fix"><strong>Fix (piso mínimo):</strong> <code>role="list"</code> no grid + <code>role="listitem"</code> em cada tile + <code>aria-label</code> associando "Mesas (N)" à coleção.</div>
           </article>
-
-          <article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title">Placeholder cortado no formulário "Cadastrar mesa"</h3><span class="finding-location">.inline-form input, app.css:488-494</span></header>
-            <div class="finding-note">Input sem <code>width</code>/<code>flex</code> definido usa a largura intrínseca do browser (~20 caracteres) — placeholder "Identificador (ex: Mesa 1)" aparece cortado como "Identificador (ex: Mesa".</div>
-            <div class="finding-fix"><strong>Fix:</strong> <code>.inline-form input { flex: 1; min-width: 200px; }</code></div>
+          <article class="finding">
+            <header><span class="badge badge-sev-high">alto</span><h3 class="finding-title">Nenhum <code>&lt;h1&gt;</code> em nenhuma tela autenticada</h3><span class="finding-location">layout.tsx:31 + toda rota (table-map.tsx:164, catalog.tsx:195, cash-register.tsx:28, table-conflicts.tsx:29, order.tsx:183)</span></header>
+            <div class="finding-note">Toda tela usa <code>&lt;h2&gt;</code> como título; o wordmark do header é <code>&lt;span&gt;</code>, sem papel de heading. Navegação por heading (técnica primária de leitor de tela) não encontra nada em nível 1 em nenhuma das 6+ telas de uso diário.</div>
+            <div class="finding-fix"><strong>Fix:</strong> promover o <code>&lt;h2&gt;</code> de cada rota pra <code>&lt;h1&gt;</code>, rebaixar subseções (<code>&lt;h3&gt;</code>→<code>&lt;h4&gt;</code>).</div>
           </article>
-
-          <article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">Botão desabilitado perde contraste em dark mode</h3><span class="finding-location">button:disabled, app.css:232-235</span></header>
-            <div class="finding-note">Só <code>opacity: 0.5</code> sinaliza desabilitado. Em modo claro isso lê como "apagado" sobre <code>--color-primary</code>; em dark mode, a mesma opacidade sobre <code>--color-primary-dark</code> (mais claro/saturado por design) ainda lê como botão sólido e convidativo — o sinal de "não clicável" é bem mais fraco no tema escuro.</div>
-            <div class="finding-fix"><strong>Fix:</strong> regra própria pra <code>.button-primary:disabled</code> trocando cor de fundo (ex. <code>--color-surface-container-high</code> + <code>--color-on-surface-variant</code>) em vez de só opacidade, nos dois temas.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-high">alto</span><h3 class="finding-title">Mensagens de erro nunca anunciadas nem associadas ao campo</h3><span class="finding-location">.form-error × 23 ocorrências em apps/desktop/src</span></header>
+            <div class="finding-note">Zero ocorrências de <code>role="alert"</code>/<code>aria-live</code>/<code>aria-describedby</code> em todo o app (a única <code>aria-live</code> é o contador de dígitos do PIN). O texto nomeia a regra certa, mas não chega garantidamente ao leitor de tela nem se associa ao campo que falhou.</div>
+            <div class="finding-fix"><strong>Fix:</strong> <code>role="alert"</code> em <code>.form-error</code>; <code>aria-describedby</code> no input correspondente quando aplicável.</div>
           </article>
-
-          <article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title">Coluna fantasma no cabeçalho da tabela de itens da Comanda</h3><span class="finding-location">order.tsx:109-153</span></header>
-            <div class="finding-note">5ª coluna sem <code>&lt;th&gt;</code> de texto (só pro botão "Cancelar" por item); invisível hoje porque a comanda de teste está vazia, mas o mesmo padrão do achado de <code>catalog-table</code> vai se repetir assim que houver itens e um operador com permissão de cancelar.</div>
-            <div class="finding-fix"><strong>Fix:</strong> preventivo — aplicar a mesma variante compacta de botão de linha de tabela nessa coluna também.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-medium">médio</span><h3 class="finding-title">Campos do split de fechamento sem label</h3><span class="finding-location">order-closing.tsx:182-201</span></header>
+            <div class="finding-note">Valor, forma de pagamento e valor recebido dependem só do <code>placeholder</code>, que some ao digitar — diferente do resto do app, que usa <code>&lt;label&gt;</code> visível ou <code>aria-label</code> explícito.</div>
+            <div class="finding-fix"><strong>Fix:</strong> <code>aria-label="Valor da parte"</code> / <code>"Forma de pagamento"</code> / <code>"Valor recebido em dinheiro"</code> nos três controles.</div>
           </article>
-
-          <article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">Nav do header sem regra responsiva abaixo de 768px (achado por leitura de CSS, não screenshot)</h3><span class="finding-location">.app-nav, app.css:300-308; único @media em app.css:783-792</span></header>
-            <div class="finding-note">O único bloco <code>@media (max-width: 767px)</code> trata só <code>.inline-form</code> e <code>.container</code> — nada pra <code>.app-nav</code> (5 links + marca + operador + status do sidecar, tudo num <code>flex-wrap</code> único). O próprio EXPERIENCE.md já sinaliza essa lacuna ("nav pode precisar de menu compacto... avaliar na implementação") e ela não foi endereçada. Não foi possível confirmar com screenshot nesta sessão (viewport não redimensionou), mas o gap no CSS é concreto.</div>
-            <div class="finding-fix"><strong>Fix:</strong> confirmar com screenshot real assim que possível; se confirmado, colapsar a nav num menu compacto abaixo de 768px, conforme o próprio EXPERIENCE.md já antecipava.</div>
+          <article class="finding">
+            <header><span class="badge badge-sev-medium">médio</span><h3 class="finding-title">Texto "inativo"/"vazio" cai abaixo de AA no modo claro</h3><span class="finding-location">app.css:722-726,749-751 (.catalog-empty, .catalog-row-inactive)</span></header>
+            <div class="finding-note"><code>opacity: 0.6</code> sobre <code>#1A1A1A</code> em <code>#F6F6F6</code> dá um contraste efetivo de ≈4.45:1, abaixo do piso AA de 4.5:1 pra texto normal. Modo escuro não falha (≈6.28:1) — só o claro.</div>
+            <div class="finding-fix"><strong>Fix:</strong> trocar <code>opacity: 0.6</code> por uma cor sólida derivada (ex: <code>--color-on-surface-variant</code> + itálico/riscado), sem depender de opacidade.</div>
           </article>
-
+          <article class="finding">
+            <header><span class="badge badge-sev-medium">médio</span><h3 class="finding-title">Banner de merge sem <code>role="status"</code></h3><span class="finding-location">layout.tsx:86 vs. pairing.tsx:135,141</span></header>
+            <div class="finding-note">O ARCH exige que o merge automático "nunca passe em silêncio", mas o banner não usa nenhum mecanismo de anúncio ativo — o app já tem o padrão certo aplicado em <code>pairing.tsx</code>, só não foi replicado aqui.</div>
+            <div class="finding-fix"><strong>Fix:</strong> <code>role="status"</code> (ou <code>aria-live="polite"</code>) na <code>&lt;div className="merge-warning-banner"&gt;</code>.</div>
+          </article>
+          <article class="finding">
+            <header><span class="badge badge-sev-low">baixo</span><h3 class="finding-title">Tecla "⌫" do PIN sem <code>aria-label</code></h3><span class="finding-location">login.tsx:6,105</span></header>
+            <div class="finding-note">Nome acessível depende só do glifo Unicode U+232B — comportamento não garantido entre motores de leitura de tela/idioma, no componente que EXPERIENCE.md chama de "não pode falhar".</div>
+            <div class="finding-fix"><strong>Fix:</strong> <code>aria-label="Apagar"</code> no botão.</div>
+          </article>
+          <article class="finding">
+            <header><span class="badge badge-sev-low">baixo</span><h3 class="finding-title">Detalhe técnico do sidecar só via <code>title</code></h3><span class="finding-location">layout.tsx:75-80</span></header>
+            <div class="finding-note">O texto visível ("Conectado"/"Sem conexão") já satisfaz "nunca só cor", mas o detalhe de erro só aparece em hover de mouse — sem equivalente por teclado ou leitor de tela.</div>
+            <div class="finding-fix"><strong>Fix:</strong> expor via <code>aria-describedby</code> apontando pra um elemento com o texto, em vez de só <code>title</code>.</div>
+          </article>
         </div>
       </details>
     </section>
 
     <div class="mechanical">
-      <h3>Notas mecânicas</h3>
+      <h3>Mechanical notes</h3>
       <ul>
-        <li><strong>Atualidade:</strong> <code>docs/prd.md</code> foi modificado pela última vez em 2026-09-22 00:27 — depois do <code>updated: 2026-09-21</code>/<code>status: final</code> dos dois spines. As histórias 2.8/3.4/3.5 e a renomeação do Épico 6 são a causa raiz da maioria dos achados de Flow/State coverage acima.</li>
-        <li><strong>Cross-refs:</strong> <code>ARCH §3</code> e <code>ARCH §4.2</code> resolvem corretamente contra a numeração real de <code>docs/architecture.md</code>. Nenhuma referência quebrada.</li>
-        <li><strong>Frontmatter:</strong> ambos parseiam limpo; <code>sources</code> do EXPERIENCE.md resolve pros 3 arquivos. DESIGN.md sem <code>sources</code>, consistente com os dois exemplos de referência.</li>
-        <li><strong>Mermaid:</strong> nenhum diagrama em nenhum dos dois arquivos — nada a checar.</li>
+        <li>IA do EXPERIENCE.md lista 7 superfícies; o app real tem 9 rotas — faltam "Conflitos de Mesas" e "Configurações".</li>
+        <li>Datas de <code>updated</code> dessincronizadas: DESIGN.md (2026-09-22) vs. EXPERIENCE.md (2026-09-21) — anterior às mudanças de escopo que deveriam tê-las disparado.</li>
+        <li><code>status: final</code> em ambos os arquivos é otimista dado o volume de achados critical/high acima.</li>
+        <li>Migração de cor laranja→borgonha confirmada limpa em todo <code>app.css</code> — nenhum hex hardcoded fora de <code>:root</code>.</li>
+        <li>Todos os 11 achados da Rodada 3 da auditoria visual (2026-09-22) foram confirmados corrigidos no código atual.</li>
+        <li>Nenhuma referência sobrevivente à feature removida 2.6 (junção de mesas) foi encontrada em nenhuma das duas spines.</li>
       </ul>
     </div>
 
     <footer class="report-footer">
       <div class="meta">
         <span>Rubric: review-rubric.md</span>
-        <span>Auditoria visual: review-visual-audit.md</span>
-        <span>Generated: 2026-09-22T12:02:08Z</span>
+        <span>Reviewers: review-visual-audit-round4.md, review-accessibility.md</span>
+        <span>Generated: 2026-09-23T19:14:17Z</span>
       </div>
     </footer>
   </div>

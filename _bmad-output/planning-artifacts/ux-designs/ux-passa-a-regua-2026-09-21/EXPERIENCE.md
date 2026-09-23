@@ -5,7 +5,7 @@ sources:
   - docs/project-brief.md
   - docs/prd.md
   - docs/architecture.md
-updated: 2026-09-21
+updated: 2026-09-23
 ---
 
 # Passa a Régua — Experience Spine
@@ -27,12 +27,14 @@ Desktop nativo (Tauri + React), multi-superfície: o mesmo bundle roda tanto num
 | Mapa de Mesas | Nav principal, destino pós-login | Todos | Ver mesas livres/ocupadas, abrir/transferir mesa, abrir comanda avulsa |
 | Comanda (detalhe) | Tocar numa mesa ocupada / comanda avulsa | Todos (fechar é caixa/dono) | Lançar item, cancelar item, fechar comanda com split |
 | Caixa | Nav | Caixa, Dono | Resumo do dia: total vendido, por forma de pagamento, comandas pendentes |
-| Cardápio | Nav | Dono | Categorias, produtos, taxa de serviço padrão do estabelecimento |
-| Pareamento | Nav (dono) / link no login (terminal novo) | Dono | Ver/copiar token LAN deste terminal, adotar token de outro, host manual, status de nuvem |
+| Cardápio | Nav | Dono | Categorias e produtos (cadastrar, renomear, remover/ativar-desativar) |
+| Configurações | Nav (dono) | Dono | Taxa de serviço padrão do estabelecimento; ponto de entrada pra Pareamento |
+| Pareamento | Link "Configurar pareamento" em Configurações (dono) / link no login (terminal novo sem operador) | Dono / Ninguém logado ainda (bootstrap) | Ver/copiar token LAN deste terminal, adotar token de outro, host manual, status de nuvem. Rota própria, fora do shell autenticado — precisa funcionar pra um terminal que ainda não tem nenhum operador cadastrado (ARCH §9) |
+| Conflitos de Mesas **[2026-09-23]** | Nav (dono) | Dono | Histórico completo de conflitos de mesa (duas comandas abertas pra mesma mesa, mescladas automaticamente — ARCH §4.2); marcar conflito como resolvido |
 
-Não há navegação em profundidade além de dois níveis (nav principal → detalhe de comanda). Nenhuma tela tem paginação hoje (volume de um bar pequeno cabe inteiro na tela); isso é uma característica do domínio, não uma omissão a corrigir.
+Não há navegação em profundidade além de dois níveis (nav principal → detalhe de comanda). Nenhuma tela tem paginação hoje (volume de um bar pequeno cabe inteiro na tela) — característica do domínio pra mesas/produtos/operadores (conjunto limitado, estável). **Exceção registrada 2026-09-23:** Conflitos de Mesas é um log de auditoria que só cresce (nunca encolhe) — essa premissa não vale pra ele; ver State Patterns.
 
-→ Referência de composição: nenhum mock ainda nesta rodada (caminho rápido, sem ferramentas criativas) — ver Mock coverage na finalização. A espinha vence em caso de conflito com qualquer mock futuro.
+→ Referência de composição: nenhum mock feito até agora (caminho rápido, sem ferramentas criativas) — histórico completo em `.memlog.md` e nos relatórios de validação (`review-*.md`, `validation-report.md`) desta mesma pasta. A espinha vence em caso de conflito com qualquer mock futuro.
 
 ## Voice and Tone
 
@@ -58,8 +60,9 @@ Comportamental — a especificação visual de cada componente vive em `DESIGN.m
 | `pin-key` | Login | Teclado numérico de 12 teclas (`1`-`9`, `⌫`, `0`, `OK`), já existe — este sistema só aumenta a área de toque e o tamanho do dígito (ver `DESIGN.md.components.pin-key`). Nenhuma mudança de fluxo. |
 | `status-badge` | Header (sidecar ok/offline), Cardápio (produto ativo/inativo), Caixa (comanda pendente) | Cor semântica fixa (success/warning/danger) — nunca cor arbitrária por contexto. Texto sempre acompanha a cor (nunca só cor, ver Accessibility Floor). |
 | `merge-warning-banner` | Global (abaixo do header, qualquer tela) | Já existe (ARCH §4.2) — só herda a paleta `warning` deste sistema. Continua não-bloqueante: nunca modal, nunca impede a ação em andamento. |
-| Formulário inline (`inline-form`) | Cardápio, Pareamento | Campo + botão na mesma linha em telas largas; empilha em telas estreitas (tablet retrato). Erro de validação aparece abaixo do campo, nunca só como cor de borda. |
-| Split de conta | Fechamento de comanda | Indicador "falta/sobra" ao vivo enquanto o caixa digita os valores — já existe, mantém-se; ganha destaque visual maior (`{typography.body-strong}` + cor de aviso quando não bate) porque é a tela de maior pressão de tempo do fluxo (fila no caixa). |
+| Formulário inline (`inline-form`) | Cardápio, Pareamento, Configurações | Campo + botão na mesma linha em telas largas; empilha em telas estreitas (tablet retrato). Erro de validação aparece abaixo do campo, nunca só como cor de borda. |
+| Split de conta **[corrigido 2026-09-23]** | Fechamento de comanda | Indicador "falta/sobra" ao vivo a partir de 1 parte (antes só com 2+, o que travava "Confirmar fechamento" sem explicação numa parte única editada manualmente), com destaque visual (`{typography.body-strong}` + cor de aviso) por ser a tela de maior pressão do fluxo (fila no caixa). |
+| Ação de linha (`row-action-button`) **[2026-09-23]** | Cardápio (categoria/produto), Mapa de Mesas (mesa), Comanda (editar/cancelar item) | Ícone só, nunca texto completo, pra caber em colunas/grids estreitos sem quebrar linha — mesma ação semântica sempre com o mesmo componente visual. `aria-label` obrigatório. |
 
 ## State Patterns
 
@@ -69,15 +72,19 @@ Comportamental — a especificação visual de cada componente vive em `DESIGN.m
 | Nenhum operador cadastrado (bootstrap) | Login | Estado já tratado: link pra cadastro do primeiro operador OU pareamento com terminal existente. Mantém as duas opções lado a lado, sem uma parecer "secundária" — são igualmente prováveis pro segundo terminal de um bar. |
 | Mesa livre vs. ocupada | Mapa de Mesas | `table-tile-free` vs. `table-tile-occupied` (ver Components) — o estado mais consultado do app, precisa ser reconhecível em visão periférica, não só ao focar o olhar. |
 | Merge automático pendente | Global | Banner não-bloqueante com contagem + "ver detalhes" expansível — já existe, mantém-se. |
-| Limite de plano atingido (comandas ou terminais) | Mapa de Mesas (abrir comanda) / Pareamento (conectar terminal) | Mensagem nomeia o limite exato e sugere upgrade — já existe no backend; a UI precisa garantir que essa mensagem chega ao operador em destaque (não só um texto pequeno de erro), já que é o gatilho de conversão do freemium. |
+| Limite de plano atingido (comandas ou terminais) | Mapa de Mesas (abrir comanda) / Pareamento (conectar terminal) | Mensagem nomeia o limite exato e sugere upgrade, em destaque (não um texto pequeno de erro) — é o gatilho de conversão do freemium. Ver Key Flows. |
 | Carregando (primeira renderização de uma tela) | Qualquer tela com fetch inicial | Hoje é "Carregando..." em texto puro. Mantém-se simples (sem skeleton) — o volume de dados de um bar pequeno carrega rápido o bastante pra um skeleton ser over-engineering aqui. |
+| Remoção bloqueada por dependência **[2026-09-23]** | Cardápio (categoria com produto vinculado), Mapa de Mesas (mesa com comanda aberta) | Erro 409 inline nomeando a dependência exata ("remova os produtos primeiro" / "feche a comanda antes de remover a mesa"); só bloqueia a ação de remover, nunca a linha inteira. |
+| Vazio (sem dados ainda) **[2026-09-23]** | Conflitos de Mesas, Caixa, Cardápio | Texto direto no lugar da lista ("Nenhum conflito de mesa registrado ainda.", "Nenhuma comanda pendente.", "cadastre uma categoria antes"), nunca decorativo. |
+| Permissão negada **[2026-09-23]** | Rota `owner`/`owner+cashier` acessada por URL por quem não tem o papel | Link já não aparece no nav; se a rota for digitada mesmo assim, `RequireRole` redireciona pro Mapa de Mesas sem explicação — aceito, a rota nem deveria ser conhecida por esse papel. |
+| Foco de teclado | Qualquer input/select/button/link, todas as telas | Já existe: `outline: 2px solid {colors.primary}` (`outline-offset: 1px`) via `:focus-visible` — só aparece pra navegação por teclado, nunca por clique/toque (evita o "anel" indesejado que atrapalha o visual em uso normal). |
 
 ## Interaction Primitives
 
 **Toque é o modo primário**, mouse é aceito igualmente (não é "fallback" como seria num app mobile-first — desktop com mouse é uso real e comum, ex: dono no computador do escritório). Sem gestos exclusivos de toque (sem swipe-to-delete, sem long-press escondendo a única forma de acessar uma ação) — tudo alcançável por toque simples ou clique.
 
 - Nenhum atalho de teclado dedicado hoje (diferente de um app de produtividade) — o teclado físico não é garantido no tablet do garçom, então nenhuma ação crítica pode depender só dele.
-- `Esc` fecha o único nível de modal que existe hoje (nenhum) — não aplicável ainda; registrar como regra pra quando um modal for introduzido.
+- Regra registrada pra quando um modal for introduzido (nenhum existe hoje): `Esc` fecha o nível de modal aberto.
 - Confirmação de ação destrutiva (cancelar item, fechar comanda) é o próprio fluxo existente (motivo obrigatório, split que precisa bater exato) — já funciona como uma confirmação implícita por fricção, não precisa de um diálogo "tem certeza?" adicional.
 
 **Banido:** hover como única forma de revelar uma ação (não existe em toque); qualquer ação crítica que só funcione com teclado físico; loading infinito sem texto de status.
@@ -87,10 +94,16 @@ Comportamental — a especificação visual de cada componente vive em `DESIGN.m
 Comportamental — contraste visual vive em `DESIGN.md`.
 
 - Toda cor de status (`status-badge`, mesa ocupada) vem acompanhada de texto ou ícone — nunca só a cor, porque o ambiente de bar tem iluminação variável e nem todo operador tem visão de cor típica.
-- Alvo de toque mínimo 48px (`{spacing.touch-target-min}` em `DESIGN.md`) em qualquer elemento acionável, sem exceção — inclusive botões de ação dentro de linha de tabela (`catalog-table`, hoje abaixo desse piso).
+- Alvo de toque mínimo 48px (`{spacing.touch-target-min}` em `DESIGN.md`) em qualquer elemento acionável, sem exceção — garantido via `row-action-button` em toda ação de linha (Cardápio, Mapa de Mesas, Comanda) desde 2026-09-22.
 - Ordem de tabulação (`Tab`) segue a ordem visual em todo formulário — relevante pro dono usando mouse+teclado no escritório.
 - Mensagem de erro sempre em texto lido por leitor de tela (nunca só um ícone ou mudança de cor de borda).
 - Contraste AA mantido nos dois modos (claro/escuro) — ver nota em `DESIGN.md.Colors` sobre por que os tokens de dark mode não são uma versão "escurecida" dos tokens claros.
+
+**Gaps reais achados na validação de acessibilidade 2026-09-23 (código não cumpre o piso acima ainda — registrados aqui pra não se perder, não removidos até serem corrigidos):**
+- **Mapa de mesas sem semântica de lista/tabela pra leitor de tela** — o grid de `table-tile` é só `<div>`s, sem `role`/landmark. Gap conhecido desde a repaginação visual (`_bmad-output/implementation-artifacts/deferred-work.md`), ainda sem solução — não é correção pontual, é decisão de arquitetura ARIA a fazer.
+- **Nenhuma tela autenticada tem `<h1>`** — toda rota começa em `<h2>`, sem heading de nível 1 em nenhum ancestral (o wordmark do header é `<span>`). Quebra navegação por heading de leitor de tela.
+- **`.form-error` (23 ocorrências) nunca usa `role="alert"`/`aria-live`/`aria-describedby`** — o texto nomeia a regra certa (ver regra acima), mas não tem garantia de ser anunciado nem de ficar associado ao campo que falhou.
+- **`.catalog-empty`/`.catalog-row-inactive` (opacity 0.6) caem a ~4.45:1 no modo claro**, abaixo do piso AA de 4.5:1 pra texto normal — único ponto onde a regra de contraste AA acima ainda não é cumprida de fato (modo escuro passa, ~6.28:1).
 
 ## Responsive & Platform
 
@@ -98,7 +111,7 @@ Comportamental — contraste visual vive em `DESIGN.md`.
 |---|---|
 | ≥ 1024px (PC de caixa/dono) | Layout completo, tabelas/grids em múltiplas colunas, nav horizontal completa no header. |
 | 768–1023px (tablet paisagem) | Mesmo layout, `table-tile`s do mapa de mesas reduzem de 4-5 por linha pra 3; formulários inline continuam lado a lado. |
-| < 768px (tablet retrato) | Formulários inline empilham verticalmente; nav do header pode precisar de um menu compacto (hoje é uma lista de links simples — com 5-6 itens pro dono, cabe apertado numa tela retrato estreita; avaliar colapsar em menu na implementação). |
+| < 768px (tablet retrato) | Formulários inline empilham verticalmente; nav do header já chegou a 6 itens pro dono (Mapa de Mesas, Caixa, Cardápio, Configurações, Conflitos de Mesas, Cadastrar operador) — `flex-wrap` evita quebra de layout, mas o cabeçalho passa a ocupar 2-3 linhas em tela estreita. **[2026-09-23]** Cruzou o teto que este documento já sinalizava como risco; colapsar em menu compacto deixou de ser "avaliar" e virou prioridade real da próxima rodada. |
 
 Passa a Régua é desktop nativo, não um app mobile — mas "desktop" aqui inclui tablets Windows/iPad rodando o mesmo binário Tauri em pé de igualdade, não como modo degradado.
 
@@ -118,7 +131,7 @@ Passa a Régua é desktop nativo, não um app mobile — mas "desktop" aqui incl
 2. Mapa de Mesas abre. Ele vê de relance quais `table-tile`s estão em borgonha (ocupadas) e qual mesa 12 (que acabou de vagar) está neutra.
 3. Toca na Mesa 12 vazia → formulário rápido de abrir comanda → toca "Abrir".
 4. Comanda abre. Ele busca "Cerveja" no campo de produto, toca no resultado — item lançado, subtotal atualiza na hora.
-5. **Clímax:** ele fecha a comanda (nem precisa — o app já salvou) e volta pro mapa de mesas sem nenhum passo de "salvar" explícito. A Mesa 12 já aparece borgonha pros outros garçons verem que está ocupada, mesmo antes de qualquer sincronização de rede acontecer (é local-first) — ele nunca precisa se perguntar "isso já foi salvo?".
+5. **Clímax:** ele sai da tela da comanda e volta pro mapa de mesas sem nenhum passo de "salvar" explícito. A Mesa 12 já aparece borgonha pros outros garçons verem que está ocupada, mesmo antes de qualquer sincronização de rede acontecer (é local-first) — ele nunca precisa se perguntar "isso já foi salvo?".
 
 Falha: sidecar offline no meio do lançamento → `status-badge` danger no header já avisa antes dele tentar; se cair no meio de uma ação, a mensagem de erro nomeia exatamente o que não foi salvo, ele tenta de novo.
 
@@ -132,11 +145,30 @@ Falha: sidecar offline no meio do lançamento → `status-badge` danger no heade
 
 Falha: soma das partes não bate com o total → botão "Confirmar fechamento" permanece desabilitado (já existe hoje), com o valor exato de quanto falta/sobra sempre visível — ela nunca precisa calcular de cabeça.
 
-### Fluxo 3 — Segundo terminal chega no bar (Dono, uma tarde de segunda, bar vazio)
+### Fluxo 3 — Segundo terminal chega no bar (Renato, dono, uma tarde de segunda, bar vazio)
 
-1. O dono compra um segundo tablet pro garçom novo. Abre o app pela primeira vez nesse tablet — tela de login mostra "Nenhum operador cadastrado" com duas opções lado a lado: cadastrar do zero, ou parear com um terminal existente.
-2. Ele escolhe parear. Pega o terminal antigo (o do caixa), vai em Pareamento, copia o código exibido.
+1. Renato compra um segundo tablet pro garçom novo. Abre o app pela primeira vez nesse tablet — tela de login mostra "Nenhum operador cadastrado" com duas opções lado a lado: cadastrar do zero, ou parear com um terminal existente.
+2. Ele escolhe parear. Pega o terminal antigo (o do caixa), vai em Configurações → Pareamento, copia o código exibido.
 3. Cola o código no tablet novo. Em poucos segundos (ciclo de sync LAN), o cardápio inteiro, as mesas e os operadores já existentes aparecem no tablet novo — sem ele cadastrar nada de novo.
-4. **Clímax:** ele testa abrindo uma comanda de teste no tablet novo enquanto olha o mapa de mesas no terminal antigo — a mesma mesa aparece ocupada nos dois, quase ao mesmo tempo. Ele apaga a comanda de teste (cancela os itens) e confirma, sem precisar confiar cegamente, que os dois terminais realmente compartilham o mesmo salão.
+4. **Clímax:** ele testa abrindo uma comanda de teste no tablet novo enquanto olha o mapa de mesas no terminal antigo — a mesma mesa aparece ocupada nos dois, quase ao mesmo tempo. Ele apaga a comanda de teste (cancela os itens) e confirma que os dois terminais realmente compartilham o mesmo salão, sem precisar confiar cegamente.
 
 Falha: se o plano free já estiver no limite de 1 terminal, a tela de Pareamento mostra a mensagem de bloqueio com o motivo exato (limite de terminais do plano) em vez de deixar ele tentando entender por que o pareamento "não funcionou".
+
+### Fluxo 4 **[2026-09-23]** — Revisando um conflito de mesa (Renato, dono, segunda de manhã, antes de abrir)
+
+1. Renato abre o app na segunda de manhã, antes do bar abrir pro movimento. Vê no header um aviso: "⚠️ 1 comanda foi mesclada automaticamente por conflito de sincronização."
+2. Expande "Ver detalhes" no próprio banner — mostra que foi a Mesa 8, durante o rush de sábado (dois garçons devem ter aberto a mesma mesa enquanto um tablet ficou sem sinal por um instante).
+3. Clica "Ver histórico completo", chega em Conflitos de Mesas — a mesma ocorrência aparece com data/hora exata e um link direto pra comanda que ficou aberta.
+4. Confere na comanda que os itens fazem sentido juntos (nada duplicado, nada estranho) — a comanda já fechou há dias, não precisa perguntar pro garçom nem ligar pro cliente.
+5. **Clímax:** clica "Marcar como resolvido". O registro continua existindo pra sempre (auditoria), mas some da lista do que ainda precisa de atenção — na próxima vez que ele abrir a tela, só o que é realmente novo salta aos olhos.
+
+Falha: se ele achar algo estranho nos itens (algo que não devia estar ali), o link pra comanda deixa ele investigar antes de decidir — "marcar como resolvido" nunca é automático nem obrigatório, só fica disponível.
+
+### Fluxo 5 **[2026-09-23, gatilho de conversão do freemium]** — Batendo no teto do plano free (Jonas, garçom, sábado lotado)
+
+1. Bar lotado, já são 10 comandas abertas simultâneas — o teto do plano free. Jonas tenta abrir a 11ª mesa que acabou de sentar gente.
+2. O app recusa na hora, em destaque (não um texto pequeno de erro que passa despercebido no meio da tela): "Limite de 10 comandas simultâneas atingido — faça upgrade de plano pra aumentar."
+3. Jonas não decide sobre plano — avisa Renato. Quando Renato confere o app depois, vê a mesma mensagem e sabe exatamente qual é a causa: mais movimento simultâneo do que o plano free suporta, não um bug.
+4. **Clímax:** Renato decide fazer upgrade (ou não) com informação completa — a mensagem nunca deixou dúvida sobre o motivo real de ter travado.
+
+Falha: nenhuma no comportamento (a mensagem já nomeia a regra exata, ver Voice and Tone) — o risco é só de destaque visual: se a mensagem aparecer como erro pequeno de formulário, perde a força de ser o gatilho de conversão mais importante do produto.
