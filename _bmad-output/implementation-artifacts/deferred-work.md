@@ -1,6 +1,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-sistema-de-design-visual.md`
-  summary: Mapa de mesas perdeu semântica de tabela pra leitor de tela ao virar um grid de `table-tile` (`<div>`s no lugar de `<table>`/`<tr>`/`<td>`).
+  summary: Mapa de mesas perdeu semântica de tabela pra leitor de tela ao virar um grid de `table-tile` (`<div>`s no lugar de `<table>`/`<tr>`/`<td>`). **Piso mínimo aplicado (2026-09-23)** — decisão de arquitetura completa segue aberta.
   evidence: Achado real (`blind-hunter`, verificado) — nenhum `role`/landmark substitui a semântica de tabela perdida. A correção exige escolher um padrão ARIA (grid/list/landmark por tile) que serve o produto como um todo, não uma correção pontual desta spec de repaginação visual.
+  resolution: "Parcial (2026-09-23, validação de UX): `role=\"list\"` no grid + `role=\"listitem\"` em cada tile + `aria-label` com a contagem (`table-map.tsx`) — resolve o sintoma mais grave (coleção sem anúncio nenhum), mas não é a arquitetura ARIA completa (grid/row/gridcell vs. list/listitem, relação identificador/status/capacidade dentro do tile) que este item original pedia. Segue como item de ação pra quando o produto justificar o investimento maior."
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-correcao-juncao-de-mesas.md`
   summary: A trava contra sobreposição em `POST /table-groups` só enxerga o estado local de cada sidecar — dois terminais diferentes podem, cada um, passar na validação antes de sincronizar entre si e produzir grupos sobrepostos mesmo assim.

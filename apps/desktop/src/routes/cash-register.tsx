@@ -25,15 +25,18 @@ function CashRegister() {
 
   return (
     <section>
-      <h2>Resumo de Caixa — {summary.date}</h2>
-      <p className="type-label">
+      <h1>Resumo de Caixa — {summary.date}</h1>
+      {/* Achado na validação de UX, 2026-09-23: .type-label (rótulo 13px)
+          usado em parágrafo explicativo em vez de texto corrido — mais
+          difícil de ler rápido, justo onde o dono precisa disso. */}
+      <p>
         Atualiza a cada consulta, em tempo real — não existe uma ação de fechar
         o caixa.
       </p>
 
       <div className="table-map-section">
-        <h3>Resumo do dia</h3>
-        <p className="type-label">
+        <h2 className="section-heading">Resumo do dia</h2>
+        <p>
           Comandas fechadas: {summary.closedOrdersCount}
         </p>
         <div className="summary">
@@ -57,7 +60,7 @@ function CashRegister() {
           </div>
         </div>
 
-        <h4>Por forma de pagamento</h4>
+        <h3 className="subsection-heading">Por forma de pagamento</h3>
         <div className="summary">
           <div className="summary-row">
             <span className="type-label">Dinheiro</span>
@@ -81,8 +84,8 @@ function CashRegister() {
       </div>
 
       <div className="table-map-section">
-        <h3>Comandas pendentes ({summary.pendingOrders.length})</h3>
-        <p className="type-label">
+        <h2 className="section-heading">Comandas pendentes ({summary.pendingOrders.length})</h2>
+        <p>
           Comandas ainda abertas não entram no total fechado acima.
         </p>
         <ul className="catalog-list">

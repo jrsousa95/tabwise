@@ -180,8 +180,8 @@ function Order() {
 
   return (
     <section>
-      <h2>{title}</h2>
-      {order.status === "closed" && <p className="form-error">Comanda fechada — não aceita mais alterações.</p>}
+      <h1>{title}</h1>
+      {order.status === "closed" && <p className="form-error" role="alert">Comanda fechada — não aceita mais alterações.</p>}
 
       <table className="catalog-table">
         <thead>
@@ -247,8 +247,13 @@ function Order() {
           )}
         </tbody>
       </table>
+      {/* Achado na auditoria visual, 2026-09-23: summary-row-total desenha
+          um divisor (border-top) pra separar a última linha das linhas de
+          composição acima — sem nenhuma linha antes dela aqui, virava uma
+          régua flutuando sozinha. summary-row simples (sem o divisor) já
+          basta; o destaque visual continua vindo de amount-display. */}
       <div className="summary">
-        <div className="summary-row summary-row-total">
+        <div className="summary-row">
           <span className="type-label">Subtotal</span>
           <span className="amount amount-display">{formatCentsToBRL(subtotalCents)}</span>
         </div>
@@ -256,18 +261,23 @@ function Order() {
 
       {editingNoteItemId && (
         <div className="table-map-section">
-          <h3>Editar observação</h3>
+          <h2 className="section-heading">Editar observação</h2>
           <label>
             Observação
             <input value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="ex: sem cebola" autoFocus />
           </label>
-          {noteError && <p className="form-error">{noteError}</p>}
+          {noteError && <p className="form-error" role="alert">{noteError}</p>}
           <div className="operator-form-actions">
             <button type="button" className="button-primary" onClick={handleConfirmEditNote} disabled={noteSubmitting}>
               Salvar
             </button>
+            {/* Achado na auditoria visual, 2026-09-23: "Voltar" era a
+                exceção — "Cancelar" é a convenção em 5 de 6 ocorrências
+                desse mesmo padrão (dispensar subformulário sem salvar) em
+                todo o app, incluindo o botão logo abaixo neste mesmo
+                arquivo. */}
             <button type="button" className="button-secondary" onClick={() => setEditingNoteItemId(null)}>
-              Voltar
+              Cancelar
             </button>
           </div>
         </div>
@@ -275,7 +285,7 @@ function Order() {
 
       {cancelingItemId && (
         <div className="table-map-section">
-          <h3>Cancelar item</h3>
+          <h2 className="section-heading">Cancelar item</h2>
           <label>
             Motivo
             <select value={cancelReason} onChange={(e) => setCancelReason(e.target.value as CancelReason)}>
@@ -292,13 +302,13 @@ function Order() {
               <input value={cancelNote} onChange={(e) => setCancelNote(e.target.value)} />
             </label>
           )}
-          {cancelError && <p className="form-error">{cancelError}</p>}
+          {cancelError && <p className="form-error" role="alert">{cancelError}</p>}
           <div className="operator-form-actions">
             <button type="button" className="button-primary" onClick={() => handleConfirmCancel(cancelingItemId)}>
               Confirmar cancelamento
             </button>
             <button type="button" className="button-secondary" onClick={() => setCancelingItemId(null)}>
-              Voltar
+              Cancelar
             </button>
           </div>
         </div>
@@ -308,7 +318,7 @@ function Order() {
         <>
           {pendingProduct && (
             <div className="table-map-section">
-              <h3>Adicionar {pendingProduct.name}</h3>
+              <h2 className="section-heading">Adicionar {pendingProduct.name}</h2>
               <label>
                 Quantidade
                 <input value={quantity} onChange={(e) => setQuantity(e.target.value.replace(/\D/g, ""))} inputMode="numeric" />
@@ -317,7 +327,7 @@ function Order() {
                 Observação (ex: sem cebola)
                 <input value={note} onChange={(e) => setNote(e.target.value)} />
               </label>
-              {addError && <p className="form-error">{addError}</p>}
+              {addError && <p className="form-error" role="alert">{addError}</p>}
               <div className="operator-form-actions">
                 <button type="button" className="button-primary" onClick={handleConfirmAdd} disabled={adding}>
                   Confirmar

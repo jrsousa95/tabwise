@@ -120,9 +120,9 @@ function OperatorRegistration() {
           />
         </label>
 
-        {pin.length > 0 && !pinValid && <p className="form-error">PIN precisa ter de 4 a 6 dígitos.</p>}
-        {pinConfirm.length > 0 && pin !== pinConfirm && <p className="form-error">Os PINs não coincidem.</p>}
-        {error && <p className="form-error">{error}</p>}
+        {pin.length > 0 && !pinValid && <p className="form-error" role="alert">PIN precisa ter de 4 a 6 dígitos.</p>}
+        {pinConfirm.length > 0 && pin !== pinConfirm && <p className="form-error" role="alert">Os PINs não coincidem.</p>}
+        {error && <p className="form-error" role="alert">{error}</p>}
 
         <div className="operator-form-actions">
           <button type="submit" className="button-primary" disabled={!canSubmit}>

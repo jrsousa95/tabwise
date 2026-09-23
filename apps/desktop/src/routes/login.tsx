@@ -99,10 +99,22 @@ function Login() {
       <div className="pin-display" aria-live="polite">
         {"•".repeat(pin.length) || " "}
       </div>
-      {error && <p className="form-error">{error}</p>}
+      {error && <p className="form-error" role="alert">{error}</p>}
       <div className="pin-pad">
         {PIN_DIGITS.map((key) => (
-          <button key={key} type="button" className="pin-key" disabled={submitting} onClick={() => handleKey(key)}>
+          <button
+            key={key}
+            type="button"
+            className="pin-key"
+            disabled={submitting}
+            onClick={() => handleKey(key)}
+            // Achado na validação de acessibilidade, 2026-09-23: "⌫"
+            // dependia só do glifo Unicode como nome acessível, sem
+            // garantia de leitura consistente entre leitores de tela —
+            // no componente que é "a primeira interação de cada turno,
+            // não pode falhar" (EXPERIENCE.md).
+            aria-label={key === "⌫" ? "Apagar" : key === "OK" ? "Confirmar" : undefined}
+          >
             {key}
           </button>
         ))}

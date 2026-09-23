@@ -192,10 +192,10 @@ function Catalog() {
 
   return (
     <section>
-      <h2>Cardápio</h2>
+      <h1>Cardápio</h1>
       <div className="catalog">
         <div className="catalog-column">
-        <h3>Categorias</h3>
+        <h2 className="section-heading">Categorias</h2>
         <form onSubmit={handleAddCategory} className="inline-form">
           <input
             value={categoryName}
@@ -207,7 +207,7 @@ function Catalog() {
             Adicionar
           </button>
         </form>
-        {categoryError && <p className="form-error">{categoryError}</p>}
+        {categoryError && <p className="form-error" role="alert">{categoryError}</p>}
         <ul className="catalog-list">
           {categories.map((c) =>
             renamingCategoryId === c.id ? (
@@ -256,11 +256,11 @@ function Catalog() {
           )}
           {categories.length === 0 && <li className="catalog-empty">Nenhuma categoria ainda.</li>}
         </ul>
-        {categoryActionError && <p className="form-error">{categoryActionError}</p>}
+        {categoryActionError && <p className="form-error" role="alert">{categoryActionError}</p>}
       </div>
 
       <div className="catalog-column">
-        <h3>Produtos</h3>
+        <h2 className="section-heading">Produtos</h2>
         <form onSubmit={handleAddProduct} className="operator-form">
           <label>
             Nome
@@ -281,8 +281,8 @@ function Catalog() {
               ))}
             </select>
           </label>
-          {categories.length === 0 && <p className="form-error">Cadastre uma categoria antes de adicionar produtos.</p>}
-          {productError && <p className="form-error">{productError}</p>}
+          {categories.length === 0 && <p className="form-error" role="alert">Cadastre uma categoria antes de adicionar produtos.</p>}
+          {productError && <p className="form-error" role="alert">{productError}</p>}
           <button
             type="submit"
             className="button-primary"
@@ -377,7 +377,7 @@ function Catalog() {
             )}
           </tbody>
         </table>
-        {productActionError && <p className="form-error">{productActionError}</p>}
+        {productActionError && <p className="form-error" role="alert">{productActionError}</p>}
         </div>
       </div>
     </section>

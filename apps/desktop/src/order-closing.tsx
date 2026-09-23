@@ -139,7 +139,7 @@ function OrderClosing({
 
   return (
     <div className="table-map-section">
-      <h3>Fechar comanda</h3>
+      <h2 className="section-heading">Fechar comanda</h2>
 
       <label>
         Taxa de serviço (%)
@@ -161,12 +161,14 @@ function OrderClosing({
         </div>
       </div>
 
+      {/* Achado na validação de UX, 2026-09-23: .type-label (rótulo 13px)
+          usado nos dois parágrafos abaixo em vez de texto corrido. */}
       {isFree ? (
-        <p className="type-label">Comanda sem itens lançados — não há nada a cobrar, pode fechar direto.</p>
+        <p>Comanda sem itens lançados — não há nada a cobrar, pode fechar direto.</p>
       ) : (
         <>
-          <h4>Dividir a conta (opcional)</h4>
-          <p className="type-label">Por padrão é 1 pagamento só, o valor total. Divida só se precisar.</p>
+          <h3 className="subsection-heading">Dividir a conta (opcional)</h3>
+          <p>Por padrão é 1 pagamento só, o valor total. Divida só se precisar.</p>
           <div className="inline-form">
             <input value={equalParts} onChange={(e) => setEqualParts(e.target.value.replace(/\D/g, ""))} inputMode="numeric" aria-label="Número de partes" />
             <button type="button" className="button-secondary" onClick={handleGenerateEqual}>
@@ -179,14 +181,24 @@ function OrderClosing({
 
           {splits.map((s) => (
             <div key={s.id} className="split-row">
+              {/* Achado na validação de acessibilidade, 2026-09-23: os três
+                  controles dependiam só do placeholder, que some do DOM
+                  assim que o operador digita — sem aria-label, o leitor de
+                  tela perde o contexto exatamente na tela de maior pressão
+                  de tempo do fluxo (fila no caixa). */}
               <input
                 className="amount"
                 value={s.amountText}
                 onChange={(e) => updateSplit(s.id, { amountText: e.target.value.replace(/[^0-9,.]/g, "") })}
                 placeholder="Valor (R$)"
+                aria-label="Valor da parte"
                 inputMode="decimal"
               />
-              <select value={s.paymentMethod} onChange={(e) => updateSplit(s.id, { paymentMethod: e.target.value as "cash" | "card" | "pix" })}>
+              <select
+                value={s.paymentMethod}
+                onChange={(e) => updateSplit(s.id, { paymentMethod: e.target.value as "cash" | "card" | "pix" })}
+                aria-label="Forma de pagamento"
+              >
                 <option value="card">Cartão</option>
                 <option value="pix">Pix</option>
                 <option value="cash">Dinheiro</option>
@@ -197,6 +209,7 @@ function OrderClosing({
                   value={s.cashReceivedText}
                   onChange={(e) => updateSplit(s.id, { cashReceivedText: e.target.value.replace(/[^0-9,.]/g, "") })}
                   placeholder="Valor recebido (R$)"
+                  aria-label="Valor recebido em dinheiro"
                   inputMode="decimal"
                 />
               )}
@@ -228,7 +241,7 @@ function OrderClosing({
         </>
       )}
 
-      {error && <p className="form-error">{error}</p>}
+      {error && <p className="form-error" role="alert">{error}</p>}
 
       <button type="button" className="button-primary" onClick={handleConfirm} disabled={!canConfirm}>
         Confirmar fechamento

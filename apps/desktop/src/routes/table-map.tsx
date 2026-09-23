@@ -161,11 +161,11 @@ function TableMap() {
 
   return (
     <section>
-      <h2>Mapa de Mesas</h2>
+      <h1>Mapa de Mesas</h1>
 
       {operator?.role === "owner" && (
         <div className="table-map-section">
-          <h3>Cadastrar mesa</h3>
+          <h2 className="section-heading">Cadastrar mesa</h2>
           <form onSubmit={handleAddTable} className="inline-form">
             <input value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="Identificador (ex: Mesa 1)" />
             <input
@@ -178,20 +178,27 @@ function TableMap() {
               Adicionar
             </button>
           </form>
-          {tableError && <p className="form-error">{tableError}</p>}
+          {tableError && <p className="form-error" role="alert">{tableError}</p>}
         </div>
       )}
 
-      {openError && <p className="form-error">{openError}</p>}
+      {openError && <p className="form-error" role="alert">{openError}</p>}
 
       <div className="table-map-section">
-        <h3>Mesas</h3>
+        <h2 className="section-heading">Mesas</h2>
         {tables.length > 0 ? (
-          <div className="table-tile-grid">
+          // Achado na validação de acessibilidade, 2026-09-23: virou um grid
+          // de <div>s sem role nenhum quando a repaginação visual trocou a
+          // tabela de mesas por table-tile (2026-09-22) — leitor de tela não
+          // sabia que era uma coleção de N mesas. Piso mínimo (não é a
+          // arquitetura ARIA completa que o achado pede — ver
+          // deferred-work.md): role="list"/"listitem" + aria-label na
+          // coleção com a contagem.
+          <div className="table-tile-grid" role="list" aria-label={`Mesas (${tables.length})`}>
             {tables.map((t) => {
               const order = orderForTable(t.id);
               return (
-                <div key={t.id} className={`table-tile ${order ? "table-tile-occupied" : "table-tile-free"}`}>
+                <div key={t.id} role="listitem" className={`table-tile ${order ? "table-tile-occupied" : "table-tile-free"}`}>
                   <div className="table-tile-header">
                     <span className="table-tile-id">{t.identifier}</span>
                     {/* PRD 2.8 — renomear/remover mesa (dono), ao lado da identificação em
@@ -266,7 +273,7 @@ function TableMap() {
                       <button type="button" className="button-secondary" onClick={() => setRenamingTableId(null)}>
                         Cancelar
                       </button>
-                      {renameError && <p className="form-error">{renameError}</p>}
+                      {renameError && <p className="form-error" role="alert">{renameError}</p>}
                     </form>
                   )}
                 </div>
@@ -276,12 +283,12 @@ function TableMap() {
         ) : (
           <p className="catalog-empty">Nenhuma mesa cadastrada ainda.</p>
         )}
-        {transferError && <p className="form-error">{transferError}</p>}
-        {removeError && <p className="form-error">{removeError}</p>}
+        {transferError && <p className="form-error" role="alert">{transferError}</p>}
+        {removeError && <p className="form-error" role="alert">{removeError}</p>}
       </div>
 
       <div className="table-map-section">
-        <h3>Comandas avulsas</h3>
+        <h2 className="section-heading">Comandas avulsas</h2>
         <button type="button" className="button-primary button-compact" onClick={handleOpenStandaloneOrder}>
           Abrir comanda avulsa
         </button>

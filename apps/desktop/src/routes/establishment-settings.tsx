@@ -47,9 +47,9 @@ function EstablishmentSettings() {
 
   return (
     <section>
-      <h2>Configurações do estabelecimento</h2>
+      <h1>Configurações do estabelecimento</h1>
       <div className="table-map-section settings-section">
-        <h3>Taxa de serviço padrão</h3>
+        <h2 className="section-heading">Taxa de serviço padrão</h2>
         {/* Achado em uso real, 2026-09-22: era o único `.inline-form` do app
             com um `<label>` de legenda visível empilhada sobre o input — o
             bloco label+input ficava bem mais alto que o botão ao lado, que
@@ -72,7 +72,7 @@ function EstablishmentSettings() {
             Salvar
           </button>
         </form>
-        {serviceFeeError && <p className="form-error">{serviceFeeError}</p>}
+        {serviceFeeError && <p className="form-error" role="alert">{serviceFeeError}</p>}
         {serviceFeeSaved && <p>Taxa de serviço padrão atualizada.</p>}
       </div>
 
@@ -84,7 +84,7 @@ function EstablishmentSettings() {
           cadastrado ainda, então não pode depender de login pra ser
           alcançado. */}
       <div className="table-map-section">
-        <h3>Pareamento de terminais</h3>
+        <h2 className="section-heading">Pareamento de terminais</h2>
         <p>Conecte este terminal a outro já configurado na mesma rede pra sincronizar mesas, cardápio e operadores.</p>
         <Link to="/pairing" className="button-secondary">
           Configurar pareamento →

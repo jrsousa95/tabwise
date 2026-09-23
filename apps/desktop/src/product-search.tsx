@@ -55,7 +55,7 @@ function ProductSearch({
 
   return (
     <div className="product-search">
-      <h3>Buscar produto</h3>
+      <h2 className="section-heading">Buscar produto</h2>
       <div className="inline-form">
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nome do produto" aria-label="Buscar por nome" />
         <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label="Filtrar por categoria">

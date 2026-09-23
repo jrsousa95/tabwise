@@ -166,7 +166,7 @@ function Pairing() {
             Adotar
           </button>
         </form>
-        {adoptError && <p className="form-error">{adoptError}</p>}
+        {adoptError && <p className="form-error" role="alert">{adoptError}</p>}
         {adoptSuccess && <p>Código adotado — a sincronização com o outro terminal começa no próximo ciclo (a cada 5s).</p>}
       </div>
 
@@ -213,7 +213,7 @@ function Pairing() {
             Salvar
           </button>
         </form>
-        {manualHostError && <p className="form-error">{manualHostError}</p>}
+        {manualHostError && <p className="form-error" role="alert">{manualHostError}</p>}
       </div>
 
       {isBootstrap && (

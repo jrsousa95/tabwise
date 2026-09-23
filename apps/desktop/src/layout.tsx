@@ -82,8 +82,11 @@ function Layout() {
       {mergeWarnings.length > 0 && (
         // ARCH §4.2 — merge automático de comanda (conflito entre terminais
         // offline resolvido por menor HLC) nunca deve passar em silêncio;
-        // é só um aviso, não bloqueia nenhuma ação.
-        <div className="merge-warning-banner">
+        // é só um aviso, não bloqueia nenhuma ação. role="status" (achado
+        // na validação de acessibilidade, 2026-09-23): mesmo padrão já
+        // usado em pairing.tsx, faltava aqui — sem isso, um leitor de tela
+        // só descobre o aviso se o operador navegar manualmente até o topo.
+        <div className="merge-warning-banner" role="status">
           <span>
             ⚠️ {mergeWarnings.length} {mergeWarnings.length === 1 ? "comanda foi mesclada" : "comandas foram mescladas"}{" "}
             automaticamente por conflito de sincronização.
