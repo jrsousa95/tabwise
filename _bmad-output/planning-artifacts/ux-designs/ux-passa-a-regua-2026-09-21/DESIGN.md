@@ -2,7 +2,7 @@
 name: Passa a Régua
 description: Sistema de PDV desktop para bares e restaurantes — mesas, comandas, cardápio e fechamento de caixa. Visual robusto/industrial, pensado pra ser tocado com pressa, em pé, muitas vezes com uma mão só.
 status: final
-updated: 2026-09-21
+updated: 2026-09-22
 colors:
   # Claro
   surface: '#F6F6F6'
@@ -13,10 +13,10 @@ colors:
   on-surface-variant: '#4A4A4A'
   outline: 'rgba(0, 0, 0, 0.16)'
   outline-variant: 'rgba(0, 0, 0, 0.08)'
-  primary: '#C2410C'
+  primary: '#9F1239'
   on-primary: '#FFFFFF'
-  primary-container: '#FDE4D4'
-  on-primary-container: '#7A290A'
+  primary-container: '#FFE4E6'
+  on-primary-container: '#881337'
   success: '#1F7A46'
   on-success: '#FFFFFF'
   success-container: '#E1F3E8'
@@ -35,10 +35,10 @@ colors:
   on-surface-variant-dark: '#C7C7C7'
   outline-dark: 'rgba(255, 255, 255, 0.18)'
   outline-variant-dark: 'rgba(255, 255, 255, 0.09)'
-  primary-dark: '#F0793D'
-  on-primary-dark: '#3D1200'
-  primary-container-dark: '#7A290A'
-  on-primary-container-dark: '#FDE4D4'
+  primary-dark: '#FB7185'
+  on-primary-dark: '#4C0519'
+  primary-container-dark: '#881337'
+  on-primary-container-dark: '#FFE4E6'
   success-dark: '#6FCF97'
   on-success-dark: '#0C3B1F'
   warning-dark: '#F0B23D'
@@ -156,12 +156,12 @@ A cor é usada como sinal, não como enfeite. Laranja-queimado (`{colors.primary
 
 ## Colors
 
-- **`{colors.primary}` (laranja-queimado)** — a única cor de marca. Usada em botões primários, item de navegação ativo, e no preenchimento de `table-tile-occupied` (mesa com comanda aberta — o estado mais importante do mapa de mesas, precisa saltar aos olhos). Nunca usada decorativamente.
+- **`{colors.primary}` (borgonha)** — a única cor de marca. Usada em botões primários, item de navegação ativo, e no preenchimento de `table-tile-occupied` (mesa com comanda aberta — o estado mais importante do mapa de mesas, precisa saltar aos olhos). Nunca usada decorativamente. **Trocada de laranja-queimado (`#C2410C`) pra borgonha (`#9F1239`) em 2026-09-22**, a pedido do dono após comparar 3 alternativas ao vivo no app — ver `apps/desktop/src/app.css` para a nota de derivação completa.
 - **`{colors.success}` / `{colors.warning}` / `{colors.danger}`** — vocabulário de status, reaproveitando as cores que já existiam no indicador "sidecar ok/offline" e no banner de merge antes deste sistema existir (continuidade deliberada, não reinvenção). Danger é reservado pra erro de verdade (`.form-error`, sidecar offline) — nunca usado pra cancelar item: essa ação já tem sua própria fricção (motivo obrigatório), não precisa também de vermelho.
 - **`{colors.surface}` / `{colors.surface-container-*}`** — três níveis de elevação (fundo da página, cartão, cartão realçado) em vez de sombra — o app já não usava sombra nenhuma, e "robusto" pede superfícies planas e bem demarcadas por cor/borda, não por blur.
-- **Modo escuro** — cada token de cor tem seu par `-dark`. Nenhum token é reaproveitado 1:1 entre os dois modos (nem mesmo `primary`): o laranja do modo escuro é mais claro (`#F0793D`) pra manter contraste AA sobre o fundo escuro, não é o mesmo laranja com opacidade reduzida. Essa é exatamente a armadilha que o bloco `@media (prefers-color-scheme: dark)` de antes deste sistema nunca resolveu — aqui cada token de cada modo é uma decisão própria, não uma variação automática da outra.
+- **Modo escuro** — cada token de cor tem seu par `-dark`. Nenhum token é reaproveitado 1:1 entre os dois modos (nem mesmo `primary`): o borgonha do modo escuro é mais claro (`#FB7185`) pra manter contraste AA sobre o fundo escuro, não é o mesmo borgonha com opacidade reduzida. Essa é exatamente a armadilha que o bloco `@media (prefers-color-scheme: dark)` de antes deste sistema nunca resolveu — aqui cada token de cada modo é uma decisão própria, não uma variação automática da outra.
 
-Evitar: mais de uma cor de marca; gradiente em qualquer superfície; laranja usado fora de "isto é uma ação/isto está ocupado"; texto cinza-sobre-cinza com contraste abaixo de AA (o app é usado sob luz de salão variável, nunca condição ideal de tela).
+Evitar: mais de uma cor de marca; gradiente em qualquer superfície; borgonha usado fora de "isto é uma ação/isto está ocupado"; texto cinza-sobre-cinza com contraste abaixo de AA (o app é usado sob luz de salão variável, nunca condição ideal de tela).
 
 ## Typography
 
@@ -191,7 +191,7 @@ Cantos moderados (`{rounded.md}` = 10px na maioria dos componentes tocáveis, `{
 
 ## Components
 
-- **`button-primary`** — laranja de marca, altura mínima 48px, usado uma vez por tela como a ação principal óbvia (ex: "Fechar comanda", "Adicionar", "Entrar").
+- **`button-primary`** — borgonha de marca, altura mínima 48px, usado uma vez por tela como a ação principal óbvia (ex: "Fechar comanda", "Adicionar", "Entrar").
 - **`button-secondary`** — contorno, sem preenchimento; ações secundárias/de cancelamento não-destrutivo.
 - **`pin-key`** — tecla do teclado numérico de login: 72×72px mínimo (bem acima do piso de toque — é literalmente a primeira interação de cada turno, não pode falhar), dígito grande em `{typography.display}`.
 - **`table-tile`** — substitui a lista/tabela atual de mesas por um grid de blocos tocáveis (ver Component Patterns no EXPERIENCE.md): `table-tile-free` (superfície neutra, borda fina) vs. `table-tile-occupied` (preenchido em `{colors.primary-container}`, borda `{colors.primary}`) — o estado "esta mesa tem comanda aberta" precisa ser reconhecível num relance do salão, não lido letra por letra.
@@ -202,7 +202,7 @@ Cantos moderados (`{rounded.md}` = 10px na maioria dos componentes tocáveis, `{
 
 | Do | Don't |
 |---|---|
-| Usar `{colors.primary}` só pra "ação principal" e "mesa ocupada" | Usar laranja em chrome, ícone decorativo ou texto comum |
+| Usar `{colors.primary}` só pra "ação principal" e "mesa ocupada" | Usar borgonha em chrome, ícone decorativo ou texto comum |
 | Alvo de toque ≥ `{spacing.touch-target-min}` em toda superfície tocável | Botões/linhas de tabela com hitbox menor que 48px |
 | Hierarquia por cor de superfície + borda | Sombra (`box-shadow`) como recurso de hierarquia |
 | Tabular figures em toda coluna monetária | Números de valor em fonte proporcional numa tabela |

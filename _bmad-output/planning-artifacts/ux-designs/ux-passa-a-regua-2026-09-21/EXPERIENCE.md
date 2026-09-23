@@ -115,16 +115,16 @@ Passa a Régua é desktop nativo, não um app mobile — mas "desktop" aqui incl
 ### Fluxo 1 — Abrir e lançar numa mesa (Jonas, garçom, sexta à noite lotada)
 
 1. Jonas pega o tablet, toca `pin-key` "4", "2", "1", "7" — teclas grandes o bastante pra acertar de primeira mesmo andando.
-2. Mapa de Mesas abre. Ele vê de relance quais `table-tile`s estão em laranja (ocupadas) e qual mesa 12 (que acabou de vagar) está neutra.
+2. Mapa de Mesas abre. Ele vê de relance quais `table-tile`s estão em borgonha (ocupadas) e qual mesa 12 (que acabou de vagar) está neutra.
 3. Toca na Mesa 12 vazia → formulário rápido de abrir comanda → toca "Abrir".
 4. Comanda abre. Ele busca "Cerveja" no campo de produto, toca no resultado — item lançado, subtotal atualiza na hora.
-5. **Clímax:** ele fecha a comanda (nem precisa — o app já salvou) e volta pro mapa de mesas sem nenhum passo de "salvar" explícito. A Mesa 12 já aparece laranja pros outros garçons verem que está ocupada, mesmo antes de qualquer sincronização de rede acontecer (é local-first) — ele nunca precisa se perguntar "isso já foi salvo?".
+5. **Clímax:** ele fecha a comanda (nem precisa — o app já salvou) e volta pro mapa de mesas sem nenhum passo de "salvar" explícito. A Mesa 12 já aparece borgonha pros outros garçons verem que está ocupada, mesmo antes de qualquer sincronização de rede acontecer (é local-first) — ele nunca precisa se perguntar "isso já foi salvo?".
 
 Falha: sidecar offline no meio do lançamento → `status-badge` danger no header já avisa antes dele tentar; se cair no meio de uma ação, a mensagem de erro nomeia exatamente o que não foi salvo, ele tenta de novo.
 
 ### Fluxo 2 — Fechar comanda sob fila (Marina, caixa, sábado às 23h)
 
-1. Cliente entrega a comanda impressa (papel) da Mesa 7. Marina toca a Mesa 7 no mapa — laranja, óbvia entre as 20 mesas do salão.
+1. Cliente entrega a comanda impressa (papel) da Mesa 7. Marina toca a Mesa 7 no mapa — borgonha, óbvia entre as 20 mesas do salão.
 2. Comanda abre com a lista de itens e o subtotal já calculado. Ela toca "Fechar".
 3. Cliente quer dividir em 3 e pagar 2 partes no cartão, 1 em dinheiro. Marina digita os 3 valores; o indicador "falta/sobra" mostra R$ 0,00 assim que bate — ela vê isso em `{typography.body-strong}`, não precisa procurar.
 4. Pra parte em dinheiro, digita o valor recebido; o troco calcula sozinho.
