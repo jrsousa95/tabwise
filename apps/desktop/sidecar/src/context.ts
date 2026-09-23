@@ -137,7 +137,17 @@ export function createRequestContext(db: DatabaseSync, dataDir: string, terminal
   }
 
   function parseSplits(splitsInput: readonly unknown[], totalCents: number): ParseSplitsResult {
-    if (splitsInput.length === 0) return { ok: false, error: "informe ao menos uma parte do pagamento" };
+    // Achado em uso real, 2026-09-23: comanda aberta sem nenhum item lançado
+    // (aberta por engano, ou com tudo cancelado) tem total R$ 0,00 — exigir
+    // "ao menos uma parte" nesse caso é impossível de satisfazer, porque toda
+    // parte também precisa ter valor > 0 (regra abaixo). Não há nada a
+    // cobrar, então fechar sem nenhum `payment_recorded` é o comportamento
+    // correto — só permitido quando o total é exatamente zero, nunca como
+    // brecha pra fechar uma comanda com saldo sem registrar o pagamento.
+    if (splitsInput.length === 0) {
+      if (totalCents === 0) return { ok: true, payments: [] };
+      return { ok: false, error: "informe ao menos uma parte do pagamento" };
+    }
 
     const payments: Payment[] = [];
     let sum = 0;
