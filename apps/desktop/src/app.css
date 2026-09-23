@@ -1087,21 +1087,52 @@ form.table-tile-actions button {
 
 /* --- Responsivo (EXPERIENCE.md §Responsive & Platform) --- */
 
-/* Achado em uso real, 2026-09-23: mesmo com a base do bug do `.app-nav
-   nav` corrigida acima, 6 itens de nav + wordmark + operador + status
-   ainda não cabem numa linha só a partir de ~1024px pra baixo (a régua
-   de largura que EXPERIENCE.md já usa em todo o resto do app). Sem
-   isso, o `<nav>` quebraria como bloco pra debaixo do operador/status
-   em vez de ficar entre a wordmark e eles — visualmente estranho. Aqui
-   ele passa a vir DEPOIS do bloco operador/status na ordem visual (via
-   `order`, sem mexer no HTML/ordem de tab) e ocupa a linha toda embaixo
-   deles, com seus próprios links livres pra quebrar em 2 linhas se
-   precisar. Wordmark fica sozinha à esquerda; operador+status colam à
-   direita (`margin-left: auto` no lugar do espaço que o `<nav>` cedeu). */
+/* `.nav-toggle` — botão ☰, escondido em tela larga (`display:none`
+   abaixo é o default; a media query embaixo revela). 48×48, mesmo
+   padrão de alvo de toque de `row-action-button`. */
+.nav-toggle {
+  display: none;
+  width: var(--spacing-touch-target-min);
+  height: var(--spacing-touch-target-min);
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Achado em uso real, 2026-09-23: 6 itens de nav + wordmark + operador +
+   status não cabem numa linha só a partir de ~1024px pra baixo (a régua
+   de largura que EXPERIENCE.md já usa em todo o resto do app) — sem
+   tratamento, o `<nav>` quebrava de forma bagunçada (`.app-nav nav`
+   corrigida acima resolve a causa raiz do bug, mas 6 itens continuam
+   não cabendo). Abaixo de 1024px o menu vira um botão ☰: `<nav>` some
+   por padrão e só aparece (empilhado, `.nav-open`) quando o dono
+   aciona o botão — sem menu flutuante/sombra (DESIGN.md: "nada deveria
+   parecer flutuante"), o menu empurra o conteúdo abaixo dele mesmo.
+   Só afeta o dono (6 itens); garçom (1) e caixa (2) sempre cabem numa
+   linha só, nunca veem o botão. Wordmark fica à esquerda; operador+
+   status colam à direita (`margin-left: auto` no lugar do espaço que
+   o `<nav>` cedia). */
 @media (max-width: 1023px) {
+  .nav-toggle {
+    display: inline-flex;
+  }
+
   .app-nav nav {
-    order: 4;
+    display: none;
+    order: 5;
     flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .app-nav nav.nav-open {
+    display: flex;
+  }
+
+  .app-nav nav .nav-link {
+    padding: var(--spacing-2) 0;
+    border-top: 1px solid var(--color-outline-variant);
   }
 
   .current-operator {

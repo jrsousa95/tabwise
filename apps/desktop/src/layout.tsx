@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useSidecarHealth } from "./lib/sidecar";
 import { useSession } from "./lib/session";
@@ -8,10 +8,39 @@ const navLinkClassName = ({ isActive }: { isActive: boolean }) => (isActive ? "n
 
 const roleLabel: Record<string, string> = { owner: "dono", cashier: "caixa", waiter: "garçom" };
 
+/* Ícones inline (mesmo padrão de table-map.tsx/order.tsx: SVG,
+   stroke=currentColor, sem preenchimento, 20×20, aria-hidden porque o
+   nome acessível vive no aria-label do botão). */
+function MenuIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 6h16" />
+      <path d="M4 12h16" />
+      <path d="M4 18h16" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 6 6 18" />
+      <path d="M6 6l12 12" />
+    </svg>
+  );
+}
+
 /**
  * Shell navegável do M2/M3 (implementation-plan.md) — nav com permissões
  * por papel (PRD §2): garçom não vê o link de Caixa; só o dono vê o link
  * de cadastro de operador.
+ *
+ * Achado em uso real, 2026-09-23: com 6 itens (dono), o header não cabia
+ * mais numa linha só a partir de ~1024px pra baixo e quebrava de forma
+ * bagunçada. Abaixo de 1024px (`.nav-toggle`/`.app-nav nav` em app.css)
+ * o menu vira um botão ☰ que revela os links empilhados — só afeta o
+ * dono, que é quem tem os 6 itens; garçom (1 item) e caixa (2 itens)
+ * nunca acionam o wrap nem veem o botão, já que sempre cabem numa linha.
  */
 function Layout() {
   const { health, error } = useSidecarHealth();
@@ -19,6 +48,31 @@ function Layout() {
   const navigate = useNavigate();
   const { warnings: mergeWarnings, tableLabel, dismiss } = useMergeWarnings();
   const [showMergeDetails, setShowMergeDetails] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+
+  // Fecha o menu ao clicar fora dele ou apertar Esc — mesmo padrão de
+  // qualquer menu suspenso; só ativo enquanto `navOpen` (sem listener
+  // pendurado o tempo todo à toa).
+  useEffect(() => {
+    if (!navOpen) return;
+
+    function handleClickOutside(e: MouseEvent) {
+      if (navRef.current?.contains(e.target as Node) || toggleRef.current?.contains(e.target as Node)) return;
+      setNavOpen(false);
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setNavOpen(false);
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [navOpen]);
 
   async function handleLogout() {
     await logout();
@@ -29,32 +83,43 @@ function Layout() {
     <div className="app-shell">
       <header className="app-nav">
         <span className="app-nav-brand brand-wordmark">Passa a Régua</span>
-        <nav>
-          <NavLink to="/tables" className={navLinkClassName}>
+        <button
+          type="button"
+          ref={toggleRef}
+          className="nav-toggle button-secondary"
+          aria-label={navOpen ? "Fechar menu" : "Abrir menu"}
+          aria-expanded={navOpen}
+          aria-controls="app-nav-menu"
+          onClick={() => setNavOpen((v) => !v)}
+        >
+          {navOpen ? <CloseIcon /> : <MenuIcon />}
+        </button>
+        <nav id="app-nav-menu" ref={navRef} className={navOpen ? "nav-open" : undefined}>
+          <NavLink to="/tables" className={navLinkClassName} onClick={() => setNavOpen(false)}>
             Mapa de Mesas
           </NavLink>
           {(operator?.role === "owner" || operator?.role === "cashier") && (
-            <NavLink to="/cash-register" className={navLinkClassName}>
+            <NavLink to="/cash-register" className={navLinkClassName} onClick={() => setNavOpen(false)}>
               Caixa
             </NavLink>
           )}
           {operator?.role === "owner" && (
-            <NavLink to="/catalog" className={navLinkClassName}>
+            <NavLink to="/catalog" className={navLinkClassName} onClick={() => setNavOpen(false)}>
               Cardápio
             </NavLink>
           )}
           {operator?.role === "owner" && (
-            <NavLink to="/settings" className={navLinkClassName}>
+            <NavLink to="/settings" className={navLinkClassName} onClick={() => setNavOpen(false)}>
               Configurações
             </NavLink>
           )}
           {operator?.role === "owner" && (
-            <NavLink to="/table-conflicts" className={navLinkClassName}>
+            <NavLink to="/table-conflicts" className={navLinkClassName} onClick={() => setNavOpen(false)}>
               Conflitos de Mesas
             </NavLink>
           )}
           {operator?.role === "owner" && (
-            <NavLink to="/operators/new" className={navLinkClassName}>
+            <NavLink to="/operators/new" className={navLinkClassName} onClick={() => setNavOpen(false)}>
               Cadastrar operador
             </NavLink>
           )}
