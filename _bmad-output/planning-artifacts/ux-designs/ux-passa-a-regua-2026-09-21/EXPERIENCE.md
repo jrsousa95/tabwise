@@ -46,6 +46,7 @@ Direto, sem tom de "produto de consumo". O operador está trabalhando, não send
 | "Limite de 10 comandas simultâneas atingido — faça upgrade pra aumentar" | "Você atingiu seu limite! Considere fazer upgrade 🚀" |
 | "Comanda mais nova foi mesclada na comanda existente" | "Tudo certo! Resolvemos um probleminha de sincronização pra você" |
 | Mensagem de erro nomeia a regra de negócio que foi violada, não um código genérico | "Erro ao processar solicitação" |
+| "Confere com o total." / "Dividir a conta" | "Split bate certinho." / "Split" — termo técnico em inglês, achado em uso real 2026-09-23 |
 | Mesmo tom pra dono, caixa e garçom — nenhuma superfície fala "de forma mais simples" pro garçom | Tom infantilizado ou emojis decorativos em mensagem de sistema |
 
 O app já segue essa disciplina hoje (mensagens de erro do backend citam a regra exata violada) — este documento formaliza o padrão pra não se perder conforme novas telas chegarem.

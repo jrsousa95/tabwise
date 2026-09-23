@@ -217,7 +217,7 @@ function OrderClosing({
                 type="button"
                 className="button-secondary row-action-button"
                 onClick={() => removeSplit(s.id)}
-                aria-label="Remover parte do split"
+                aria-label="Remover parte da divisão"
                 title="Remover"
               >
                 <TrashIcon />
@@ -231,11 +231,18 @@ function OrderClosing({
               != 0 sem NENHUMA pista visível do porquê — "Confirmar
               fechamento" só desabilitava, sem indicador. Mostrar o indicador
               já a partir de 1 parte não atrapalha o caso feliz (some sozinho
-              quando bate, "Split bate certinho." nem chama atenção) e cobre
-              exatamente o caso que faltava. */}
+              quando bate, "Confere com o total." nem chama atenção) e cobre
+              exatamente o caso que faltava.
+
+              Achado em uso real, 2026-09-23: "Split bate certinho." usava
+              "split" (jargão interno/dev, em inglês) — o resto da tela já
+              chama isso de "dividir a conta" (título acima, botão "Dividir
+              igualmente"), então o indicador também passa a usar o
+              vocabulário estabelecido, direto e sem gíria (EXPERIENCE.md
+              §Voice and Tone). */}
           {splits.length > 0 && (
             <p className={`split-diff ${diffCents === 0 ? "split-diff-ok" : diffCents > 0 ? "split-diff-danger" : "split-diff-warning"}`}>
-              {diffCents === 0 ? "Split bate certinho." : diffCents > 0 ? `Falta ${formatCentsToBRL(diffCents)}.` : `Sobra ${formatCentsToBRL(-diffCents)}.`}
+              {diffCents === 0 ? "Confere com o total." : diffCents > 0 ? `Falta ${formatCentsToBRL(diffCents)}.` : `Sobra ${formatCentsToBRL(-diffCents)}.`}
             </p>
           )}
         </>
