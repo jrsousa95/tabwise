@@ -212,10 +212,15 @@ function OrderClosing({
             </div>
           ))}
 
-          {/* Com 1 parte só (padrão, sem divisão) o valor já está sempre em dia —
-              o aviso de falta/sobra só é informativo quando existe divisão de
-              verdade (2+ partes). */}
-          {splits.length > 1 && (
+          {/* Achado na validação de UX, 2026-09-23: com `splits.length > 1`,
+              a única parte (padrão, sem divisão) editada manualmente pelo
+              caixa (ex: desconto de última hora) podia deixar `diffCents`
+              != 0 sem NENHUMA pista visível do porquê — "Confirmar
+              fechamento" só desabilitava, sem indicador. Mostrar o indicador
+              já a partir de 1 parte não atrapalha o caso feliz (some sozinho
+              quando bate, "Split bate certinho." nem chama atenção) e cobre
+              exatamente o caso que faltava. */}
+          {splits.length > 0 && (
             <p className={`split-diff ${diffCents === 0 ? "split-diff-ok" : diffCents > 0 ? "split-diff-danger" : "split-diff-warning"}`}>
               {diffCents === 0 ? "Split bate certinho." : diffCents > 0 ? `Falta ${formatCentsToBRL(diffCents)}.` : `Sobra ${formatCentsToBRL(-diffCents)}.`}
             </p>
