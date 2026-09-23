@@ -1,0 +1,74 @@
+name: CI
+
+# Roda em todo push/PR — diferente dos workflows manuais (spike1-windows-validation,
+# m12-windows-packaging), que validam empacotamento real em Windows sob demanda.
+# Este workflow cobre o que deveria travar qualquer regressão óbvia antes de
+# chegar no histórico: testes unitários, typecheck de todos os workspaces e o
+# cenário de concorrência multi-terminal (PRD 7.4) — nenhum deles depende de
+# Windows real, então roda em ubuntu-latest, rápido, a cada mudança.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Instala dependências do monorepo
+        run: npm install
+
+      # shared-types/sync-engine não têm hook de build automático no install —
+      # o sidecar e o backend dependem dos .d.ts/.js compilados deles (mesmo
+      # achado documentado no m12-windows-packaging.yml).
+      - name: Builda os pacotes compartilhados (shared-types, sync-engine)
+        run: |
+          npm run build --workspace=@passa-a-regua/shared-types
+          npm run build --workspace=@passa-a-regua/sync-engine
+
+      - name: Testes unitários — shared-types
+        run: npm test --workspace=@passa-a-regua/shared-types
+
+      - name: Testes unitários — sync-engine
+        run: npm test --workspace=@passa-a-regua/sync-engine
+
+      - name: Typecheck — backend
+        run: npm run typecheck --workspace=@passa-a-regua/backend
+
+      - name: Typecheck — sidecar
+        run: npm run typecheck --workspace=@passa-a-regua/sidecar
+
+      - name: Typecheck — desktop (frontend)
+        working-directory: apps/desktop
+        run: npx tsc --noEmit
+
+  concurrency-scenario:
+    runs-on: ubuntu-latest
+    needs: test-and-typecheck
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Instala dependências do monorepo
+        run: npm install
+
+      - name: Builda os pacotes compartilhados (shared-types, sync-engine)
+        run: |
+          npm run build --workspace=@passa-a-regua/shared-types
+          npm run build --workspace=@passa-a-regua/sync-engine
+
+      # PRD 7.4 / ARCH §9 item 4 — cenário sintético de concorrência
+      # multi-terminal, isolado do usuário (portas 4700/4701, data-dirs
+      # próprios em tmpdir), reexecutável a cada push conforme M12 exigia.
+      - name: Cenário de concorrência multi-terminal (M12)
+        working-directory: apps/desktop/sidecar
+        run: npm run test:concurrency
