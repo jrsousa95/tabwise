@@ -147,6 +147,15 @@ html,
 body {
   margin: 0;
   min-height: 100vh;
+  /* Achado em uso real, 2026-09-23: numa janela com altura reduzida
+     (ex: 800×600, o tamanho padrão do Tauri em tauri.conf.json), o
+     teclado numérico do Login não cabia inteiro e a última linha
+     (0/⌫/OK) ficava cortada pela borda da janela, sem nenhuma forma de
+     rolar até ela — nada aqui definia overflow, então dependia de
+     comportamento default do WebView, que não é garantido. Rede de
+     segurança: sempre rolável quando o conteúdo não couber, em
+     qualquer tela do app, não só Login. */
+  overflow-y: auto;
   background-color: var(--color-surface);
   color: var(--color-on-surface);
 }
@@ -465,7 +474,20 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: var(--spacing-4);
-  flex: 1;
+  /* Achado em uso real, 2026-09-23: `flex: 1` sozinho é atalho pra
+     `flex-grow:1 flex-shrink:1 flex-basis:0%` — com base 0%, o `.app-nav`
+     (pai, também `flex-wrap: wrap`) via a `<nav>` como "de graça" na
+     decisão de quebra de linha (tamanho hipotético zero) e só deixava
+     ela crescer no que sobrasse de espaço DEPOIS de acomodar
+     wordmark+operador+status na mesma linha — com 6 links, esse resto
+     virava uma coluna estreitíssima, e cada link quebrava numa linha
+     própria (o cabeçalho "quebrado" reportado em uso real). `flex-basis:
+     auto` faz a quebra de linha do pai considerar o tamanho de verdade
+     do menu — se não couber inteiro ao lado do resto, ele quebra como
+     UM bloco pra linha de baixo (ver media query abaixo), onde tem a
+     largura toda pra se organizar. Comportamento em tela larga (tudo
+     cabe numa linha) não muda. */
+  flex: 1 1 auto;
   flex-wrap: wrap;
 }
 
@@ -520,7 +542,13 @@ button:disabled {
 .container {
   margin: 0 auto;
   max-width: 480px;
-  padding: var(--spacing-7) var(--spacing-5);
+  /* Achado em uso real, 2026-09-23: spacing-7 (48px) em cima E embaixo
+     empurrava o teclado numérico do Login pra fora da janela padrão de
+     800×600 (tauri.conf.json) — spacing-5 (24px) já é generoso o
+     bastante pra "não é produto de vitrine" sem gastar 48px que essa
+     tela precisa pro conteúdo em si (pin-pad tem seu próprio alvo de
+     toque de 72px, a folga extra aqui não ajudava a usabilidade). */
+  padding: var(--spacing-5) var(--spacing-5);
   display: flex;
   flex-direction: column;
   gap: var(--spacing-2);
@@ -558,7 +586,10 @@ button:disabled {
   line-height: 1.1;
   letter-spacing: 0.3em;
   min-height: 1.2em;
-  margin: var(--spacing-4) 0 var(--spacing-5);
+  /* Achado em uso real, 2026-09-23: junto com o ajuste de `.container`
+     acima, essa margem generosa (16px+24px) era parte do que empurrava
+     o teclado numérico pra fora da janela padrão de 800×600. */
+  margin: var(--spacing-3) 0 var(--spacing-4);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1055,6 +1086,29 @@ form.table-tile-actions button {
 }
 
 /* --- Responsivo (EXPERIENCE.md §Responsive & Platform) --- */
+
+/* Achado em uso real, 2026-09-23: mesmo com a base do bug do `.app-nav
+   nav` corrigida acima, 6 itens de nav + wordmark + operador + status
+   ainda não cabem numa linha só a partir de ~1024px pra baixo (a régua
+   de largura que EXPERIENCE.md já usa em todo o resto do app). Sem
+   isso, o `<nav>` quebraria como bloco pra debaixo do operador/status
+   em vez de ficar entre a wordmark e eles — visualmente estranho. Aqui
+   ele passa a vir DEPOIS do bloco operador/status na ordem visual (via
+   `order`, sem mexer no HTML/ordem de tab) e ocupa a linha toda embaixo
+   deles, com seus próprios links livres pra quebrar em 2 linhas se
+   precisar. Wordmark fica sozinha à esquerda; operador+status colam à
+   direita (`margin-left: auto` no lugar do espaço que o `<nav>` cedeu). */
+@media (max-width: 1023px) {
+  .app-nav nav {
+    order: 4;
+    flex-basis: 100%;
+  }
+
+  .current-operator {
+    margin-left: auto;
+  }
+}
+
 @media (max-width: 767px) {
   .inline-form {
     flex-direction: column;
