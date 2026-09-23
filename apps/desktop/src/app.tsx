@@ -10,6 +10,7 @@ import CashRegister from "./routes/cash-register";
 import Catalog from "./routes/catalog";
 import EstablishmentSettings from "./routes/establishment-settings";
 import Pairing from "./routes/pairing";
+import MergeAudit from "./routes/merge-audit";
 
 /** M2/M3/M4 (implementation-plan.md): shell navegável com autenticação, permissões por papel e catálogo. */
 function App() {
@@ -28,6 +29,7 @@ function App() {
           <Route element={<RequireRole allowed={["owner"]} />}>
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/settings" element={<EstablishmentSettings />} />
+            <Route path="/merge-audit" element={<MergeAudit />} />
           </Route>
         </Route>
       </Route>

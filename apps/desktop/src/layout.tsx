@@ -49,6 +49,11 @@ function Layout() {
             </NavLink>
           )}
           {operator?.role === "owner" && (
+            <NavLink to="/merge-audit" className={navLinkClassName}>
+              Auditoria de Mesclagens
+            </NavLink>
+          )}
+          {operator?.role === "owner" && (
             <NavLink to="/operators/new" className={navLinkClassName}>
               Cadastrar operador
             </NavLink>
@@ -93,6 +98,14 @@ function Layout() {
           >
             Dispensar tudo
           </button>
+          {/* ARCH §4.2 — este banner é só a notificação transitória (recente,
+              dispensável); o registro permanente "visível ao dono" fica na
+              tela de auditoria — link só pro dono, já que a rota é owner-only. */}
+          {operator?.role === "owner" && (
+            <a href="#/merge-audit" className="button-secondary">
+              Ver histórico completo
+            </a>
+          )}
           {showMergeDetails && (
             <ul>
               {mergeWarnings.map((w) => (
