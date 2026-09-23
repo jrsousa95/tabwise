@@ -103,6 +103,57 @@ describe("ARCH §4.2 — duas orders abertas na mesma mesa", () => {
     expect(state.orders.find((o) => o.id === "c-2")?.mergedInto).toBeUndefined();
   });
 
+  // Achado real em uso, 2026-09-23: mesa fechada e reaberta depois (uso
+  // normal, todo dia — cliente novo senta na mesma mesa) era tratada como
+  // conflito com a comanda antiga já fechada, mesclando a nova comanda
+  // silenciosamente numa comanda inutilizável. tableToCanonicalOrder não
+  // era limpo em order_closed (só em order_transferred).
+  it("reabrir a mesma mesa depois de fechar a comanda anterior NÃO é conflito", () => {
+    const openA: DomainEvent = {
+      id: "ev-open-a",
+      hlc: serialize(tick(ZERO, 1000)),
+      aggregateType: "order",
+      aggregateId: "order-A",
+      type: "order_opened",
+      terminalId: "T1",
+      operatorId: "op",
+      createdAt: 1000,
+      payload: { source: "table", tableId: "table-1" },
+    };
+    const closeA: DomainEvent = {
+      id: "ev-close-a",
+      hlc: serialize(tick(ZERO, 2000)),
+      aggregateType: "order",
+      aggregateId: "order-A",
+      type: "order_closed",
+      terminalId: "T1",
+      operatorId: "op",
+      createdAt: 2000,
+      payload: { subtotalCents: 1000, serviceFeePercent: 10, serviceFeeCents: 100, totalCents: 1100 },
+    };
+    // Bem depois, mesmo terminal — segunda comanda do dia na mesma mesa.
+    const openB: DomainEvent = {
+      id: "ev-open-b",
+      hlc: serialize(tick(ZERO, 3000)),
+      aggregateType: "order",
+      aggregateId: "order-B",
+      type: "order_opened",
+      terminalId: "T1",
+      operatorId: "op",
+      createdAt: 3000,
+      payload: { source: "table", tableId: "table-1" },
+    };
+
+    const state = project(sortEvents([openA, closeA, openB]));
+
+    const orderA = state.orders.find((o) => o.id === "order-A");
+    const orderB = state.orders.find((o) => o.id === "order-B");
+    expect(orderA?.status).toBe("closed");
+    expect(orderB?.status).toBe("open");
+    expect(orderB?.mergedInto).toBeUndefined(); // não pode ser mesclada na comanda velha
+    expect(state.mergeWarnings).toEqual([]); // nenhum conflito de verdade aconteceu
+  });
+
   // Achado em uso real, 2026-09-23: o dono queria uma forma de reconhecer
   // que já revisou um conflito, sem ele ficar pra sempre marcado como
   // pendente — table_conflict_resolved é a resposta (append-only, não desfaz

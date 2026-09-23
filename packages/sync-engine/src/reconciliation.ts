@@ -376,6 +376,19 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
         const canonical = resolveCanonical(event.aggregateId);
         canonical.status = "closed";
         canonical.closing = { ...event.payload, closedAt: event.createdAt };
+        // Achado real em uso, 2026-09-23: `tableToCanonicalOrder` nunca era
+        // limpo aqui (só em order_transferred) — a PRIMEIRA order que uma
+        // mesa recebia na vida ficava "dona" da mesa pra sempre, mesmo
+        // depois de fechada. Reabrir a MESMA mesa depois (uso normal, todo
+        // dia: mesa fecha, cliente novo senta) achava um "conflito" com a
+        // comanda antiga já fechada e mesclava a nova nela silenciosamente
+        // — a comanda nova virava inutilizável (POST /orders/:id/items
+        // rejeita qualquer order com mergedInto definido). Fechar libera a
+        // mesa pro próximo order_opened legítimo não gerar merge falso —
+        // mesmo princípio já aplicado em order_transferred acima.
+        if (canonical.currentTableId && tableToCanonicalOrder.get(canonical.currentTableId) === canonical.id) {
+          tableToCanonicalOrder.delete(canonical.currentTableId);
+        }
         break;
       }
 
