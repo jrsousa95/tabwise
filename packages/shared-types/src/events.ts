@@ -207,6 +207,25 @@ export const OrderTransferredSchema = baseEventSchema.extend({
 export type OrderTransferred = z.infer<typeof OrderTransferredSchema>;
 
 /**
+ * ARCH §4.2 — marca que o dono/caixa já revisou e resolveu um conflito de
+ * mesa (duas `order_opened` pra mesma mesa, mescladas automaticamente pelo
+ * menor HLC). Não desfaz nem apaga o merge em si (a comanda perdedora
+ * continua mesclada na canônica, seus itens continuam lá) — é só um
+ * reconhecimento explícito, no mesmo espírito append-only do resto do log
+ * (mesmo padrão de `product_status_changed`: nunca reescreve o evento
+ * original, só adiciona um fato novo por cima). `aggregateId` é a
+ * `losingOrder` do `MergeWarning` (a comanda que "perdeu" o conflito) —
+ * nunca a canônica, que nunca teve problema nenhum.
+ */
+export const TableConflictResolvedSchema = baseEventSchema.extend({
+  type: z.literal("table_conflict_resolved"),
+  aggregateType: z.literal("order"),
+  aggregateId: z.string().min(1),
+  payload: z.object({}),
+});
+export type TableConflictResolved = z.infer<typeof TableConflictResolvedSchema>;
+
+/**
  * PRD 2.6 — vínculo visual de mesas "juntas", sem mesclar dados de order.
  * `aggregateId` identifica o grupo (não uma mesa específica).
  */
@@ -356,6 +375,7 @@ export const DomainEventSchema = z.discriminatedUnion("type", [
   TableRemovedSchema,
   OrderOpenedSchema,
   OrderTransferredSchema,
+  TableConflictResolvedSchema,
   TablesGroupedSchema,
   TableGroupDissolvedSchema,
   ItemAddedSchema,

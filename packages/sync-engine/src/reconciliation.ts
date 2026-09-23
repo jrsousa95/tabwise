@@ -116,6 +116,8 @@ export interface MergeWarning {
   readonly tableId: string;
   /** `createdAt` do `order_opened` perdedor — base pro filtro de "recente" na UI (achado em uso real, 2026-09-22: sem isso o aviso nunca some). */
   readonly createdAt: number;
+  /** `createdAt` do `table_conflict_resolved`, se o dono/caixa já revisou este conflito (ARCH §4.2, achado em uso real 2026-09-23) — `undefined` enquanto não resolvido. */
+  readonly resolvedAt?: number;
 }
 
 export interface ProjectedState {
@@ -163,6 +165,13 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
   const tables = new Map<string, TableState>();
   let establishment: EstablishmentState = { defaultServiceFeePercent: DEFAULT_SERVICE_FEE_PERCENT };
   const mergeWarnings: MergeWarning[] = [];
+  // ARCH §4.2 (achado em uso real, 2026-09-23) — losingOrder -> createdAt do
+  // `table_conflict_resolved`. Mapeado à parte (não junto com `mergeWarnings`)
+  // porque o evento de resolução pode chegar em qualquer posição do log
+  // relativo ao `order_opened` conflitante (ordem de HLC não garante que um
+  // vem antes do outro na leitura) — zipado com `mergeWarnings` só no final,
+  // depois que os dois já foram varridos por inteiro.
+  const resolvedConflicts = new Map<string, number>();
 
   function resolveCanonical(orderId: string): MutableOrder {
     let current = orders.get(orderId);
@@ -303,6 +312,11 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
         break;
       }
 
+      case "table_conflict_resolved": {
+        resolvedConflicts.set(event.aggregateId, event.createdAt);
+        break;
+      }
+
       case "tables_grouped": {
         tableGroups.set(event.aggregateId, { id: event.aggregateId, tableIds: [...event.payload.tableIds] });
         break;
@@ -401,7 +415,9 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
     products: [...products.values()].sort(compareCreatedAt),
     tables: [...tables.values()].sort(compareCreatedAt),
     establishment,
-    mergeWarnings: [...mergeWarnings].sort((a, b) => compareText(a.losingOrder, b.losingOrder)),
+    mergeWarnings: [...mergeWarnings]
+      .map((mw) => (resolvedConflicts.has(mw.losingOrder) ? { ...mw, resolvedAt: resolvedConflicts.get(mw.losingOrder) } : mw))
+      .sort((a, b) => compareText(a.losingOrder, b.losingOrder)),
   };
 }
 

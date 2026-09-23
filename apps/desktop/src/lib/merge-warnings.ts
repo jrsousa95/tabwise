@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { SIDECAR_URL } from "./sidecar";
 
-export type MergeWarning = { losingOrder: string; canonicalOrder: string; tableId: string; createdAt: number };
+export type MergeWarning = { losingOrder: string; canonicalOrder: string; tableId: string; createdAt: number; resolvedAt?: number };
 type TableRef = { id: string; identifier: string };
 
 /** Achado em uso real (2026-09-22): sem um corte de tempo, um merge continuava aparecendo pra sempre neste terminal, sem forma de dispensar. */
@@ -77,7 +77,11 @@ export function useMergeWarnings(intervalMs = 4000) {
         const res = await fetch(`${SIDECAR_URL}/state`);
         const data = (await res.json()) as Partial<{ mergeWarnings: MergeWarning[]; tables: TableRef[] }>;
         if (!cancelled) {
-          const allWarnings = data.mergeWarnings ?? [];
+          // Achado em uso real, 2026-09-23: um conflito já marcado como
+          // resolvido (tela de Conflitos de Mesas) não deveria continuar
+          // aparecendo aqui como se fosse novo — resolvido é permanente e
+          // sincroniza entre terminais, diferente do "dispensar" local.
+          const allWarnings = (data.mergeWarnings ?? []).filter((w) => w.resolvedAt === undefined);
           const now = Date.now();
           const firstSeen = loadFirstSeenMap();
           let firstSeenChanged = false;

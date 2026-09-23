@@ -1,17 +1,18 @@
-import { useMergeAudit } from "../lib/merge-audit";
+import { useTableConflicts } from "../lib/table-conflicts";
 
 /**
- * ARCH §4.2 — auditoria completa de mesclagens automáticas de comanda: duas
- * `order_opened` pra mesma mesa, geradas por terminais offline sem se
- * enxergar na LAN, resolvidas automaticamente (menor HLC vence, itens da
- * outra reatribuídos a ela). O banner em `layout.tsx` (`useMergeWarnings`)
- * é a notificação transitória — só mesclagens recentes (24h), dá pra
- * dispensar; esta tela é o registro permanente "visível ao dono" que o
- * ARCH já prometia mas nunca teve tela própria (achado registrado em
- * `_bmad-output/implementation-artifacts/deferred-work.md`).
+ * ARCH §4.2 — histórico completo de conflitos de mesa: duas `order_opened`
+ * pra mesma mesa, geradas por terminais offline sem se enxergar na LAN,
+ * resolvidas automaticamente (menor HLC vence, itens da outra reatribuídos
+ * a ela). O banner em `layout.tsx` (`useMergeWarnings`) é a notificação
+ * transitória — só conflitos recentes (24h), dá pra dispensar (por
+ * terminal, não sincroniza); esta tela é o registro permanente "visível ao
+ * dono" que o ARCH já prometia, com uma ação de verdade pra marcar como
+ * revisado (achado em uso real, 2026-09-23: sem isso, o registro ficava
+ * pra sempre com cara de pendência sem solução).
  */
-function MergeAudit() {
-  const { status, entries, tableLabel } = useMergeAudit();
+function TableConflicts() {
+  const { status, conflicts, tableLabel, resolve, resolveError } = useTableConflicts();
 
   if (status === "loading") {
     return (
@@ -21,35 +22,48 @@ function MergeAudit() {
     );
   }
 
-  const sorted = [...entries].sort((a, b) => b.createdAt - a.createdAt);
+  const sorted = [...conflicts].sort((a, b) => b.createdAt - a.createdAt);
 
   return (
     <section>
-      <h2>Auditoria de Mesclagens</h2>
+      <h2>Conflitos de Mesas</h2>
       <p className="type-label">
         Quando dois terminais abrem comanda pra mesma mesa offline ao mesmo
         tempo, o sistema mescla automaticamente: a comanda mais antiga fica
-        aberta, e os itens lançados na outra são reatribuídos a ela. Este é
-        o histórico completo — continua aqui mesmo depois que o aviso no
-        terminal já foi dispensado.
+        aberta, e os itens lançados na outra são reatribuídos a ela. Marcar
+        como resolvido só registra que você já revisou o caso (ex: conferiu
+        com o cliente) — não desfaz a mesclagem nem apaga o histórico.
       </p>
 
+      {resolveError && <p className="form-error">{resolveError}</p>}
+
       <ul className="catalog-list">
-        {sorted.map((entry) => (
-          <li key={entry.losingOrder}>
+        {sorted.map((conflict) => (
+          <li key={conflict.losingOrder}>
             <div>
-              <strong>{tableLabel(entry.tableId)}</strong>
-              <div className="type-label">{new Date(entry.createdAt).toLocaleString("pt-BR")}</div>
+              <strong>{tableLabel(conflict.tableId)}</strong>
+              <div className="type-label">{new Date(conflict.createdAt).toLocaleString("pt-BR")}</div>
             </div>
-            <a href={`#/orders/${entry.canonicalOrder}`} className="button-secondary">
-              Ver comanda que ficou aberta
-            </a>
+            <span className="catalog-list-actions">
+              <a href={`#/orders/${conflict.canonicalOrder}`} className="button-secondary">
+                Ver comanda que ficou aberta
+              </a>
+              {conflict.resolvedAt ? (
+                <span className="status-badge status-badge-success">
+                  Resolvido em {new Date(conflict.resolvedAt).toLocaleDateString("pt-BR")}
+                </span>
+              ) : (
+                <button type="button" className="button-primary" onClick={() => resolve(conflict.losingOrder)}>
+                  Marcar como resolvido
+                </button>
+              )}
+            </span>
           </li>
         ))}
-        {sorted.length === 0 && <li className="catalog-empty">Nenhuma mesclagem automática registrada ainda.</li>}
+        {sorted.length === 0 && <li className="catalog-empty">Nenhum conflito de mesa registrado ainda.</li>}
       </ul>
     </section>
   );
 }
 
-export default MergeAudit;
+export default TableConflicts;

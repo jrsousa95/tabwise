@@ -439,5 +439,42 @@ export async function handleOrderRoutes(req: http.IncomingMessage, res: http.Ser
     return true;
   }
 
+  // ARCH §4.2 (achado em uso real, 2026-09-23) — marca que o dono já revisou
+  // um conflito de mesa (duas order_opened pra mesma mesa, mescladas
+  // automaticamente). Não desfaz o merge, só registra o reconhecimento —
+  // mesmo espírito append-only do resto do log. `orderId` aqui é sempre a
+  // `losingOrder` de um `MergeWarning` (a comanda mesclada), nunca a canônica.
+  const resolveConflictMatch = url.pathname.match(/^\/orders\/([^/]+)\/resolve-conflict$/);
+  if (req.method === "POST" && resolveConflictMatch) {
+    const acting = ctx.requireOwner(res);
+    if (!acting) return true;
+
+    const orderId = resolveConflictMatch[1]!;
+    const conflict = ctx.currentState().mergeWarnings.find((w) => w.losingOrder === orderId);
+    if (!conflict) {
+      sendJson(res, 404, { error: "conflito não encontrado pra essa comanda" });
+      return true;
+    }
+    if (conflict.resolvedAt !== undefined) {
+      sendJson(res, 409, { error: "conflito já foi marcado como resolvido" });
+      return true;
+    }
+
+    const event = DomainEventSchema.parse({
+      id: randomUUID(),
+      hlc: nextHlc(),
+      operatorId: acting.id,
+      terminalId: ctx.terminalId,
+      createdAt: Date.now(),
+      type: "table_conflict_resolved",
+      aggregateType: "order",
+      aggregateId: orderId,
+      payload: {},
+    });
+    insertEvent(ctx.db, event);
+    sendJson(res, 200, { id: orderId, resolvedAt: event.createdAt });
+    return true;
+  }
+
   return false;
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DomainEvent } from "@passa-a-regua/shared-types";
 import { serialize, tick, ZERO } from "../src/hlc.js";
-import { merge, project } from "../src/reconciliation.js";
+import { merge, project, sortEvents } from "../src/reconciliation.js";
 
 /**
  * Reproduz literalmente o cenário do ARCH §4.2: o host cai; dois waiters em
@@ -101,5 +101,79 @@ describe("ARCH §4.2 — duas orders abertas na mesma mesa", () => {
     // de número avulso documentada no ARCH, só de mesa.
     expect(state.orders.find((o) => o.id === "c-1")?.mergedInto).toBeUndefined();
     expect(state.orders.find((o) => o.id === "c-2")?.mergedInto).toBeUndefined();
+  });
+
+  // Achado em uso real, 2026-09-23: o dono queria uma forma de reconhecer
+  // que já revisou um conflito, sem ele ficar pra sempre marcado como
+  // pendente — table_conflict_resolved é a resposta (append-only, não desfaz
+  // o merge em si).
+  describe("table_conflict_resolved", () => {
+    function conflictingOrders(): DomainEvent[] {
+      return [
+        {
+          id: "ev-1",
+          hlc: serialize(tick(ZERO, 1000)),
+          aggregateType: "order",
+          aggregateId: "order-A",
+          type: "order_opened",
+          terminalId: "T1",
+          operatorId: "waiter-1",
+          createdAt: 1000,
+          payload: { source: "table", tableId: "table-5" },
+        },
+        {
+          id: "ev-2",
+          hlc: serialize(tick(ZERO, 2000)),
+          aggregateType: "order",
+          aggregateId: "order-B",
+          type: "order_opened",
+          terminalId: "T2",
+          operatorId: "waiter-2",
+          createdAt: 2000,
+          payload: { source: "table", tableId: "table-5" },
+        },
+      ];
+    }
+
+    it("marca o mergeWarning com resolvedAt quando o dono resolve o conflito", () => {
+      const resolveEvent: DomainEvent = {
+        id: "ev-3",
+        hlc: serialize(tick(ZERO, 3000)),
+        aggregateType: "order",
+        aggregateId: "order-B", // sempre a losingOrder, nunca a canônica
+        type: "table_conflict_resolved",
+        terminalId: "T1",
+        operatorId: "owner-1",
+        createdAt: 3000,
+        payload: {},
+      };
+
+      const state = project(sortEvents([...conflictingOrders(), resolveEvent]));
+      expect(state.mergeWarnings).toEqual([
+        { losingOrder: "order-B", canonicalOrder: "order-A", tableId: "table-5", createdAt: 2000, resolvedAt: 3000 },
+      ]);
+    });
+
+    it("não importa se o evento de resolução chega antes do conflito no log (ordem de HLC não garante isso)", () => {
+      const resolveEvent: DomainEvent = {
+        id: "ev-resolve-first",
+        hlc: serialize(tick(ZERO, 500)), // HLC menor que os dois order_opened
+        aggregateType: "order",
+        aggregateId: "order-B",
+        type: "table_conflict_resolved",
+        terminalId: "T1",
+        operatorId: "owner-1",
+        createdAt: 500,
+        payload: {},
+      };
+
+      const state = project(sortEvents([resolveEvent, ...conflictingOrders()]));
+      expect(state.mergeWarnings[0]?.resolvedAt).toBe(500);
+    });
+
+    it("conflito sem resolução não carrega resolvedAt", () => {
+      const state = project(sortEvents(conflictingOrders()));
+      expect(state.mergeWarnings[0]?.resolvedAt).toBeUndefined();
+    });
   });
 });
