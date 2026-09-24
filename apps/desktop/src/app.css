@@ -591,6 +591,16 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-2);
+  /* Achado em uso real, 2026-09-24: Cadastro de operador (poucos campos)
+     ficava colado no topo da janela, com um vão vazio grande embaixo —
+     `.container` só tinha `margin: 0 auto` (centraliza horizontalmente),
+     nada centralizava verticalmente. `min-height: 100vh` + `justify-
+     content: center` resolve pras telas curtas (Cadastro de operador,
+     Pareamento) sem incomodar o Login: quando o conteúdo (teclado de PIN)
+     já passa de 100vh, min-height só garante o piso — não corta nada,
+     `justify-content: center` não tem espaço sobrando pra distribuir. */
+  min-height: 100vh;
+  justify-content: center;
 }
 
 .container-center {
