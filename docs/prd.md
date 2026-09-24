@@ -229,7 +229,7 @@ Entregar um PDV desktop offline-first para bares e restaurantes que resolve o ci
 9.1. Como caixa/dono, quero abrir uma sessão de caixa informando o valor inicial em dinheiro (fundo de troco), para que o sistema saiba quanto deveria ter na gaveta antes de qualquer venda.
 - **Critérios de aceite:**
   - Abrir sessão gera um evento append-only (`cash_session_opened`) com o valor em centavos (NFR7) e o operador que abriu.
-  - Não é possível ter duas sessões de caixa abertas ao mesmo tempo no mesmo terminal — abrir uma segunda antes de fechar a anterior é bloqueado com mensagem clara.
+  - Não é possível ter duas sessões de caixa abertas ao mesmo tempo no mesmo estabelecimento — abrir uma segunda antes de fechar a anterior é bloqueado com mensagem clara. (Escopo por estabelecimento, não por terminal — ver ARCH §4.4: `terminal_id` não é um proxy confiável de "uma gaveta física", um terminal trocado no meio do turno burlaria uma checagem só local.)
   - Funciona offline (NFR1), como todo o resto do app.
 
 9.2. Como caixa/dono, quero fechar a sessão de caixa informando o valor contado fisicamente na gaveta, para saber se o caixa bateu com o esperado.
