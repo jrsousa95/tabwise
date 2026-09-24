@@ -218,6 +218,67 @@ Entregar um PDV desktop offline-first para bares e restaurantes que resolve o ci
 
 ---
 
+### Épico 9 — Evolução do Fluxo de Caixa (pós-MVP)
+
+**[Adicionado 2026-09-24]** Épicos 1-8 implementados e validados (M0-M12 fechados, ver `docs/implementation-plan.md`). Este é o primeiro épico da fase pós-MVP, a partir de um brainstorm com o dono sobre limitações reais do fluxo de Caixa em uso — não substitui nem invalida nada do Épico 6, só estende. Ordem das histórias reflete a prioridade que o dono definiu.
+
+**Objetivo:** o Épico 6 (Resumo de Caixa) resolveu o essencial do MVP — um relatório somativo, sempre correto, sem ação de fechamento — mas não cobre o controle financeiro que uma operação de bar/restaurante de verdade precisa: saber quanto tinha na gaveta no início do turno, conferir se bateu no fim, e enxergar tendência além do dia corrente. Este épico adiciona sessão de caixa (abertura/fechamento com conferência), movimentações intra-turno (sangria/suprimento) e relatórios mais ricos (por período, operador, produto, multi-terminal). "Resumo de Caixa" (Épico 6) continua existindo sem mudanças, como a visão "hoje, ao vivo".
+
+**Histórias:**
+
+9.1. Como caixa/dono, quero abrir uma sessão de caixa informando o valor inicial em dinheiro (fundo de troco), para que o sistema saiba quanto deveria ter na gaveta antes de qualquer venda.
+- **Critérios de aceite:**
+  - Abrir sessão gera um evento append-only (`cash_session_opened`) com o valor em centavos (NFR7) e o operador que abriu.
+  - Não é possível ter duas sessões de caixa abertas ao mesmo tempo no mesmo terminal — abrir uma segunda antes de fechar a anterior é bloqueado com mensagem clara.
+  - Funciona offline (NFR1), como todo o resto do app.
+
+9.2. Como caixa/dono, quero fechar a sessão de caixa informando o valor contado fisicamente na gaveta, para saber se o caixa bateu com o esperado.
+- **Critérios de aceite:**
+  - O sistema calcula o valor esperado (fundo de abertura + vendas em dinheiro da sessão − sangrias + suprimentos, ver 9.4/9.5) e mostra a diferença (sobra/falta) antes de confirmar.
+  - Fechar sessão gera um evento append-only (`cash_session_closed`) com valor contado, valor esperado e a diferença — nunca ajusta o valor esperado pra "bater"; a diferença fica registrada mesmo quando não é zero.
+  - Uma vez fechada, a sessão não recebe mais movimentações (comandas fechadas depois pertencem à próxima sessão).
+
+9.3. Como dono, quero ver o resumo de vendas agrupado por semana ou mês (não só o dia atual), para entender tendência do negócio sem somar dia a dia manualmente.
+- **Critérios de aceite:**
+  - Aceita um intervalo de datas, não só uma data única — extensão de `computeCashRegisterSummary` (mesma lógica do 6.1, sem duplicar cálculo).
+  - Mostra ao menos um comparativo direto (ex.: esta semana vs. semana anterior, este mês vs. mês anterior).
+  - Owner-only, mesmo padrão de permissão de Configurações/Cardápio (PRD §2).
+
+9.4. Como caixa/dono, quero registrar uma sangria (retirada de dinheiro da gaveta durante o turno), para reduzir o volume em caixa por segurança sem perder o registro de onde foi o dinheiro.
+- **Critérios de aceite:**
+  - Gera evento append-only (`cash_withdrawal_recorded`) com valor, motivo (texto livre) e operador — mesmo padrão de auditoria já usado no cancelamento de item (PRD 1.3).
+  - Só pode ser feita com uma sessão de caixa aberta (depende de 9.1).
+  - Entra no cálculo do valor esperado no fechamento (9.2).
+
+9.5. Como caixa/dono, quero registrar um suprimento (reforço de dinheiro na gaveta durante o turno), para repor troco sem que isso pareça uma venda a mais no fechamento.
+- **Critérios de aceite:**
+  - Gera evento append-only (`cash_deposit_recorded`) com valor, motivo e operador — mesmo padrão de 9.4.
+  - Entra no cálculo do valor esperado no fechamento (9.2), em sentido oposto ao da sangria.
+
+9.6. Como dono, quero ver quanto cada operador vendeu e quantos itens cada um cancelou num período, para ter visibilidade de desempenho e de perdas por pessoa.
+- **Critérios de aceite:**
+  - Total vendido (comandas fechadas) e total de itens cancelados, agrupados por operador, no mesmo intervalo de datas de 9.3.
+  - **Nota de implementação:** o evento `order_closed` hoje não carrega `operatorId` na projeção de fechamento (`ClosingState`, `packages/sync-engine/src/reconciliation.ts`) — precisa ser adicionado antes desta história ser viável. Comandas fechadas antes dessa mudança ficam sem essa informação retroativamente (aceitável — é dado novo daqui pra frente, não uma correção de histórico).
+
+9.7. Como dono, quero ver quais produtos/categorias mais vendem num período, para entender o que impulsiona o cardápio (curva ABC).
+- **Critérios de aceite:**
+  - Ranking de produtos por quantidade vendida e por valor, no mesmo intervalo de datas de 9.3.
+  - Baseado nos eventos `item_added` já existentes (nenhum evento novo necessário); itens cancelados não contam.
+
+9.8. Como dono, quero ver na própria tela do app o relatório consolidado de todos os terminais do estabelecimento, para não precisar consultar o backend manualmente.
+- **Critérios de aceite:**
+  - Consome o endpoint já existente `GET /reports/cash-register` do backend (ARCH §5, PRD 6.2) — nenhuma mudança de backend necessária, só a tela que ficou pendente desde o M11.
+  - Exige terminal com credencial de nuvem configurada (mesmo requisito de sincronização já existente).
+
+9.9. Como dono, quero exportar o resumo de caixa (CSV), para levar pro contador sem digitar os números de novo.
+- **Critérios de aceite:**
+  - Exporta o mesmo período mostrado em tela (9.3), com os mesmos totais.
+  - PDF fica como possível evolução futura desta história, não é critério de aceite obrigatório aqui.
+
+Todas as histórias deste épico são owner-only, exceto abertura/fechamento de sessão e sangria/suprimento (9.1-9.5), que seguem o mesmo acesso de caixa/dono já usado no fechamento de comanda (PRD §2) — garçom não participa do fluxo de caixa hoje, e nada aqui muda isso.
+
+---
+
 ## 4. Requisitos não funcionais
 
 | # | Requisito | Origem |
@@ -259,4 +320,5 @@ Nenhuma pendência bloqueante no momento — ver histórico de resolução abaix
 ## 7. Próximos passos
 
 1. ~~Handoff para o agente **Architect**~~ — **concluído**, ver `docs/architecture.md`.
-2. Handoff para implementação (agente Dev / quebra em tasks), começando pelo pacote `sync-engine` e pelo Épico 1, conforme `docs/architecture.md` § 11.
+2. ~~Handoff para implementação..., começando pelo pacote `sync-engine` e pelo Épico 1~~ — **concluído**: Épicos 1-8 implementados e validados de ponta a ponta (M0-M12 fechados, ver `docs/implementation-plan.md` — inclui QA de concorrência multi-terminal, revisão de segurança e empacotamento Windows real).
+3. **[Adicionado 2026-09-24]** Épico 9 (Evolução do Fluxo de Caixa) é a próxima rodada de implementação. Recomenda-se handoff pro Architect antes de codar, pra registrar os eventos novos (`cash_session_opened`/`cash_session_closed`, `cash_withdrawal_recorded`, `cash_deposit_recorded`) no modelo de dados (`docs/architecture.md` §3) e decidir a extensão de `computeCashRegisterSummary` pra intervalo de datas.
