@@ -511,7 +511,23 @@ button:disabled {
   color: var(--color-primary);
 }
 
+/* Achado em uso real, 2026-09-23: `order` explícito em todo item de
+   `.app-nav` (menos o wordmark, que fica em 2 por convenção) garante a
+   mesma sequência visual em tela larga não importa a ordem no DOM —
+   "Sair" precisou sair de dentro de `.current-operator` (virou botão
+   próprio, ver layout.tsx) pra poder ficar no canto esquerdo do header
+   em telas estreitas (abaixo de 1024px, ver media query no fim do
+   arquivo) sem also mudar de posição em tela larga. */
+.app-nav-brand {
+  order: 2;
+}
+
+.app-nav nav {
+  order: 3;
+}
+
 .current-operator {
+  order: 4;
   display: flex;
   align-items: center;
   gap: var(--spacing-3);
@@ -521,9 +537,32 @@ button:disabled {
   white-space: nowrap;
 }
 
+.app-nav > .status-badge {
+  order: 5;
+}
+
+/* Achado em uso real, 2026-09-23: "Sair" pedido em cor de destaque
+   (nunca neutra, é a saída da sessão) — mesma forma/tamanho de sempre
+   (herda de `button` a base, ver regra combinada no topo do arquivo),
+   só a paleta muda pra `danger`. */
 .logout-button {
+  order: 6;
   padding: var(--spacing-2) var(--spacing-4);
   font-size: 13px;
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.logout-button:hover:not(:disabled) {
+  background: var(--color-danger-container);
+}
+
+/* Conteúdo de nome+status só usado dentro do menu em tela estreita (ver
+   `.nav-menu-meta` na media query no fim do arquivo) — escondido por
+   padrão pra não aparecer como um item a mais entre os links de `<nav>`
+   quando ela está inline (tela larga). */
+.nav-menu-meta {
+  display: none;
 }
 
 .app-content {
@@ -1104,22 +1143,37 @@ form.table-tile-actions button {
    de largura que EXPERIENCE.md já usa em todo o resto do app) — sem
    tratamento, o `<nav>` quebrava de forma bagunçada (`.app-nav nav`
    corrigida acima resolve a causa raiz do bug, mas 6 itens continuam
-   não cabendo). Abaixo de 1024px o menu vira um botão ☰: `<nav>` some
-   por padrão e só aparece (empilhado, `.nav-open`) quando o dono
-   aciona o botão — sem menu flutuante/sombra (DESIGN.md: "nada deveria
-   parecer flutuante"), o menu empurra o conteúdo abaixo dele mesmo.
-   Só afeta o dono (6 itens); garçom (1) e caixa (2) sempre cabem numa
-   linha só, nunca veem o botão. Wordmark fica à esquerda; operador+
-   status colam à direita (`margin-left: auto` no lugar do espaço que
-   o `<nav>` cedia). */
+   não cabendo). Abaixo de 1024px o menu vira um botão ☰, no padrão
+   clássico de app mobile pedido pelo dono depois de ver a primeira
+   versão (que só empurrava o `<nav>` pra uma segunda linha sempre
+   visível): hambúrguer no canto esquerdo, wordmark centralizada, "Sair"
+   no canto direito — só esses três sobram na barra. Nome do operador e
+   status de conexão saem da barra (não cabem mais nos 3 elementos
+   pedidos) e viram conteúdo do próprio menu: aparecem no topo do
+   `.nav-menu-meta`, dentro do `<nav>`, só quando ele abre — nada se
+   perde, só muda de lugar. Sem menu flutuante/sombra (DESIGN.md: "nada
+   deveria parecer flutuante"), o menu aberto empurra o conteúdo abaixo
+   dele mesmo. Só afeta o dono (6 itens); garçom (1) e caixa (2) sempre
+   cabem numa linha só, nunca veem o botão nem o rearranjo. */
 @media (max-width: 1023px) {
   .nav-toggle {
     display: inline-flex;
+    order: 1;
+  }
+
+  .app-nav-brand {
+    order: 2;
+    flex: 1;
+    text-align: center;
+  }
+
+  .logout-button {
+    order: 3;
   }
 
   .app-nav nav {
     display: none;
-    order: 5;
+    order: 4;
     flex-basis: 100%;
     flex-direction: column;
     align-items: stretch;
@@ -1135,8 +1189,32 @@ form.table-tile-actions button {
     border-top: 1px solid var(--color-outline-variant);
   }
 
-  .current-operator {
-    margin-left: auto;
+  /* A versão "de fora" de nome/status (visível em tela larga, ver regras
+     no topo do arquivo) some aqui — a versão de dentro do menu
+     (`.nav-menu-meta`, logo abaixo) assume, só visível quando `<nav>`
+     está aberto (é filha dele). */
+  .current-operator,
+  .app-nav > .status-badge {
+    display: none;
+  }
+
+  .nav-menu-meta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    padding: 0 0 var(--spacing-3);
+    margin-bottom: var(--spacing-2);
+    border-bottom: 1px solid var(--color-outline);
+  }
+
+  .current-operator-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-on-surface-variant);
+  }
+
+  .nav-menu-meta .status-badge {
+    align-self: flex-start;
   }
 }
 

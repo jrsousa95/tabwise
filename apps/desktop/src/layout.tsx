@@ -79,10 +79,20 @@ function Layout() {
     navigate("/");
   }
 
+  const statusBadge = (
+    // Achado em uso real, 2026-09-22: "sidecar ok"/"sidecar offline" é
+    // jargão técnico interno (o dono do estabelecimento não tem por que
+    // saber o que é "sidecar") — texto visível vira linguagem leiga; o
+    // detalhe técnico (erro cru) fica só no tooltip, pra quando alguém
+    // for debugar.
+    <span className={`status-badge ${health ? "status-badge-success" : "status-badge-danger"}`} title={!health && error ? error : undefined}>
+      {health ? "Conectado" : "Sem conexão"}
+    </span>
+  );
+
   return (
     <div className="app-shell">
       <header className="app-nav">
-        <span className="app-nav-brand brand-wordmark">Passa a Régua</span>
         <button
           type="button"
           ref={toggleRef}
@@ -94,7 +104,27 @@ function Layout() {
         >
           {navOpen ? <CloseIcon /> : <MenuIcon />}
         </button>
+        <span className="app-nav-brand brand-wordmark">Passa a Régua</span>
+        {/* Achado em uso real, 2026-09-23: padrão de app mobile pedido pelo
+            dono — hambúrguer à esquerda, logo centralizada, "Sair" à
+            direita em cor de destaque (nunca neutra, é a saída da sessão).
+            Nome do operador + status de conexão saem da barra principal
+            abaixo de 1024px (viram informação de dentro do menu, não
+            perdem nada) pra sobrar só esses 3 elementos. */}
+        {operator && (
+          <button type="button" className="logout-button" onClick={handleLogout}>
+            Sair
+          </button>
+        )}
         <nav id="app-nav-menu" ref={navRef} className={navOpen ? "nav-open" : undefined}>
+          {operator && (
+            <div className="nav-menu-meta">
+              <span className="current-operator-name">
+                {operator.name} ({roleLabel[operator.role] ?? operator.role})
+              </span>
+              {statusBadge}
+            </div>
+          )}
           <NavLink to="/tables" className={navLinkClassName} onClick={() => setNavOpen(false)}>
             Mapa de Mesas
           </NavLink>
@@ -125,24 +155,9 @@ function Layout() {
           )}
         </nav>
         {operator && (
-          <span className="current-operator">
-            {operator.name} ({roleLabel[operator.role] ?? operator.role})
-            <button type="button" className="logout-button button-secondary" onClick={handleLogout}>
-              Sair
-            </button>
-          </span>
+          <span className="current-operator">{operator.name} ({roleLabel[operator.role] ?? operator.role})</span>
         )}
-        {/* Achado em uso real, 2026-09-22: "sidecar ok"/"sidecar offline" é
-            jargão técnico interno (o dono do estabelecimento não tem por
-            que saber o que é "sidecar") — texto visível vira linguagem
-            leiga; o detalhe técnico (erro cru) fica só no tooltip, pra
-            quando alguém for debugar. */}
-        <span
-          className={`status-badge ${health ? "status-badge-success" : "status-badge-danger"}`}
-          title={!health && error ? error : undefined}
-        >
-          {health ? "Conectado" : "Sem conexão"}
-        </span>
+        {statusBadge}
       </header>
       {mergeWarnings.length > 0 && (
         // ARCH §4.2 — merge automático de comanda (conflito entre terminais
