@@ -1,9 +1,9 @@
 # Arquitetura — Passa a Régua
 
 **Fase:** Arquitetura (BMAD — Architect)
-**Data:** 2026-09-20
+**Data:** 2026-09-20 (última atualização: 2026-09-24 — Épico 9)
 **Baseado em:** `docs/project-brief.md`, `docs/prd.md`
-**Status:** Rascunho para revisão antes do início da implementação
+**Status:** Implementado (Épicos 1-8 / M0-M12). §3.4/3.5/4.4 registram as decisões de arquitetura do Épico 9 (Evolução do Fluxo de Caixa), ainda não implementado.
 
 ---
 
@@ -65,6 +65,74 @@ Relógios de parede de terminais diferentes não são confiáveis para decidir "
 
 Isso é uma peça de infraestrutura pequena (uma biblioteca de ~100 linhas), mas é o que torna a reconciliação determinística. Recomendo usar uma biblioteca existente (ex: `@clockwork/hlc` ou implementação própria baseada no paper original de Kulkarni et al.) em vez de reinventar.
 
+### 3.4 Extensão do modelo de dados — sessão de caixa (PRD Épico 9, histórias 9.1-9.5)
+
+Quatro eventos novos, seguindo exatamente o padrão já estabelecido em §3.1 (cada entidade real do domínio tem seu próprio `aggregate_type`; `aggregate_id` é gerado na criação e reaproveitado pelos eventos seguintes do mesmo ciclo de vida — mesmo padrão de `order_opened`→`item_added`, `category_registered`→`category_renamed`):
+
+| Evento | `aggregate_type` | `aggregate_id` | Payload (essencial) |
+|---|---|---|---|
+| `cash_session_opened` | `cash_session` (novo) | id gerado (ULID) na abertura | `openingAmountCents` |
+| `cash_session_closed` | `cash_session` | id da sessão aberta | `countedAmountCents` |
+| `cash_withdrawal_recorded` (sangria) | `cash_session` | id da sessão aberta | `amountCents`, `reason` |
+| `cash_deposit_recorded` (suprimento) | `cash_session` | id da sessão aberta | `amountCents`, `reason` |
+
+**Sangria/suprimento não ganham `aggregate_type` próprio** — são sub-eventos do ciclo de vida da sessão, mesmo padrão de `item_added` (que usa `aggregate_type: "order"`, não um `"item"` inexistente), não entidades independentes.
+
+`AggregateTypeSchema` (`packages/shared-types/src/common.ts`) é um enum zod fechado — precisa ganhar `"cash_session"` junto com os schemas dos 4 eventos novos.
+
+**Escopo do invariante "uma sessão aberta por vez" (revisado após reviewer adversarial — ver `.memlog.md` desta seção): é o ESTABELECIMENTO, não o terminal.** A primeira versão deste documento escopava por `terminal_id`, mas `terminal_id` (`apps/desktop/sidecar/src/terminal-identity.ts`) é um UUID gerado no primeiro boot e guardado num arquivo local — não é ligado a hardware. Um terminal substituído no meio do turno (queda, troca por um tablet reserva) geraria um `terminal_id` novo, que passaria trivialmente pela checagem "sem sessão aberta *neste* terminal", abrindo uma segunda sessão para o que na prática é a mesma gaveta física. Isso é exatamente a classe de bug do §4.2 (dois terminais, cada um satisfazendo localmente um invariante que na verdade é global) — a mesma que este projeto já teve que corrigir uma vez para mesas.
+
+Por isso a sessão de caixa é tratada como um recurso **compartilhado do estabelecimento** (como mesa), não como algo exclusivo de um terminal — e ganha a **mesma regra de resolução do §4.2**: se dois `cash_session_opened` concorrentes (de terminais que não se enxergavam) se mesclarem no log, o de **menor HLC** é a sessão canônica; a outra é marcada como perdedora (`mergedInto`), com o mesmo aviso não bloqueante já usado pra mesas (§4.2/§4.4 abaixo) em vez de inventar um mecanismo novo. Como só existe um "slot" (não um por mesa), a implementação é mais simples que `tableToCanonicalOrder`: um único ponteiro para a sessão canônica aberta, não um mapa.
+
+Estado materializado em `reconciliation.ts` (§3.2), no mesmo formato de `orders`/`tables`:
+
+```ts
+interface CashMovementRecord {
+  readonly id: string;
+  readonly amountCents: number;
+  readonly reason: string;
+  readonly recordedAt: number;
+  readonly operatorId: string;
+}
+
+interface CashSessionState {
+  readonly id: string;
+  readonly status: "open" | "closed";
+  /** Só informativo/auditoria — não usado pra decidir o invariante (ver acima). */
+  readonly openedByTerminalId: string;
+  /** Setado quando esta sessão perdeu o conflito acima e foi mesclada na canônica — mesmo campo de `OrderState.mergedInto`. */
+  readonly mergedInto?: string;
+  readonly openingAmountCents: number;
+  readonly openedAt: number;
+  readonly openedByOperatorId: string;
+  readonly withdrawals: readonly CashMovementRecord[];
+  readonly deposits: readonly CashMovementRecord[];
+  readonly closing?: {
+    /** Único fato físico congelado no fechamento — o dono conta a gaveta uma vez. */
+    readonly countedAmountCents: number;
+    readonly closedAt: number;
+    readonly closedByOperatorId: string;
+  };
+}
+// cashSessions: Map<string, CashSessionState>
+```
+
+**`expectedAmountCents`/`differenceCents` NÃO são campos do payload do evento nem do `closing` acima — são valores DERIVADOS, recalculados pela projeção a partir do log, nunca congelados.** Isso segue o mesmo princípio já em §3.2 ("projeções são recalculáveis, nunca fonte de verdade"): se um pedido em dinheiro que deveria contar pra essa sessão só sincroniza depois que o dono já contou a gaveta e fechou, a próxima leitura do relatório já reflete o valor certo — sem precisar de um evento de correção manual (revisão do design original, que congelava os dois campos no `cash_session_closed` e não tinha caminho de correção pra sync tardio — achado do reviewer adversarial).
+
+**`[ASSUMPTION]` a confirmar antes de detalhar a história 9.2 em épicos/stories:** `expectedAmountCents` = `openingAmountCents` + pagamentos em dinheiro de orders fechadas com `closing.closedAt` dentro de `[openedAt, closedAt ?? agora]` da sessão canônica atual + suprimentos − sangrias. Como a sessão agora é do estabelecimento (não de um terminal), a correlação **não filtra por `terminal_id`** — qualquer terminal do estabelecimento pode ter recebido o dinheiro, e isso está correto (era o ponto fraco da versão anterior, que também não filtrava mas não tinha justificativa pra isso). Ainda em aberto: o que a UI mostra quando a sessão está fechada mas eventos relevantes continuam chegando depois — hoje a leitura seguinte simplesmente muda de valor, sem histórico do que era "esperado no momento do fechamento"; se o dono precisar desse retrato congelado (ex: pra bater com o relatório impresso do dia), precisa virar uma decisão explícita antes de implementar 9.2.
+
+### 3.5 Relatório por período (PRD Épico 9.3/9.6/9.7)
+
+`computeCashRegisterSummary(orders, dateKey)` (`packages/sync-engine/src/reporting.ts`, §5) hoje só aceita uma data única. Em vez de alterar sua assinatura (evita quebrar os dois chamadores já existentes — sidecar M8 e backend M11), ganha uma função **nova**, `computeCashRegisterSummaryForRange(orders, fromDateKey, toDateKey)`, extraindo a agregação comum (`subtotalCents`/`serviceFeeCents`/`totalByPaymentMethod`/etc.) para um helper interno compartilhado pelas duas funções. Os dois call sites (resumo do dia — Épico 6 — e resumo por período — Épico 9) ficam explícitos, sem branch condicional dentro da função existente.
+
+Três comportamentos fixados aqui (achado do reviewer adversarial: ficariam implícitos e cada implementador resolveria diferente):
+
+- **Bounds inclusivos nas duas pontas** (`fromDateKey <= localDateKey(...) <= toDateKey`) — comparação lexicográfica de string `YYYY-MM-DD` já funciona pra isso, sem conversão de data.
+- **`pendingOrders` mantém a semântica atual**: todas as orders abertas *agora*, sem filtrar pelo período pedido — é um retrato do estado atual, não uma métrica do intervalo (mesmo comportamento não-filtrado que a função de um dia único já tem hoje).
+- **Filtro por operador (história 9.6) acontece FORA do helper**, não como parâmetro dele: quem chama pré-filtra o array de `orders` por `closing.operatorId` antes de passar pra `computeCashRegisterSummaryForRange`. A função em si não sabe o que é "operador".
+
+**Limitação conhecida, não bloqueante:** `localDateKey` já documenta que sidecar (fuso da máquina) e backend (fuso do servidor) podem calcular o dia de uma mesma order de forma diferente perto da meia-noite — aceitável hoje pro relatório de um dia único. Num relatório por período, e principalmente no consolidado multi-terminal (9.8, que mistura dado do backend com o que o dono vê localmente), essa divergência de borda fica mais visível — registrado aqui como algo a observar, não a resolver agora.
+
 ## 4. Reconciliação — casos especiais
 
 ### 4.1 Caso feliz (a maioria dos eventos)
@@ -80,6 +148,12 @@ Cenário: o host cai; dois garçons em terminais diferentes, sem conseguir se en
 ### 4.3 Idempotência
 Como cada evento tem um `id` único (ULID), reaplicar o mesmo evento duas vezes (ex: por causa de uma sincronização retomada após queda de conexão) é seguro — o merge é feito por `UNION`/`UPSERT` por `id`, nunca por reprocessamento cego.
 
+### 4.4 Sessão de caixa (§3.4) É um caso de conflito estilo §4.2
+
+**Revisado após reviewer adversarial** — a primeira versão deste documento argumentava que sessão de caixa não precisava de resolução de conflito, por ser "local a um terminal, não compartilhada". Esse argumento não se sustenta: a premissa do produto inteiro (§1) é que terminais operam offline e só descobrem o que aconteceu em outro terminal ao sincronizar — exatamente o mecanismo que produz o conflito do §4.2 pra mesa. `terminal_id` também não é um proxy confiável de "uma gaveta física" (§3.4) — um terminal substituído no meio do turno tem um `terminal_id` novo e recomeça do zero, sem saber que já existe uma sessão aberta em outro lugar.
+
+Por isso a sessão de caixa segue **a mesma regra do §4.2**, com o estabelecimento (não a mesa) como o recurso disputado: dois `cash_session_opened` concorrentes, vindos de terminais que não se enxergavam, se resolvem pelo **menor HLC** como canônica; a outra é marcada `mergedInto` e gera o mesmo aviso não bloqueante já usado pra mesas. A UI de "Conflitos" (hoje só de mesas — `apps/desktop/src/routes/table-conflicts.tsx`) precisa passar a listar também conflitos de sessão de caixa, ou ganhar uma tela irmã — decisão de UI a tomar no detalhamento de 9.1, não aqui.
+
 ## 5. Sincronização com a nuvem
 
 O backend (Node/TS + PostgreSQL) participa do mesmo protocolo de replicação de eventos descrito acima, com duas diferenças práticas:
@@ -90,6 +164,10 @@ O backend (Node/TS + PostgreSQL) participa do mesmo protocolo de replicação de
 O backend mantém sua própria camada de leitura materializada em PostgreSQL (mesma lógica de replay de eventos, só que agregando todos os terminais de todos os estabelecimentos), que alimenta:
 - O endpoint de relatórios read-only (PRD Épico 6.2)
 - A fonte de verdade dos limites de plano (PRD Épico 8)
+
+**História 9.8 (revisado após reviewer adversarial): precisa de uma projeção Postgres NOVA, não é só "construir a tela".** A primeira versão deste documento assumia que 9.8 reaproveitava o endpoint `GET /reports/cash-register` (M11) sem nenhuma decisão nova — mas esse endpoint só agrega `orders`, de antes de `cash_session`/sangria/suprimento existirem. Um relatório consolidado de **caixa** (não só de vendas) precisa que o backend também replique os 4 eventos novos de §3.4 numa projeção Postgres própria, mesmo padrão da projeção de orders já existente desde o M9/M11 — sem isso, 9.8 não tem como mostrar abertura/fechamento/sangria/suprimento consolidados entre terminais, só o total de vendas (que já é o que o Épico 6 mostra por terminal individualmente).
+
+**História 9.9** (exportação CSV) segue sem decisão de arquitetura nova: geração client-side a partir do `CashRegisterSummary`/dados de sessão já retornados por §3.4/3.5, sem impacto na camada de dados.
 
 ## 6. Enforcement de limites de plano (freemium)
 
@@ -143,5 +221,11 @@ Dado que esse é o componente de maior incerteza técnica do projeto, recomendo 
 
 ## 11. Próximos passos
 
-1. Executar os spikes técnicos da seção 9 antes de iniciar a implementação dos épicos do PRD, com atenção especial ao empacotamento cross-platform (Mac → Windows) no spike 1.
-2. Handoff para o time de desenvolvimento (ou agente Dev do BMAD) para iniciar a implementação, começando pelo pacote `sync-engine` (base de tudo) e pelo Épico 1 (Autenticação e Operadores) do PRD.
+Épicos 1-8 do PRD (M0-M12) estão todos implementados e validados em uso real — os spikes da seção 9 e o handoff inicial pro pacote `sync-engine`/Épico 1, registrados aqui originalmente, já aconteceram.
+
+Próximo passo: **Épico 9 (Evolução do Fluxo de Caixa)**, com as decisões de arquitetura já registradas em §3.4/3.5/4.4 (passaram por uma rodada de revisão adversarial que corrigiu o escopo do invariante de sessão de 9.1/9.2 e o de 9.8 — ver `.memlog.md` do workspace de arquitetura pra o histórico completo). Antes de codar:
+
+1. Confirmar com o dono o `[ASSUMPTION]` de §3.4 (o que a UI mostra quando `expectedAmountCents` muda depois do fechamento da sessão, por causa de um pedido em dinheiro que sincronizou atrasado).
+2. Decisão de UI pendente do §4.4: tela de conflitos de sessão de caixa é a mesma de "Conflitos de Mesas" ou uma tela irmã.
+3. `bmad-create-epics-and-stories` (ou detalhamento equivalente) pra quebrar as 9 histórias já escritas no PRD em tarefas de implementação, citando as decisões desta seção onde a história depende de uma delas.
+4. Implementação seguindo a ordem de prioridade já definida no PRD (9.1/9.2 → 9.3 → 9.4/9.5 → 9.6 → 9.7 → 9.8 → 9.9).
