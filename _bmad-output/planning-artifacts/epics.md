@@ -56,41 +56,35 @@ Não há um design contract específico pro Épico 9 ainda — `DESIGN.md`/`EXPE
 - **UX-DR2:** Formulários curtos (abertura de sessão, sangria, suprimento) seguem o padrão `inline-form` já catalogado em `DESIGN.md` (Component Patterns), não um layout novo.
 - **UX-DR3:** Ações que alteram estado financeiro sensível (fechar sessão com diferença ≠ 0, registrar sangria) devem expor o valor calculado (diferença, valor esperado) de forma visível antes da confirmação — mesmo princípio já usado no fechamento de comanda com split (`order-closing.tsx`), não uma confirmação cega.
 - **UX-DR4 (decidido com o dono, 2026-09-25):** conflito de sessão de caixa (ARCH §4.2/§4.4) aparece na MESMA tela hoje chamada "Conflitos de Mesas" (`apps/desktop/src/routes/table-conflicts.tsx`), que é renomeada pra algo mais genérico (ex: "Conflitos de Sincronização") e passa a listar os dois tipos de conflito.
-- **UX-DR5 (decidido durante a story A.4):** quando `expectedAmountCents` de uma sessão já fechada muda de valor por causa de um pedido em dinheiro que sincronizou atrasado, a tela dessa sessão sinaliza que o valor pode ter mudado desde o fechamento (ver Story A.4, último AC) — não é silencioso.
+- **UX-DR5 (decidido durante a story 1.4):** quando `expectedAmountCents` de uma sessão já fechada muda de valor por causa de um pedido em dinheiro que sincronizou atrasado, a tela dessa sessão sinaliza que o valor pode ter mudado desde o fechamento (ver Story 1.4, último AC) — não é silencioso.
 
 ### FR Coverage Map
 
-- FR-9.1: Epic A, story A.1 — abertura de sessão de caixa
-- FR-9.2: Epic A, story A.4 — fechamento de sessão com conferência (por último dentro do épico — depende dos valores de A.2/A.3 já existirem)
-- FR-9.3: Epic B, story B.1 — relatório por período (semana/mês, comparativo)
-- FR-9.4: Epic A, story A.2 — sangria
-- FR-9.5: Epic A, story A.3 — suprimento
-- FR-9.6: Epic B — relatório por operador (inclui o retrofit `ClosingState.operatorId` como AC da própria story B.2, não uma story técnica separada)
-- FR-9.7: Epic B — relatório por produto/curva ABC
-- FR-9.8: Epic C — relatório consolidado multi-terminal (única dependência de backend/nuvem)
-- FR-9.9: Epic B — exportação CSV
+- FR-9.1: Epic 1, story 1.1 — abertura de sessão de caixa
+- FR-9.2: Epic 1, story 1.4 — fechamento de sessão com conferência (por último dentro do épico — depende dos valores de 1.2/1.3 já existirem)
+- FR-9.3: Epic 2, story 2.1 — relatório por período (semana/mês, comparativo)
+- FR-9.4: Epic 1, story 1.2 — sangria
+- FR-9.5: Epic 1, story 1.3 — suprimento
+- FR-9.6: Epic 2 — relatório por operador (inclui o retrofit `ClosingState.operatorId` como AC da própria story 2.2, não uma story técnica separada)
+- FR-9.7: Epic 2 — relatório por produto/curva ABC
+- FR-9.8: Epic 3 — relatório consolidado multi-terminal (única dependência de backend/nuvem)
+- FR-9.9: Epic 2 — exportação CSV
 
 ## Epic List
 
-### Epic A: Sessão de Caixa
-Caixa/dono controla o turno de caixa de ponta a ponta: abre com fundo de troco, registra sangria/suprimento durante o turno, fecha conferindo valor contado x esperado. 100% local, sem dependência de nuvem.
-**FRs covered:** FR-9.1, FR-9.4, FR-9.5, FR-9.2
+**Epic 1 — Sessão de Caixa.** Caixa/dono controla o turno de caixa de ponta a ponta: abre com fundo de troco, registra sangria/suprimento durante o turno, fecha conferindo valor contado x esperado. 100% local, sem dependência de nuvem. FRs covered: FR-9.1, FR-9.4, FR-9.5, FR-9.2.
 
-### Epic B: Relatórios Avançados de Caixa
-Dono enxerga tendência de vendas além do dia atual (período, operador, produto/ABC) e exporta o resumo pra levar ao contador. Extensão pura de relatório sobre `orders` já existentes — não depende do Epic A.
-**FRs covered:** FR-9.3, FR-9.6, FR-9.7, FR-9.9
+**Epic 2 — Relatórios Avançados de Caixa.** Dono enxerga tendência de vendas além do dia atual (período, operador, produto/ABC) e exporta o resumo pra levar ao contador. Extensão pura de relatório sobre `orders` já existentes — não depende do Epic 1. FRs covered: FR-9.3, FR-9.6, FR-9.7, FR-9.9.
 
-### Epic C: Relatório Consolidado Multi-terminal
-Dono com mais de um terminal vê o caixa de todos consolidado direto no app, sem abrir o backend manualmente. Isolado por exigir credencial de nuvem configurada e uma projeção Postgres nova no backend (única dependência de infraestrutura deste conjunto de épicos).
-**FRs covered:** FR-9.8
+**Epic 3 — Relatório Consolidado Multi-terminal.** Dono com mais de um terminal vê o caixa de todos consolidado direto no app, sem abrir o backend manualmente. Isolado por exigir credencial de nuvem configurada e uma projeção Postgres nova no backend (única dependência de infraestrutura deste conjunto de épicos). FRs covered: FR-9.8.
 
-**Ordem de entrega sugerida (prioridade do dono, intercalando os épicos):** A.1(9.1) → B.1(9.3) → A.2(9.4) → A.3(9.5) → A.4(9.2) → B.2(9.6) → B.3(9.7) → C.1(9.8) → B.4(9.9).
+**Ordem de entrega sugerida (prioridade do dono, intercalando os épicos):** 1.1(9.1) → 2.1(9.3) → 1.2(9.4) → 1.3(9.5) → 1.4(9.2) → 2.2(9.6) → 2.3(9.7) → 3.1(9.8) → 2.4(9.9).
 
-_(Reordenado durante a validação do step 4: a story de fechamento com conferência, FR-9.2, precisa vir DEPOIS de sangria/suprimento — FR-9.4/9.5 — porque sua fórmula de valor esperado as usa; manter a numeração 9.2 antes de 9.4/9.5 no PRD é só prioridade de negócio, não ordem de implementação dentro do Epic A.)_
+_(Reordenado durante a validação do step 4: a story de fechamento com conferência, FR-9.2, precisa vir DEPOIS de sangria/suprimento — FR-9.4/9.5 — porque sua fórmula de valor esperado as usa; manter a numeração 9.2 antes de 9.4/9.5 no PRD é só prioridade de negócio, não ordem de implementação dentro do Epic 1.)_
 
-**Nota de dependência entre épicos:** Epic C (relatório consolidado) consome os eventos `cash_session_*` definidos no Epic A — precisa que o schema desses eventos já exista em `packages/shared-types` antes de a projeção Postgres de C.1 fazer sentido. Isso não viola a independência de épicos (Epic C não precisa de nenhuma TELA do Epic A, só do modelo de dados) — é o mesmo tipo de "Epic 3 constrói sobre Epic 1" já previsto nas regras de dependência.
+**Nota de dependência entre épicos:** Epic 3 (relatório consolidado) consome os eventos `cash_session_*` definidos no Epic 1 — precisa que o schema desses eventos já exista em `packages/shared-types` antes de a projeção Postgres de 3.1 fazer sentido. Isso não viola a independência de épicos (Epic 3 não precisa de nenhuma TELA do Epic 1, só do modelo de dados) — é o mesmo tipo de "Epic 3 constrói sobre Epic 1" já previsto nas regras de dependência.
 
-## Epic A: Sessão de Caixa
+## Epic 1: Sessão de Caixa
 
 Caixa/dono controla o turno de caixa de ponta a ponta: abre com fundo de troco, registra sangria/suprimento durante o turno, fecha conferindo valor contado x esperado. 100% local, sem dependência de nuvem.
 
@@ -98,7 +92,7 @@ Caixa/dono controla o turno de caixa de ponta a ponta: abre com fundo de troco, 
 **NFRs relevantes:** NFR1 (offline), NFR3/NFR6 (append-only/auditoria), NFR7 (centavos)
 **UX-DR4:** conflito de sessão de caixa entra na tela "Conflitos de Mesas", renomeada pra algo mais genérico (ex: "Conflitos de Sincronização"), que passa a listar os dois tipos de conflito.
 
-### Story A.1: Abrir sessão de caixa
+### Story 1.1: Abrir sessão de caixa
 
 Como caixa/dono,
 Eu quero abrir uma sessão de caixa informando o valor inicial em dinheiro,
@@ -126,7 +120,7 @@ Para que o sistema saiba quanto deveria ter na gaveta antes de qualquer venda.
 **When** tenta acessar a abertura de caixa
 **Then** acesso negado (mesmo padrão de permissão já usado no fechamento de comanda)
 
-### Story A.2: Registrar sangria
+### Story 1.2: Registrar sangria
 
 Como caixa/dono,
 Eu quero registrar uma sangria durante o turno,
@@ -146,7 +140,7 @@ Para reduzir o volume em caixa por segurança sem perder o registro de onde foi 
 **When** o operador tenta confirmar
 **Then** a validação impede o envio
 
-### Story A.3: Registrar suprimento
+### Story 1.3: Registrar suprimento
 
 Como caixa/dono,
 Eu quero registrar um suprimento durante o turno,
@@ -160,13 +154,13 @@ Para repor troco sem que isso pareça uma venda a mais no fechamento.
 
 **Given** nenhuma sessão aberta
 **When** o operador tenta registrar suprimento
-**Then** bloqueado com a mesma mensagem de A.2
+**Then** bloqueado com a mesma mensagem de 1.2
 
 **Given** valor informado zero ou negativo
 **When** o operador tenta confirmar
 **Then** a validação impede o envio
 
-### Story A.4: Fechar sessão de caixa com conferência
+### Story 1.4: Fechar sessão de caixa com conferência
 
 Como caixa/dono,
 Eu quero fechar a sessão de caixa informando o valor contado fisicamente,
@@ -174,7 +168,7 @@ Para saber se o caixa bateu com o esperado.
 
 **Acceptance Criteria:**
 
-**Given** uma sessão de caixa aberta (canônica), com zero ou mais sangrias (A.2) e suprimentos (A.3) já registrados
+**Given** uma sessão de caixa aberta (canônica), com zero ou mais sangrias (1.2) e suprimentos (1.3) já registrados
 **When** o operador inicia o fechamento
 **Then** o sistema mostra o valor esperado calculado (abertura + vendas em dinheiro da sessão + suprimentos já registrados − sangrias já registradas) antes de pedir o valor contado
 
@@ -195,15 +189,15 @@ Para saber se o caixa bateu com o esperado.
 **Then** o valor esperado exibido reflete o novo total (é derivado — ARCH §3.4) e a tela sinaliza que o valor pode ter mudado desde o fechamento
 
 
-## Epic B: Relatórios Avançados de Caixa
+## Epic 2: Relatórios Avançados de Caixa
 
-Dono enxerga tendência de vendas além do dia atual (período, operador, produto/ABC) e exporta o resumo pra levar ao contador. Extensão pura de relatório sobre `orders` já existentes — não depende do Epic A.
+Dono enxerga tendência de vendas além do dia atual (período, operador, produto/ABC) e exporta o resumo pra levar ao contador. Extensão pura de relatório sobre `orders` já existentes — não depende do Epic 1.
 
 **FRs covered:** FR-9.3, FR-9.6, FR-9.7, FR-9.9
 **NFRs relevantes:** NFR7 (centavos)
 **Permissão:** owner-only em todas as 4 stories (mesmo padrão de Configurações/Cardápio, PRD §2).
 
-### Story B.1: Relatório por período
+### Story 2.1: Relatório por período
 
 Como dono,
 Eu quero ver o resumo de vendas agrupado por semana ou mês,
@@ -227,7 +221,7 @@ Para entender tendência do negócio sem somar dia a dia manualmente.
 **When** tenta acessar
 **Then** acesso negado
 
-### Story B.2: Relatório por operador
+### Story 2.2: Relatório por operador
 
 Como dono,
 Eu quero ver quanto cada operador vendeu e quantos itens cancelou num período,
@@ -239,7 +233,7 @@ Para ter visibilidade de desempenho e de perdas por pessoa.
 **When** esta story é implementada
 **Then** `ClosingState` (`reconciliation.ts`) passa a expor esse campo (retrofit aditivo — comandas fechadas antes dessa mudança de código ficam sem essa informação retroativamente, aceitável)
 
-**Given** um intervalo de datas (mesmo do B.1)
+**Given** um intervalo de datas (mesmo do 2.1)
 **When** o dono abre o relatório por operador
 **Then** vê total vendido e total de itens cancelados agrupados por operador
 
@@ -251,7 +245,7 @@ Para ter visibilidade de desempenho e de perdas por pessoa.
 **When** tenta acessar
 **Then** acesso negado
 
-### Story B.3: Relatório por produto / curva ABC
+### Story 2.3: Relatório por produto / curva ABC
 
 Como dono,
 Eu quero ver quais produtos/categorias mais vendem num período,
@@ -275,7 +269,7 @@ Para entender o que impulsiona o cardápio.
 **When** tenta acessar
 **Then** acesso negado
 
-### Story B.4: Exportação CSV
+### Story 2.4: Exportação CSV
 
 Como dono,
 Eu quero exportar o resumo de caixa em CSV,
@@ -283,7 +277,7 @@ Para levar pro contador sem digitar os números de novo.
 
 **Acceptance Criteria:**
 
-**Given** um período já mostrado em tela (B.1)
+**Given** um período já mostrado em tela (2.1)
 **When** o dono clica em exportar
 **Then** um CSV é gerado com os mesmos totais exibidos
 
@@ -296,14 +290,14 @@ Para levar pro contador sem digitar os números de novo.
 **Then** acesso negado
 
 
-## Epic C: Relatório Consolidado Multi-terminal
+## Epic 3: Relatório Consolidado Multi-terminal
 
 Dono com mais de um terminal vê o caixa de todos consolidado direto no app, sem abrir o backend manualmente. Isolado por exigir credencial de nuvem configurada e uma projeção Postgres nova no backend (única dependência de infraestrutura deste conjunto de épicos).
 
 **FRs covered:** FR-9.8
 **Permissão:** owner-only.
 
-### Story C.1: Relatório consolidado multi-terminal
+### Story 3.1: Relatório consolidado multi-terminal
 
 Como dono,
 Eu quero ver na própria tela do app o relatório consolidado de todos os terminais do estabelecimento,
