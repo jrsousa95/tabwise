@@ -360,6 +360,27 @@ export const PaymentRecordedSchema = baseEventSchema.extend({
 });
 export type PaymentRecorded = z.infer<typeof PaymentRecordedSchema>;
 
+/**
+ * Épico 1 (Sessão de Caixa), Story 1.1 — primeiro evento do agregado novo
+ * `cash_session`. `aggregateId` é gerado na abertura (`randomUUID()`, padrão
+ * do projeto) e reaproveitado pelos demais eventos do ciclo de vida da
+ * mesma sessão (sangria/suprimento/fechamento, stories 1.2-1.4), mesmo
+ * princípio de `order_opened` -> `item_added`. O invariante "uma sessão
+ * aberta por vez" é do ESTABELECIMENTO inteiro (nunca filtrado por
+ * `terminalId`) — resolvido na projeção (`packages/sync-engine/src/
+ * reconciliation.ts`), não aqui no schema.
+ */
+export const CashSessionOpenedSchema = baseEventSchema.extend({
+  type: z.literal("cash_session_opened"),
+  aggregateType: z.literal("cash_session"),
+  aggregateId: z.string().min(1),
+  payload: z.object({
+    /** NFR7 — fundo de troco inicial, inteiro em centavos, sempre > 0. */
+    openingAmountCents: z.number().int().positive(),
+  }),
+});
+export type CashSessionOpened = z.infer<typeof CashSessionOpenedSchema>;
+
 export const DomainEventSchema = z.discriminatedUnion("type", [
   EstablishmentSettingsUpdatedSchema,
   OperatorRegisteredSchema,
@@ -384,6 +405,7 @@ export const DomainEventSchema = z.discriminatedUnion("type", [
   ItemQuantityIncrementedSchema,
   OrderClosedSchema,
   PaymentRecordedSchema,
+  CashSessionOpenedSchema,
 ]);
 export type DomainEvent = z.infer<typeof DomainEventSchema>;
 export type DomainEventType = DomainEvent["type"];

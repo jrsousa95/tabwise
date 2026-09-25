@@ -1,18 +1,19 @@
 import { useTableConflicts } from "../lib/table-conflicts";
+import { formatCentsToBRL } from "../lib/money";
 
 /**
- * ARCH §4.2 — histórico completo de conflitos de mesa: duas `order_opened`
- * pra mesma mesa, geradas por terminais offline sem se enxergar na LAN,
- * resolvidas automaticamente (menor HLC vence, itens da outra reatribuídos
- * a ela). O banner em `layout.tsx` (`useMergeWarnings`) é a notificação
- * transitória — só conflitos recentes (24h), dá pra dispensar (por
- * terminal, não sincroniza); esta tela é o registro permanente "visível ao
- * dono" que o ARCH já prometia, com uma ação de verdade pra marcar como
- * revisado (achado em uso real, 2026-09-23: sem isso, o registro ficava
- * pra sempre com cara de pendência sem solução).
+ * ARCH §4.2/§4.4, UX-DR4 (decidido com o dono, 2026-09-25) — histórico
+ * completo de conflitos resolvidos automaticamente por HLC: duas
+ * `order_opened` pra mesma mesa (mesa) OU duas `cash_session_opened`
+ * concorrentes (sessão de caixa, Épico 1/Story 1.1), sempre geradas por
+ * terminais offline sem se enxergar na LAN. Renomeada de "Conflitos de
+ * Mesas" pra algo mais genérico porque agora lista os dois mecanismos — o
+ * banner em `layout.tsx` (`useMergeWarnings`) continua sendo só a
+ * notificação transitória de mesa (24h, dispensável por terminal); esta
+ * tela é o registro permanente "visível ao dono".
  */
 function TableConflicts() {
-  const { status, conflicts, tableLabel, resolve, resolveError } = useTableConflicts();
+  const { status, conflicts, cashSessionConflicts, tableLabel, cashSessionAmount, resolve, resolveError } = useTableConflicts();
 
   if (status === "loading") {
     return (
@@ -31,20 +32,23 @@ function TableConflicts() {
     const pendingDiff = Number(a.resolvedAt !== undefined) - Number(b.resolvedAt !== undefined);
     return pendingDiff !== 0 ? pendingDiff : b.createdAt - a.createdAt;
   });
+  const sortedCashSessionConflicts = [...cashSessionConflicts].sort((a, b) => b.createdAt - a.createdAt);
 
   return (
     <section>
-      <h1>Conflitos de Mesas</h1>
+      <h1>Conflitos de Sincronização</h1>
       {/* Achado na validação de UX, 2026-09-23: .type-label (rótulo 13px)
           usado num parágrafo de 4 frases — texto corrido lê mais rápido. */}
       <p>
-        Quando dois terminais abrem comanda pra mesma mesa offline ao mesmo
-        tempo, o sistema mescla automaticamente: a comanda mais antiga fica
-        aberta, e os itens lançados na outra são reatribuídos a ela. Marcar
-        como resolvido só registra que você já revisou o caso (ex: conferiu
-        com o cliente) — não desfaz a mesclagem nem apaga o histórico.
+        Quando dois terminais fazem a mesma ação offline ao mesmo tempo sem se
+        enxergar (abrir comanda na mesma mesa, ou abrir sessão de caixa), o
+        sistema mescla automaticamente: o registro mais antigo fica
+        valendo, e o outro é marcado como conflito — nunca trava o operador.
+        Marcar como resolvido só registra que você já revisou o caso; não
+        desfaz a mesclagem nem apaga o histórico.
       </p>
 
+      <h2 className="section-heading">Conflitos de mesa</h2>
       <ul className="catalog-list">
         {sorted.map((conflict) => (
           <li key={conflict.losingOrder}>
@@ -69,6 +73,34 @@ function TableConflicts() {
           </li>
         ))}
         {sorted.length === 0 && <li className="catalog-empty">Nenhum conflito de mesa registrado ainda.</li>}
+      </ul>
+
+      {/* Épico 1 (Sessão de Caixa), Story 1.1 — ainda não existe uma ação
+          de "marcar como resolvido" pra esse tipo (não há evento
+          equivalente a `table_conflict_resolved` pra sessão de caixa
+          nesta story); fica como aviso não bloqueante, só leitura. */}
+      <h2 className="section-heading">Conflitos de sessão de caixa</h2>
+      <ul className="catalog-list">
+        {sortedCashSessionConflicts.map((conflict) => {
+          const losingAmount = cashSessionAmount(conflict.losingSession);
+          const canonicalAmount = cashSessionAmount(conflict.canonicalSession);
+          return (
+            <li key={conflict.losingSession}>
+              <div>
+                <strong>
+                  Sessão de caixa{losingAmount !== undefined ? ` (fundo de ${formatCentsToBRL(losingAmount)})` : ""}
+                </strong>
+                <div className="type-label">{new Date(conflict.createdAt).toLocaleString("pt-BR")}</div>
+              </div>
+              <span className="status-badge status-badge-warning">
+                mesclada na sessão {canonicalAmount !== undefined ? `de ${formatCentsToBRL(canonicalAmount)}` : "canônica"}
+              </span>
+            </li>
+          );
+        })}
+        {sortedCashSessionConflicts.length === 0 && (
+          <li className="catalog-empty">Nenhum conflito de sessão de caixa registrado ainda.</li>
+        )}
       </ul>
 
       {/* Achado na validação de UX, 2026-09-23: erro aparecia antes da

@@ -5,7 +5,7 @@ function base() {
   return { id: "ev-1", hlc: "0000000000000001-00000000", operatorId: "op-1", terminalId: "t-1", createdAt: 1700000000000 };
 }
 
-describe("DomainEventSchema — discriminated union dos 23 tipos (PRD/ARCH §3.1)", () => {
+describe("DomainEventSchema — discriminated union dos 24 tipos (PRD/ARCH §3.1)", () => {
   it("aceita um evento válido de cada tipo", () => {
     const validEvents = [
       { ...base(), type: "establishment_settings_updated", aggregateType: "establishment", aggregateId: "establishment", payload: { defaultServiceFeePercent: 10 } },
@@ -33,6 +33,7 @@ describe("DomainEventSchema — discriminated union dos 23 tipos (PRD/ARCH §3.1
       { ...base(), type: "item_quantity_incremented", aggregateType: "order", aggregateId: "c-1", payload: { itemId: "i-1", deltaQuantity: 1 } },
       { ...base(), type: "order_closed", aggregateType: "order", aggregateId: "c-1", payload: { subtotalCents: 2400, serviceFeePercent: 10, serviceFeeCents: 240, totalCents: 2640 } },
       { ...base(), type: "payment_recorded", aggregateType: "order", aggregateId: "c-1", payload: { amountCents: 3000, paymentMethod: "cash", changeCents: 360 } },
+      { ...base(), type: "cash_session_opened", aggregateType: "cash_session", aggregateId: "cs-1", payload: { openingAmountCents: 5000 } },
     ];
 
     for (const event of validEvents) {
@@ -122,5 +123,25 @@ describe("DomainEventSchema — discriminated union dos 23 tipos (PRD/ARCH §3.1
       payload: { name: "Cerveja", priceCents: 12.5, categoryId: "cat-1", active: true },
     });
     expect(result.success).toBe(false);
+  });
+
+  it("cash_session_opened exige openingAmountCents inteiro e > 0 (NFR7)", () => {
+    const zeroOrNegative = DomainEventSchema.safeParse({
+      ...base(),
+      type: "cash_session_opened",
+      aggregateType: "cash_session",
+      aggregateId: "cs-1",
+      payload: { openingAmountCents: 0 },
+    });
+    expect(zeroOrNegative.success).toBe(false);
+
+    const nonInteger = DomainEventSchema.safeParse({
+      ...base(),
+      type: "cash_session_opened",
+      aggregateType: "cash_session",
+      aggregateId: "cs-1",
+      payload: { openingAmountCents: 50.5 },
+    });
+    expect(nonInteger.success).toBe(false);
   });
 });

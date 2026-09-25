@@ -52,6 +52,8 @@ export interface RequestContext {
   /** M10 (ARCH §6, PRD 2.7/8.2) — lê o cache local do plano (atualizado a cada sync com a nuvem, `cloud-sync-client.ts`); nunca chama a nuvem em tempo real aqui, precisa funcionar 100% offline (NFR1). */
   maxConcurrentOrders(): number;
   isTableFree(state: ProjectedState, tableId: string): boolean;
+  /** Épico 1 (Sessão de Caixa), Story 1.1 — invariante "uma sessão aberta por vez" do ESTABELECIMENTO inteiro (nunca por `terminalId`). Espelha `isTableFree`. */
+  isCashSessionOpen(state: ProjectedState): boolean;
   /** PRD 5.1 — soma dos itens não cancelados; nunca confia num subtotal vindo do cliente. */
   computeSubtotalCents(order: OrderState): number;
   /** PRD 5.2 — divisão em partes iguais: resto da divisão inteira vai determinística pra primeira parcela. */
@@ -125,6 +127,10 @@ export function createRequestContext(db: DatabaseSync, dataDir: string, terminal
     return !state.orders.some((o) => o.mergedInto === undefined && o.status === "open" && o.currentTableId === tableId);
   }
 
+  function isCashSessionOpen(state: ProjectedState): boolean {
+    return state.cashSessions.some((s) => s.mergedInto === undefined && s.status === "open");
+  }
+
   function computeSubtotalCents(order: OrderState): number {
     return order.items.filter((i) => !i.canceled).reduce((sum, i) => sum + i.unitPriceCents * i.quantity, 0);
   }
@@ -192,6 +198,7 @@ export function createRequestContext(db: DatabaseSync, dataDir: string, terminal
     requireLanToken,
     maxConcurrentOrders,
     isTableFree,
+    isCashSessionOpen,
     computeSubtotalCents,
     distributeEqually,
     parseSplits,

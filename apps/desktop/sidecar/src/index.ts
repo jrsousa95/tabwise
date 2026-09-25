@@ -17,6 +17,7 @@ import { handleCatalogRoutes } from "./routes/catalog.js";
 import { handleTableRoutes } from "./routes/tables.js";
 import { handleEstablishmentRoutes } from "./routes/establishment.js";
 import { handleOrderRoutes } from "./routes/orders.js";
+import { handleCashSessionRoutes } from "./routes/cash-sessions.js";
 
 /**
  * M2 (ARCH §9, implementation-plan.md): sidecar real conectado ao
@@ -109,6 +110,7 @@ const server = http.createServer(async (req, res) => {
   if (await handleTableRoutes(req, res, url, ctx)) return;
   if (await handleEstablishmentRoutes(req, res, url, ctx)) return;
   if (await handleOrderRoutes(req, res, url, ctx)) return;
+  if (await handleCashSessionRoutes(req, res, url, ctx)) return;
 
   sendJson(res, 404, { error: "not found" });
 });

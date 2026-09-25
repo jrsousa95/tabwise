@@ -145,7 +145,7 @@ function Layout() {
           )}
           {operator?.role === "owner" && (
             <NavLink to="/table-conflicts" className={navLinkClassName} onClick={() => setNavOpen(false)}>
-              Conflitos de Mesas
+              Conflitos de Sincronização
             </NavLink>
           )}
           {operator?.role === "owner" && (
@@ -182,9 +182,11 @@ function Layout() {
             Dispensar tudo
           </button>
           {/* ARCH §4.2 — este banner é só a notificação transitória (recente,
-              dispensável); o registro permanente "visível ao dono", com a
-              ação de marcar como resolvido, fica na tela de Conflitos de
-              Mesas — link só pro dono, já que a rota é owner-only. */}
+              dispensável) de conflito de MESA; o registro permanente
+              "visível ao dono", com a ação de marcar como resolvido, fica
+              na tela de Conflitos de Sincronização (renomeada, UX-DR4, pra
+              também listar conflito de sessão de caixa) — link só pro
+              dono, já que a rota é owner-only. */}
           {operator?.role === "owner" && (
             <a href="#/table-conflicts" className="button-secondary">
               Ver histórico completo

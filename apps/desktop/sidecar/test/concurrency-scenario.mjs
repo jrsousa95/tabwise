@@ -204,6 +204,72 @@ async function main() {
     assert.equal(orderAfterItems.items.length, 2, "nenhum item concorrente pode se perder");
     log("CENÁRIO 2 OK — os dois itens lançados ao mesmo tempo sobreviveram ao sync.");
 
+    // === Cenário 4 (Épico 1 / Story 1.1): sessão de caixa — validações num
+    // terminal só (papel, valor inválido) + conflito de abertura concorrente
+    // entre A e B (mesma regra do §4.2, mas pro slot global do
+    // estabelecimento, não por mesa). Precisa rodar ANTES do Cenário 3
+    // (que derruba o terminal A). ===
+    log("CENÁRIO 4: sessão de caixa — validações e conflito de abertura concorrente...");
+
+    log("cadastrando um garçom em A (pra testar o bloqueio de papel)...");
+    await postJson(PORT_A, "/operators", { name: "Wagner", role: "waiter", pin: "9999" });
+    await postJson(PORT_A, "/session/login", { pin: "9999" });
+    const waiterBlocked = await postJson(PORT_A, "/cash-sessions", { openingAmountCents: 5000 });
+    assert.equal(waiterBlocked.status, 403, "garçom não pode abrir sessão de caixa");
+    assert.equal(
+      (await getJson(PORT_A, "/state")).cashSessions.length,
+      0,
+      "bloqueio de garçom não pode gravar nenhum cash_session_opened"
+    );
+    await postJson(PORT_A, "/session/login", { pin: "1234" }); // volta a sessão de A pra Ana (dono)
+
+    log("valor de abertura inválido é rejeitado...");
+    const invalidAmount = await postJson(PORT_A, "/cash-sessions", { openingAmountCents: 0 });
+    assert.equal(invalidAmount.status, 400, "valor de abertura zero/negativo precisa ser rejeitado");
+
+    log("A e B abrem sessão de caixa simultaneamente, sem se enxergar ainda...");
+    const [sessionFromA, sessionFromB] = await Promise.all([
+      postJson(PORT_A, "/cash-sessions", { openingAmountCents: 5000 }),
+      postJson(PORT_B, "/cash-sessions", { openingAmountCents: 8000 }),
+    ]);
+    assert.equal(sessionFromA.status, 201, "A deveria conseguir abrir sua sessão (não viu a de B ainda)");
+    assert.equal(sessionFromB.status, 201, "B deveria conseguir abrir sua sessão (não viu a de A ainda)");
+    const sessionIdA = sessionFromA.data.id;
+    const sessionIdB = sessionFromB.data.id;
+    assert.notEqual(sessionIdA, sessionIdB, "as duas sessões precisam ter ids diferentes");
+
+    log("esperando o sync LAN convergir e mesclar automaticamente...");
+    await waitUntil(
+      async () => {
+        const state = await getJson(PORT_A, "/state");
+        const a = state.cashSessions.find((s) => s.id === sessionIdA);
+        const b = state.cashSessions.find((s) => s.id === sessionIdB);
+        return a && b && (a.mergedInto !== undefined || b.mergedInto !== undefined);
+      },
+      { description: "merge automático de sessão de caixa acontecer em A", timeoutMs: 20000 }
+    );
+
+    for (const port of [PORT_A, PORT_B]) {
+      const state = await getJson(port, "/state");
+      const a = state.cashSessions.find((s) => s.id === sessionIdA);
+      const b = state.cashSessions.find((s) => s.id === sessionIdB);
+      assert.ok(a && b, `terminal na porta ${port} precisa conhecer as duas sessões depois do sync`);
+      const canonical = a.mergedInto === undefined ? a : b;
+      const losing = a.mergedInto === undefined ? b : a;
+      assert.equal(losing.mergedInto, canonical.id, `terminal ${port}: a sessão perdedora precisa apontar pra canônica`);
+      assert.equal(canonical.status, "open", `terminal ${port}: a canônica precisa continuar aberta`);
+      assert.ok(
+        state.cashSessionMergeWarnings.some((w) => w.losingSession === losing.id && w.canonicalSession === canonical.id),
+        `terminal ${port}: precisa ter o aviso de conflito de sessão de caixa`
+      );
+    }
+
+    log("depois do conflito resolvido, tentar abrir MAIS uma sessão é bloqueado (já existe uma canônica aberta)...");
+    const alreadyOpen = await postJson(PORT_A, "/cash-sessions", { openingAmountCents: 1000 });
+    assert.equal(alreadyOpen.status, 400, "não pode abrir uma segunda sessão com uma já aberta (canônica)");
+
+    log("CENÁRIO 4 OK — validações de sessão de caixa e conflito de abertura resolvidos corretamente.");
+
     // === Cenário 3 (PRD 7.1, NFR2): queda do "host" não trava o outro terminal. ===
     log("CENÁRIO 3: derrubando o terminal A — B precisa continuar funcionando sozinho...");
     stopSidecar(sidecarA);

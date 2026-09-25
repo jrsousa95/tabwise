@@ -120,6 +120,51 @@ export interface MergeWarning {
   readonly resolvedAt?: number;
 }
 
+/** Épico 1 (Sessão de Caixa), Story 1.2/1.3/1.4 — vazio por ora, ver `CashSessionState`. */
+export interface CashMovementRecord {
+  readonly id: string;
+  readonly amountCents: number;
+  readonly reason: string;
+  readonly recordedAt: number;
+  readonly operatorId: string;
+}
+
+/** Story 1.4 — ver Design Notes de `spec-1-1`: `closing.countedAmountCents` é o único valor gravado; `expectedAmountCents`/`differenceCents` são sempre derivados na leitura, nunca persistidos. */
+export interface CashSessionClosingState {
+  readonly countedAmountCents: number;
+  readonly closedAt: number;
+  readonly closedByOperatorId: string;
+}
+
+/**
+ * Épico 1 (Sessão de Caixa), Story 1.1 — estado materializado do agregado
+ * `cash_session` (mesmo formato de `OrderState`/`TableState`). `mergedInto`
+ * segue o mesmo princípio do ARCH §4.2 aplicado a `OrderState`, mas pra
+ * **1 slot global do estabelecimento** (não por `tableId`) — ver
+ * `canonicalOpenCashSession` em `project()`.
+ */
+export interface CashSessionState {
+  readonly id: string;
+  readonly status: "open" | "closed";
+  /** Só informativo/auditoria — NUNCA usado pra decidir o invariante "uma sessão aberta por vez" (esse é do estabelecimento, não do terminal). */
+  readonly openedByTerminalId: string;
+  readonly openedByOperatorId: string;
+  readonly openingAmountCents: number;
+  readonly openedAt: number;
+  /** Setado quando esta sessão perdeu o conflito de abertura concorrente e foi mesclada na canônica. */
+  readonly mergedInto?: string;
+  readonly withdrawals: readonly CashMovementRecord[];
+  readonly deposits: readonly CashMovementRecord[];
+  readonly closing?: CashSessionClosingState;
+}
+
+/** Mesmo mecanismo de `MergeWarning`, adaptado pro slot global de sessão de caixa (sem `tableId` — não existe "qual mesa", é o estabelecimento inteiro). */
+export interface CashSessionMergeWarning {
+  readonly losingSession: string;
+  readonly canonicalSession: string;
+  readonly createdAt: number;
+}
+
 export interface ProjectedState {
   readonly operators: readonly OperatorState[];
   readonly orders: readonly OrderState[];
@@ -128,8 +173,11 @@ export interface ProjectedState {
   readonly products: readonly ProductState[];
   readonly tables: readonly TableState[];
   readonly establishment: EstablishmentState;
+  readonly cashSessions: readonly CashSessionState[];
   /** Base pro indicador não bloqueante que a UI deve mostrar (ARCH §4.2). */
   readonly mergeWarnings: readonly MergeWarning[];
+  /** Mesmo indicador não bloqueante, pro conflito de abertura concorrente de sessão de caixa (Épico 1, Story 1.1). */
+  readonly cashSessionMergeWarnings: readonly CashSessionMergeWarning[];
 }
 
 interface MutableOrder {
@@ -142,6 +190,19 @@ interface MutableOrder {
   transfers: TransferState[];
   payments: PaymentState[];
   closing?: ClosingState;
+}
+
+interface MutableCashSession {
+  id: string;
+  status: "open" | "closed";
+  openedByTerminalId: string;
+  openedByOperatorId: string;
+  openingAmountCents: number;
+  openedAt: number;
+  mergedInto?: string;
+  withdrawals: CashMovementRecord[];
+  deposits: CashMovementRecord[];
+  closing?: CashSessionClosingState;
 }
 
 /**
@@ -164,6 +225,13 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
   const products = new Map<string, ProductState>();
   const tables = new Map<string, TableState>();
   let establishment: EstablishmentState = { defaultServiceFeePercent: DEFAULT_SERVICE_FEE_PERCENT };
+  const cashSessions = new Map<string, MutableCashSession>();
+  // Épico 1, Story 1.1 — invariante "uma sessão aberta por vez" é do
+  // ESTABELECIMENTO inteiro, nunca do terminal: por isso é uma variável
+  // única (1 slot global), não um `Map` por chave como `tableToCanonicalOrder`
+  // (que tem N slots, um por `tableId`) — ver Design Notes de `spec-1-1`.
+  let canonicalOpenCashSession: string | undefined;
+  const cashSessionMergeWarnings: CashSessionMergeWarning[] = [];
   const mergeWarnings: MergeWarning[] = [];
   // ARCH §4.2 (achado em uso real, 2026-09-23) — losingOrder -> createdAt do
   // `table_conflict_resolved`. Mapeado à parte (não junto com `mergeWarnings`)
@@ -401,6 +469,35 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
         });
         break;
       }
+
+      case "cash_session_opened": {
+        const newSession: MutableCashSession = {
+          id: event.aggregateId,
+          status: "open",
+          openedByTerminalId: event.terminalId,
+          openedByOperatorId: event.operatorId,
+          openingAmountCents: event.payload.openingAmountCents,
+          openedAt: event.createdAt,
+          withdrawals: [],
+          deposits: [],
+        };
+        cashSessions.set(event.aggregateId, newSession);
+
+        if (canonicalOpenCashSession === undefined) {
+          canonicalOpenCashSession = event.aggregateId;
+        } else {
+          // Conflito de abertura concorrente (mesma regra do ARCH §4.2,
+          // adaptada pro slot global): a canônica já processada tem HLC
+          // menor — garantido pela ordenação do log antes de projetar.
+          newSession.mergedInto = canonicalOpenCashSession;
+          cashSessionMergeWarnings.push({
+            losingSession: event.aggregateId,
+            canonicalSession: canonicalOpenCashSession,
+            createdAt: event.createdAt,
+          });
+        }
+        break;
+      }
     }
   }
 
@@ -428,9 +525,24 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
     products: [...products.values()].sort(compareCreatedAt),
     tables: [...tables.values()].sort(compareCreatedAt),
     establishment,
+    cashSessions: [...cashSessions.values()]
+      .map((s) => ({
+        id: s.id,
+        status: s.status,
+        openedByTerminalId: s.openedByTerminalId,
+        openedByOperatorId: s.openedByOperatorId,
+        openingAmountCents: s.openingAmountCents,
+        openedAt: s.openedAt,
+        mergedInto: s.mergedInto,
+        withdrawals: s.withdrawals,
+        deposits: s.deposits,
+        closing: s.closing,
+      }))
+      .sort((a, b) => compareText(a.id, b.id)),
     mergeWarnings: [...mergeWarnings]
       .map((mw) => (resolvedConflicts.has(mw.losingOrder) ? { ...mw, resolvedAt: resolvedConflicts.get(mw.losingOrder) } : mw))
       .sort((a, b) => compareText(a.losingOrder, b.losingOrder)),
+    cashSessionMergeWarnings: [...cashSessionMergeWarnings].sort((a, b) => compareText(a.losingSession, b.losingSession)),
   };
 }
 
