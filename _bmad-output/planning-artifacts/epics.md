@@ -56,7 +56,7 @@ Não há um design contract específico pro Épico 9 ainda — `DESIGN.md`/`EXPE
 - **UX-DR2:** Formulários curtos (abertura de sessão, sangria, suprimento) seguem o padrão `inline-form` já catalogado em `DESIGN.md` (Component Patterns), não um layout novo.
 - **UX-DR3:** Ações que alteram estado financeiro sensível (fechar sessão com diferença ≠ 0, registrar sangria) devem expor o valor calculado (diferença, valor esperado) de forma visível antes da confirmação — mesmo princípio já usado no fechamento de comanda com split (`order-closing.tsx`), não uma confirmação cega.
 - **UX-DR4 (decidido com o dono, 2026-09-25):** conflito de sessão de caixa (ARCH §4.2/§4.4) aparece na MESMA tela hoje chamada "Conflitos de Mesas" (`apps/desktop/src/routes/table-conflicts.tsx`), que é renomeada pra algo mais genérico (ex: "Conflitos de Sincronização") e passa a listar os dois tipos de conflito.
-- **UX-DR5 (decisão em aberto, idem):** o que a UI mostra quando `expectedAmountCents` de uma sessão já fechada muda de valor por causa de um pedido em dinheiro que sincronizou atrasado (ver Additional Requirements) — indicador tipo "atualizado depois do fechamento", silencioso, ou outra solução.
+- **UX-DR5 (decidido durante a story A.4):** quando `expectedAmountCents` de uma sessão já fechada muda de valor por causa de um pedido em dinheiro que sincronizou atrasado, a tela dessa sessão sinaliza que o valor pode ter mudado desde o fechamento (ver Story A.4, último AC) — não é silencioso.
 
 ### FR Coverage Map
 
