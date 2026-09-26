@@ -4,8 +4,8 @@ import { SIDECAR_URL } from "./sidecar";
 /**
  * Épico 1 (Sessão de Caixa). Espelha `CashSessionState` do sync-engine —
  * `withdrawals` já é populado desde a Story 1.2 (sangria); `deposits`
- * (suprimento, 1.3) e `closing` (fechamento com conferência, 1.4) ainda
- * chegam vazios/ausentes, backlog separado.
+ * (suprimento) desde a Story 1.3. `closing` (fechamento com conferência,
+ * 1.4) ainda chega ausente, backlog separado.
  */
 export type CashMovementRecord = {
   id: string;
@@ -57,6 +57,18 @@ export function openCashSession(openingAmountCents: number) {
  */
 export function recordWithdrawal(amountCents: number, reason: string) {
   return postJson<{ id: string; amountCents: number; reason: string; recordedAt: number }>("/cash-sessions/withdrawals", {
+    amountCents,
+    reason,
+  });
+}
+
+/**
+ * PRD Épico 1 (Story 1.3) — registra um suprimento contra a sessão canônica
+ * aberta; nunca informa um id de sessão (o backend resolve sozinho). 400 se
+ * não houver sessão aberta, valor inválido ou motivo vazio.
+ */
+export function recordDeposit(amountCents: number, reason: string) {
+  return postJson<{ id: string; amountCents: number; reason: string; recordedAt: number }>("/cash-sessions/deposits", {
     amountCents,
     reason,
   });

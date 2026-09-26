@@ -204,4 +204,71 @@ describe("ARCH §4.4 — duas sessões de caixa abertas concorrentemente", () =>
     // Ordem de merge não pode importar.
     expect(project(merge(logT2, logT1))).toEqual(state);
   });
+
+  /**
+   * Épico 1 (Sessão de Caixa), Story 1.3 — Reatribuição histórica, espelho
+   * exato do teste de sangria acima: um suprimento (`cash_deposit_recorded`)
+   * gravado num terminal offline contra a sessão que ERA a canônica local
+   * naquele momento, mas que perde o conflito de abertura concorrente depois
+   * de sincronizar, precisa aparecer em `deposits` da sessão que realmente
+   * venceu — nunca fica "perdido" na perdedora.
+   */
+  it("suprimento registrado contra sessão que depois perde o conflito de abertura é reatribuído à canônica", () => {
+    // T1 abre sessão-B (HLC maior, vai perder) e já registra um suprimento contra ela.
+    const clockT1Open = tick(ZERO, 2000);
+    const sessionOpenedT1: DomainEvent = {
+      id: "ev-1",
+      hlc: serialize(clockT1Open),
+      aggregateType: "cash_session",
+      aggregateId: "session-B",
+      type: "cash_session_opened",
+      terminalId: "T1",
+      operatorId: "cashier-1",
+      createdAt: 2000,
+      payload: { openingAmountCents: 5000 },
+    };
+    const depositAgainstB: DomainEvent = {
+      id: "ev-2",
+      hlc: serialize(tick(clockT1Open, 2500)),
+      aggregateType: "cash_session",
+      aggregateId: "session-B",
+      type: "cash_deposit_recorded",
+      terminalId: "T1",
+      operatorId: "cashier-1",
+      createdAt: 2500,
+      payload: { amountCents: 5000, reason: "reposição de troco" },
+    };
+
+    // T2 abre sessão-A (HLC menor, vai vencer e virar a canônica).
+    const clockT2Open = tick(ZERO, 1000);
+    const sessionOpenedT2: DomainEvent = {
+      id: "ev-3",
+      hlc: serialize(clockT2Open),
+      aggregateType: "cash_session",
+      aggregateId: "session-A",
+      type: "cash_session_opened",
+      terminalId: "T2",
+      operatorId: "owner-1",
+      createdAt: 1000,
+      payload: { openingAmountCents: 8000 },
+    };
+
+    const logT1 = [sessionOpenedT1, depositAgainstB];
+    const logT2 = [sessionOpenedT2];
+    const state = project(merge(logT1, logT2));
+
+    const canonical = state.cashSessions.find((s) => s.id === "session-A");
+    const losing = state.cashSessions.find((s) => s.id === "session-B");
+    expect(canonical!.mergedInto).toBeUndefined();
+    expect(losing!.mergedInto).toBe("session-A");
+
+    // O suprimento "some" da perdedora e aparece na canônica de verdade.
+    expect(losing!.deposits).toEqual([]);
+    expect(canonical!.deposits).toEqual([
+      { id: "ev-2", amountCents: 5000, reason: "reposição de troco", recordedAt: 2500, operatorId: "cashier-1" },
+    ]);
+
+    // Ordem de merge não pode importar.
+    expect(project(merge(logT2, logT1))).toEqual(state);
+  });
 });

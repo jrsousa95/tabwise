@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useCashRegisterSummary } from "../lib/cash-register";
 import { useTablesAndOrders } from "../lib/tables";
-import { useCashSessionState, openCashSession, recordWithdrawal, type CashMovementRecord } from "../lib/cash-sessions";
+import { useCashSessionState, openCashSession, recordWithdrawal, recordDeposit, type CashMovementRecord } from "../lib/cash-sessions";
 import { formatCentsToBRL, parseReaisToCents } from "../lib/money";
 
 /**
@@ -92,6 +92,91 @@ function WithdrawalForm({ withdrawals, onRecorded }: { withdrawals: CashMovement
 }
 
 /**
+ * Épico 1 (Sessão de Caixa), Story 1.3 — cópia estrutural exata de
+ * `WithdrawalForm` acima (suprimento é espelho de sangria: valor + motivo,
+ * mesma validação, mesmo `onRecorded` chamado tanto no sucesso quanto no
+ * erro). Lista `deposits` já registrados nesta sessão, mais recente primeiro.
+ */
+function DepositForm({ deposits, onRecorded }: { deposits: CashMovementRecord[]; onRecorded: () => void }) {
+  const [amountText, setAmountText] = useState("");
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (submitting) return;
+    const cents = parseReaisToCents(amountText);
+    if (cents === null || cents <= 0) {
+      setError("valor do suprimento inválido");
+      return;
+    }
+    if (reason.trim().length === 0) {
+      setError("motivo do suprimento é obrigatório");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    const result = await recordDeposit(cents, reason.trim());
+    setSubmitting(false);
+    if (!result.ok) {
+      setError(result.error);
+      // Mesmo racional da 1.2 (WithdrawalForm acima): atualiza em QUALQUER
+      // erro, não só sessão fechada/mesclada desde o último render.
+      onRecorded();
+      return;
+    }
+    setAmountText("");
+    setReason("");
+    onRecorded();
+  }
+
+  return (
+    <div className="table-map-section">
+      <h3 className="subsection-heading">Suprimento</h3>
+      <form onSubmit={handleSubmit} className="inline-form">
+        <input
+          value={amountText}
+          onChange={(e) => {
+            setAmountText(e.target.value.replace(/[^0-9,.]/g, ""));
+            setError(null);
+          }}
+          disabled={submitting}
+          inputMode="decimal"
+          placeholder="Ex: 50,00"
+          aria-label="Valor do suprimento"
+        />
+        <input
+          value={reason}
+          onChange={(e) => {
+            setReason(e.target.value);
+            setError(null);
+          }}
+          disabled={submitting}
+          placeholder="Motivo (ex: reposição de troco)"
+          aria-label="Motivo do suprimento"
+        />
+        <button type="submit" className="button-primary" disabled={submitting}>
+          Registrar suprimento
+        </button>
+      </form>
+      {error && <p className="form-error" role="alert">{error}</p>}
+
+      <ul className="catalog-list">
+        {[...deposits]
+          .sort((a, b) => b.recordedAt - a.recordedAt)
+          .map((d) => (
+            <li key={d.id}>
+              {formatCentsToBRL(d.amountCents)} — {d.reason} ({new Date(d.recordedAt).toLocaleString("pt-BR")})
+            </li>
+          ))}
+        {deposits.length === 0 && <li className="catalog-empty">Nenhum suprimento registrado nesta sessão.</li>}
+      </ul>
+    </div>
+  );
+}
+
+/**
  * Épico 1 (Sessão de Caixa), Story 1.1 — abertura de sessão. Decisão
  * confirmada com o dono, 2026-09-25 (ver `spec-1-1-abrir-sessão-de-caixa.md`):
  * vive DENTRO desta tela existente, como bloco novo no topo — não é rota
@@ -146,8 +231,9 @@ function CashSessionSection() {
               sidecar rodando ainda de uma versão anterior a esta story (não
               reinicia sozinho — mesmo racional já documentado em
               `useTablesAndOrders.refresh`), cujo `/state` pode devolver a
-              sessão sem o campo `withdrawals` apesar do tipo dizer obrigatório. */}
+              sessão sem o campo `withdrawals`/`deposits` apesar do tipo dizer obrigatório. */}
           <WithdrawalForm withdrawals={openSession.withdrawals ?? []} onRecorded={refresh} />
+          <DepositForm deposits={openSession.deposits ?? []} onRecorded={refresh} />
         </>
       ) : (
         <>

@@ -532,6 +532,18 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
         });
         break;
       }
+
+      case "cash_deposit_recorded": {
+        const canonical = resolveCanonicalCashSession(event.aggregateId);
+        canonical.deposits.push({
+          id: event.id,
+          amountCents: event.payload.amountCents,
+          reason: event.payload.reason,
+          recordedAt: event.createdAt,
+          operatorId: event.operatorId,
+        });
+        break;
+      }
     }
   }
 

@@ -227,6 +227,11 @@ async function main() {
     const waiterWithdrawalBlocked = await postJson(PORT_A, "/cash-sessions/withdrawals", { amountCents: 1000, reason: "teste" });
     assert.equal(waiterWithdrawalBlocked.status, 403, "garçom não pode registrar sangria");
 
+    // Épico 1, Story 1.3 — garçom também não pode registrar suprimento.
+    log("garçom também não pode registrar suprimento...");
+    const waiterDepositBlocked = await postJson(PORT_A, "/cash-sessions/deposits", { amountCents: 1000, reason: "teste" });
+    assert.equal(waiterDepositBlocked.status, 403, "garçom não pode registrar suprimento");
+
     await postJson(PORT_A, "/session/login", { pin: "1234" }); // volta a sessão de A pra Ana (dono)
 
     log("valor de abertura inválido é rejeitado...");
@@ -237,6 +242,11 @@ async function main() {
     log("sangria sem sessão de caixa aberta é bloqueada...");
     const withdrawalNoSession = await postJson(PORT_A, "/cash-sessions/withdrawals", { amountCents: 1000, reason: "teste sem sessão" });
     assert.equal(withdrawalNoSession.status, 400, "sangria sem sessão de caixa aberta precisa ser bloqueada");
+
+    // Épico 1, Story 1.3 — suprimento bloqueado sem nenhuma sessão de caixa aberta ainda.
+    log("suprimento sem sessão de caixa aberta é bloqueado...");
+    const depositNoSession = await postJson(PORT_A, "/cash-sessions/deposits", { amountCents: 1000, reason: "teste sem sessão" });
+    assert.equal(depositNoSession.status, 400, "suprimento sem sessão de caixa aberta precisa ser bloqueado");
 
     log("A e B abrem sessão de caixa simultaneamente, sem se enxergar ainda...");
     const [sessionFromA, sessionFromB] = await Promise.all([
@@ -290,6 +300,15 @@ async function main() {
     const emptyReason = await postJson(PORT_A, "/cash-sessions/withdrawals", { amountCents: 1000, reason: "   " });
     assert.equal(emptyReason.status, 400, "motivo vazio (só espaços) precisa ser rejeitado");
 
+    // Épico 1, Story 1.3 — mesmas validações de valor/motivo, agora pra suprimento.
+    log("suprimento com valor inválido é rejeitado...");
+    const invalidDepositAmount = await postJson(PORT_A, "/cash-sessions/deposits", { amountCents: 0, reason: "motivo válido" });
+    assert.equal(invalidDepositAmount.status, 400, "valor de suprimento zero/negativo precisa ser rejeitado");
+
+    log("suprimento com motivo vazio é rejeitado...");
+    const emptyDepositReason = await postJson(PORT_A, "/cash-sessions/deposits", { amountCents: 1000, reason: "   " });
+    assert.equal(emptyDepositReason.status, 400, "motivo vazio (só espaços) precisa ser rejeitado no suprimento");
+
     // Épico 1, Story 1.2 — registro normal de sangria contra a sessão canônica já resolvida.
     log("registrando uma sangria normal contra a sessão canônica...");
     const canonicalCashSession = (await getJson(PORT_A, "/state")).cashSessions.find((s) => s.mergedInto === undefined && s.status === "open");
@@ -313,6 +332,29 @@ async function main() {
       assert.ok(
         canonical && canonical.withdrawals.some((w) => w.amountCents === 2000 && w.reason === "reforço de troco pro cofre"),
         `terminal ${port}: a sangria precisa aparecer em withdrawals da sessão canônica`
+      );
+    }
+
+    // Épico 1, Story 1.3 — registro normal de suprimento contra a mesma sessão canônica.
+    log("registrando um suprimento normal contra a sessão canônica...");
+    const deposit = await postJson(PORT_A, "/cash-sessions/deposits", { amountCents: 5000, reason: "reposição de troco" });
+    assert.equal(deposit.status, 201, "suprimento válido contra sessão aberta precisa ser aceito");
+
+    await waitUntil(
+      async () => {
+        const state = await getJson(PORT_B, "/state");
+        const canonical = state.cashSessions.find((s) => s.id === canonicalSessionId);
+        return canonical && canonical.deposits.some((d) => d.amountCents === 5000 && d.reason === "reposição de troco");
+      },
+      { description: "suprimento propagar de A pra B" }
+    );
+
+    for (const port of [PORT_A, PORT_B]) {
+      const state = await getJson(port, "/state");
+      const canonical = state.cashSessions.find((s) => s.id === canonicalSessionId);
+      assert.ok(
+        canonical && canonical.deposits.some((d) => d.amountCents === 5000 && d.reason === "reposição de troco"),
+        `terminal ${port}: o suprimento precisa aparecer em deposits da sessão canônica`
       );
     }
 

@@ -7,6 +7,79 @@ import { nextHlc } from "../clock.js";
 import type { RequestContext } from "../context.js";
 
 /**
+ * Épico 1 (Sessão de Caixa), Stories 1.2/1.3 — sangria e suprimento são
+ * espelhos estruturais um do outro (mesma ordem corpo-antes-de-sessão,
+ * achado no code review da 1.2; mesmo formato de payload). Extraído aqui
+ * pra não duplicar a lógica uma terceira vez quando a história 1.4
+ * (fechamento) precisar de algo parecido, e pra uma correção futura só
+ * precisar mudar um lugar em vez de duas cópias manuais.
+ */
+async function handleCashMovementRoute(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  ctx: RequestContext,
+  config: {
+    eventType: "cash_withdrawal_recorded" | "cash_deposit_recorded";
+    roleErrorMessage: string;
+    amountErrorMessage: string;
+    reasonErrorMessage: string;
+  }
+): Promise<void> {
+  try {
+    const acting = ctx.requireSession(res);
+    if (!acting) return;
+    // PRD Épico 1 — garçom não acessa nenhuma ação de sessão de caixa.
+    if (acting.role === "waiter") {
+      sendJson(res, 403, { error: config.roleErrorMessage });
+      return;
+    }
+
+    // Achado no code review, 2026-09-26 (Story 1.2): o corpo precisa ser lido
+    // antes do retorno antecipado de "sem sessão aberta" — senão o corpo
+    // nunca é drenado do socket nesse caminho, risco real em conexão HTTP
+    // keep-alive (bytes não lidos vazando pra próxima requisição no mesmo
+    // socket). Os retornos ANTERIORES (401 sem sessão de login, 403 garçom)
+    // continuam sem ler o corpo — mesmo padrão pré-existente em toda rota
+    // do sidecar (`requireSession`/checagem de papel sempre vêm antes de
+    // `readJsonBody`), não é algo que esta story mudou.
+    const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+    const amountCents = body?.amountCents;
+    if (typeof amountCents !== "number" || !Number.isInteger(amountCents) || amountCents <= 0) {
+      sendJson(res, 400, { error: config.amountErrorMessage });
+      return;
+    }
+    const reason = typeof body?.reason === "string" ? body.reason.trim() : "";
+    if (reason.length === 0) {
+      sendJson(res, 400, { error: config.reasonErrorMessage });
+      return;
+    }
+
+    const state = ctx.currentState();
+    const openSession = state.cashSessions.find((s) => s.mergedInto === undefined && s.status === "open");
+    if (!openSession) {
+      sendJson(res, 400, { error: "nenhuma sessão de caixa aberta" });
+      return;
+    }
+
+    const event = DomainEventSchema.parse({
+      id: randomUUID(),
+      hlc: nextHlc(),
+      operatorId: acting.id,
+      terminalId: ctx.terminalId,
+      createdAt: Date.now(),
+      type: config.eventType,
+      aggregateType: "cash_session",
+      aggregateId: openSession.id,
+      payload: { amountCents, reason },
+    });
+    insertEvent(ctx.db, event);
+    sendJson(res, 201, { id: event.id, amountCents, reason, recordedAt: event.createdAt });
+  } catch {
+    sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+  }
+}
+
+/**
  * Épico 1 (Sessão de Caixa), Story 1.1 — abertura de sessão. Mesmo padrão de
  * `POST /orders` em `orders.ts:11-74`: `requireSession` + bloqueio inline de
  * `waiter` (mesma checagem por exclusão já usada em `/orders/:id/close`, não
@@ -61,67 +134,23 @@ export async function handleCashSessionRoutes(req: http.IncomingMessage, res: ht
     return true;
   }
 
-  /**
-   * Épico 1 (Sessão de Caixa), Story 1.2 — sangria. Mesmo padrão de
-   * `POST /cash-sessions`: `requireSession` + bloqueio inline de `waiter`,
-   * mas sem id de sessão no path nem no corpo — só existe uma sessão
-   * canônica aberta por vez, resolvida aqui via o mesmo filtro de
-   * `isCashSessionOpen`.
-   */
   if (req.method === "POST" && url.pathname === "/cash-sessions/withdrawals") {
-    try {
-      const acting = ctx.requireSession(res);
-      if (!acting) return true;
-      // PRD Épico 1 — garçom não acessa nenhuma ação de sessão de caixa.
-      if (acting.role === "waiter") {
-        sendJson(res, 403, { error: "garçom não pode registrar sangria" });
-        return true;
-      }
+    await handleCashMovementRoute(req, res, ctx, {
+      eventType: "cash_withdrawal_recorded",
+      roleErrorMessage: "garçom não pode registrar sangria",
+      amountErrorMessage: "valor da sangria inválido",
+      reasonErrorMessage: "motivo da sangria é obrigatório",
+    });
+    return true;
+  }
 
-      // Achado no code review, 2026-09-26: o corpo precisa ser lido antes do
-      // retorno antecipado de "sem sessão aberta" (mesma ordem de
-      // `POST /cash-sessions` na Story 1.1) — senão o corpo nunca é drenado
-      // do socket nesse caminho, risco real em conexão HTTP keep-alive
-      // (bytes não lidos vazando pra próxima requisição no mesmo socket).
-      // Os retornos antecipados ANTERIORES (401 sem sessão de login, 403
-      // garçom) continuam sem ler o corpo — mesmo padrão pré-existente em
-      // toda rota do sidecar (`requireSession`/checagem de papel sempre
-      // vêm antes de `readJsonBody`), não é algo que esta story mudou.
-      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
-      const amountCents = body?.amountCents;
-      if (typeof amountCents !== "number" || !Number.isInteger(amountCents) || amountCents <= 0) {
-        sendJson(res, 400, { error: "valor da sangria inválido" });
-        return true;
-      }
-      const reason = typeof body?.reason === "string" ? body.reason.trim() : "";
-      if (reason.length === 0) {
-        sendJson(res, 400, { error: "motivo da sangria é obrigatório" });
-        return true;
-      }
-
-      const state = ctx.currentState();
-      const openSession = state.cashSessions.find((s) => s.mergedInto === undefined && s.status === "open");
-      if (!openSession) {
-        sendJson(res, 400, { error: "nenhuma sessão de caixa aberta" });
-        return true;
-      }
-
-      const event = DomainEventSchema.parse({
-        id: randomUUID(),
-        hlc: nextHlc(),
-        operatorId: acting.id,
-        terminalId: ctx.terminalId,
-        createdAt: Date.now(),
-        type: "cash_withdrawal_recorded",
-        aggregateType: "cash_session",
-        aggregateId: openSession.id,
-        payload: { amountCents, reason },
-      });
-      insertEvent(ctx.db, event);
-      sendJson(res, 201, { id: event.id, amountCents, reason, recordedAt: event.createdAt });
-    } catch {
-      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
-    }
+  if (req.method === "POST" && url.pathname === "/cash-sessions/deposits") {
+    await handleCashMovementRoute(req, res, ctx, {
+      eventType: "cash_deposit_recorded",
+      roleErrorMessage: "garçom não pode registrar suprimento",
+      amountErrorMessage: "valor do suprimento inválido",
+      reasonErrorMessage: "motivo do suprimento é obrigatório",
+    });
     return true;
   }
 

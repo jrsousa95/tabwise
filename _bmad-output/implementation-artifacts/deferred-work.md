@@ -57,3 +57,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-2-registrar-sangria.md`
   summary: Formulário de sangria não expõe nenhum valor calculado antes de confirmar — `epic-1-context.md` (UX & Interaction Patterns) pede isso explicitamente pra essa ação ("nunca uma confirmação cega").
   evidence: Achado real (`acceptance-auditor`, verificado) — sem o mecanismo de valor esperado (história 1.4, soma vendas em dinheiro), qualquer número mostrado agora seria parcial e poderia passar a falsa impressão de ser "o saldo real da gaveta". Decisão do dono (2026-09-26): esperar a história 1.4 trazer o cálculo completo antes de adicionar qualquer preview de valor no formulário de sangria.
+
+## Deferred from: bmad-build review of spec-1-3-registrar-suprimento (2026-09-26)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-registrar-suprimento.md`
+  summary: `recordDeposit`/`recordWithdrawal` (`apps/desktop/src/lib/cash-sessions.ts`) e `DepositForm`/`WithdrawalForm` (`apps/desktop/src/routes/cash-register.tsx`) são estruturalmente idênticos, sem nenhuma abstração compartilhada.
+  evidence: Achado real (`blind-hunter`, verificado) — refatorar componente React sem nenhuma rede de teste no frontend (convenção pré-existente confirmada pelo `verification-gap`) é mais arriscado que o ganho imediato. Melhor esperar a história 1.4 (fechamento com conferência) trazer a terceira forma parecida e refatorar as três de uma vez só, com mais contexto do formato final compartilhado.
