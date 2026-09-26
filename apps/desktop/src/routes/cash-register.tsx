@@ -32,6 +32,11 @@ function CashSessionSection() {
     setSubmitting(false);
     if (!result.ok) {
       setError(result.error);
+      // Achado no code review, 2026-09-26: o erro mais comum aqui é "já
+      // existe uma sessão aberta" (outro terminal/operador venceu a corrida)
+      // — sem isso, o formulário continuava exibido em vez de transicionar
+      // pra mostrar a sessão que já existe.
+      refresh();
       return;
     }
     setAmountText("");
@@ -59,6 +64,7 @@ function CashSessionSection() {
                 setAmountText(e.target.value.replace(/[^0-9,.]/g, ""));
                 setError(null);
               }}
+              disabled={submitting}
               inputMode="decimal"
               placeholder="Ex: 100,00"
               aria-label="Valor de abertura (fundo de troco)"

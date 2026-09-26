@@ -81,6 +81,26 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-1-context.m
 - Given dois terminais offline abrem sessão quase ao mesmo tempo sem se enxergar, when os logs sincronizam, then a de menor HLC vira canônica e a outra é marcada `mergedInto`, aparecendo como aviso não bloqueante e na tela de conflitos — em qualquer ordem de merge dos dois logs
 - Given o terminal está offline, when o operador abre uma sessão, then funciona normalmente (evento local, sincroniza depois)
 
+### Review Findings
+
+`bmad-code-review` rodado sobre o commit `11b8f5f` (4 camadas: `blind-hunter`, `edge-case-hunter`, `verification-gap`, `acceptance-auditor` — `review_mode: full`). Cada achado verificado contra o código real antes do veredito.
+
+- [x] `[Review][Defer]` Sessão de caixa perdedora do conflito de abertura concorrente não gera nenhum aviso transitório (banner), só aparece na tela permanente "Conflitos de Sincronização" — diferente de conflito de mesa, que tem os dois (banner + tela). [apps/desktop/src/layout.tsx, apps/desktop/src/lib/merge-warnings.ts] — deferred: raridade + tela já cobre o essencial (conflito exige dois terminais offline abrindo quase ao mesmo tempo; a tela permanente já mostra o conflito com os valores das duas sessões, o banner seria reforço, não a única forma de descoberta). Decisão do dono, 2026-09-26. *blind-hunter*.
+
+- [x] `[Review][Patch]` `docs/architecture.md:74` documenta `aggregate_id` de `cash_session_opened` como "ULID", mas a spec e o código usam `randomUUID()` — desalinhado. Corrigido. *blind-hunter*.
+- [x] `[Review][Patch]` `docs/architecture.md:157` ainda trata a tela de conflitos como "decisão de UI a tomar no detalhamento de 9.1" — já foi tomada e implementada (UX-DR4) nesta story, doc não reflete isso. Corrigido. *blind-hunter*.
+- [x] `[Review][Patch]` `apps/desktop/src/routes/cash-register.tsx:handleOpen` não chama `refresh()` quando o servidor rejeita com "já existe uma sessão de caixa aberta" (400). Corrigido — `refresh()` chamado também no branch de erro. [apps/desktop/src/routes/cash-register.tsx] *blind-hunter*.
+- [x] `[Review][Patch]` Campo de valor em `CashSessionSection` não fica `disabled` durante o envio (só o botão fica). Corrigido. [apps/desktop/src/routes/cash-register.tsx] *blind-hunter*.
+- [x] `[Review][Defer]` `useCashSessionState.refresh`/`useTableConflicts.refresh` engolem falha de rede silenciosamente pra array vazio, sem estado de erro exposto — pré-existente (`useTablesAndOrders.refresh` já faz o mesmo), mas com um risco específico pra sessão de caixa (visão pode sugerir "nenhuma sessão aberta" por falha transitória de rede, não por realidade — o backend ainda bloqueia duplicata na origem, então não corrompe dado, só confunde). [apps/desktop/src/lib/cash-sessions.ts, apps/desktop/src/lib/table-conflicts.ts] — deferred: pré-existente, mesmo padrão de `tables.ts`, resolver é uma mudança de tratamento de erro pro app inteiro. *blind-hunter*.
+- [x] `[Review][Defer]` `catch` amplo em `cash-sessions.ts` (rotula qualquer erro como JSON inválido) — já adiado na rodada de revisão do próprio `bmad-build` (ver entrada acima no Review Triage Log, item 4). *edge-case-hunter, achado duplicado*.
+- [x] `[Review][Defer]` `postJson` não trata rejeição do `fetch()` em si — já adiado na rodada de revisão do próprio `bmad-build` (ver item 12 acima). *edge-case-hunter, achado duplicado*.
+
+**Rejeitados:**
+- `docs/architecture.md`/`sprint-status.yaml` reportarem status diferentes (spec "done", sprint "review") — **[false]** é o estado intermediário esperado do próprio fluxo do projeto (sprint só avança pra "done" depois do code-review aprovar — este workflow resolve isso na seção 6).
+- Checagem `isCashSessionOpen` → `insertEvent` sem lock teria race entre dois POSTs no MESMO terminal — **[false]** verificado: não há nenhum `await` entre a leitura do estado e a gravação do evento (`insertEvent` é síncrono); o event loop de um único processo Node não intercala duas requisições no meio de um trecho síncrono — mesma garantia que já protege `isTableFree`/`POST /orders`.
+- Teste novo de `cash_session_opened` não cobre campo ausente/tipo errado — **[false]** `z.number().int().positive()` já garante essa rejeição por construção do zod; não é lógica de validação sob medida que pudesse ter um buraco.
+- `openingAmountCents` sem limite superior (`.max()`) — **[false]**, já verificado na rodada anterior: nenhum campo `*Cents` do schema tem limite superior, consistente em 100% dos campos monetários.
+
 ## Implementation Notes
 
 - Todos os arquivos do Code Map foram tocados exatamente como descrito; nenhum desvio de escopo.

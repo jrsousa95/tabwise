@@ -71,7 +71,7 @@ Quatro eventos novos, seguindo exatamente o padrão já estabelecido em §3.1 (c
 
 | Evento | `aggregate_type` | `aggregate_id` | Payload (essencial) |
 |---|---|---|---|
-| `cash_session_opened` | `cash_session` (novo) | id gerado (ULID) na abertura | `openingAmountCents` |
+| `cash_session_opened` | `cash_session` (novo) | id gerado (`randomUUID()`, padrão do projeto — não ULID) na abertura | `openingAmountCents` |
 | `cash_session_closed` | `cash_session` | id da sessão aberta | `countedAmountCents` |
 | `cash_withdrawal_recorded` (sangria) | `cash_session` | id da sessão aberta | `amountCents`, `reason` |
 | `cash_deposit_recorded` (suprimento) | `cash_session` | id da sessão aberta | `amountCents`, `reason` |
@@ -154,7 +154,7 @@ Como cada evento tem um `id` único (ULID), reaplicar o mesmo evento duas vezes 
 
 **Revisado após reviewer adversarial** — a primeira versão deste documento argumentava que sessão de caixa não precisava de resolução de conflito, por ser "local a um terminal, não compartilhada". Esse argumento não se sustenta: a premissa do produto inteiro (§1) é que terminais operam offline e só descobrem o que aconteceu em outro terminal ao sincronizar — exatamente o mecanismo que produz o conflito do §4.2 pra mesa. `terminal_id` também não é um proxy confiável de "uma gaveta física" (§3.4) — um terminal substituído no meio do turno tem um `terminal_id` novo e recomeça do zero, sem saber que já existe uma sessão aberta em outro lugar.
 
-Por isso a sessão de caixa segue **a mesma regra do §4.2**, com o estabelecimento (não a mesa) como o recurso disputado: dois `cash_session_opened` concorrentes, vindos de terminais que não se enxergavam, se resolvem pelo **menor HLC** como canônica; a outra é marcada `mergedInto` e gera o mesmo aviso não bloqueante já usado pra mesas. A UI de "Conflitos" (hoje só de mesas — `apps/desktop/src/routes/table-conflicts.tsx`) precisa passar a listar também conflitos de sessão de caixa, ou ganhar uma tela irmã — decisão de UI a tomar no detalhamento de 9.1, não aqui.
+Por isso a sessão de caixa segue **a mesma regra do §4.2**, com o estabelecimento (não a mesa) como o recurso disputado: dois `cash_session_opened` concorrentes, vindos de terminais que não se enxergavam, se resolvem pelo **menor HLC** como canônica; a outra é marcada `mergedInto` e gera o mesmo aviso não bloqueante já usado pra mesas. **Decidido e implementado na Story 1.1** (UX-DR4, `epics.md`): a UI de "Conflitos" (`apps/desktop/src/routes/table-conflicts.tsx`, renomeada pra "Conflitos de Sincronização") passou a listar os dois tipos na mesma tela, em vez de ganhar uma tela irmã — só a tela permanente, sem aviso transitório (banner) equivalente ao de mesa nesta primeira versão (adiado, `deferred-work.md`, raridade do conflito de sessão de caixa).
 
 ## 5. Sincronização com a nuvem
 

@@ -27,3 +27,13 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-1-abrir-sessão-de-caixa.md`
   summary: `postJson` em `apps/desktop/src/lib/cash-sessions.ts` não trata a rejeição do `fetch()` em si (só `.json()` tem `.catch`) — uma falha de rede/sidecar indisponível deixa a Promise rejeitar sem tratamento, travando `submitting=true` no formulário sem nenhum erro exibido.
   evidence: Achado real (`edge-case-hunter`, verificado) — `apps/desktop/src/lib/tables.ts` (o arquivo que esta story reaproveitou explicitamente como padrão) tem a mesma lacuna. Pré-existente em todo `postJson` do app, não introduzida por este diff — resolver de verdade é um helper HTTP compartilhado com tratamento de erro consistente, mudança arquitetural maior que uma story pontual.
+
+## Deferred from: code review of spec-1-1-abrir-sessão-de-caixa (2026-09-26)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-1-abrir-sessão-de-caixa.md`
+  summary: `useCashSessionState.refresh` e `useTableConflicts.refresh` (`apps/desktop/src/lib/cash-sessions.ts`, `apps/desktop/src/lib/table-conflicts.ts`) engolem qualquer falha de rede/sidecar indisponível silenciosamente pra array vazio, sem nenhum estado de erro exposto à UI.
+  evidence: Achado real (`blind-hunter`, verificado) — mesmo padrão já usado em `useTablesAndOrders.refresh` (`tables.ts`), pré-existente em todo o app, não introduzido por esta story. Risco específico pra sessão de caixa: uma falha transitória de rede pode fazer a tela parecer "nenhuma sessão aberta" quando na verdade existe uma — não corrompe dado (o backend ainda bloqueia duplicata na origem via `isCashSessionOpen`), só confunde o operador momentaneamente. Resolver de verdade é decisão de tratamento de erro pro app inteiro (expor estado de erro em todo `refresh()`), fora do escopo de uma story pontual.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-1-abrir-sessão-de-caixa.md`
+  summary: Sessão de caixa perdedora do conflito de abertura concorrente não gera nenhum aviso transitório (banner) — só aparece na tela permanente "Conflitos de Sincronização". Conflito de mesa tem os dois (banner em `layout.tsx`/`useMergeWarnings` + tela permanente).
+  evidence: Achado real (`blind-hunter`, verificado) — a própria AC4 desta story menciona "aviso não bloqueante". Decisão do dono (2026-09-26): adiar — conflito de sessão de caixa exige dois terminais offline abrindo quase ao mesmo tempo (raro na prática, mesma raridade do conflito de mesa); a tela permanente já mostra o conflito com os valores das duas sessões, o banner transitório seria reforço, não a única forma de descoberta. Revisar se vier a incomodar na prática.
