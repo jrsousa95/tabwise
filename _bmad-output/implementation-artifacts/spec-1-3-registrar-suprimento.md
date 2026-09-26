@@ -93,14 +93,30 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-1-context.m
 - `amountCents`/`reason` sem limite superior — **[false]** mesmo já aceito nas Stories 1.1/1.2, consistente em todo o schema.
 - Resposta 201 não devolve o id da sessão em que o suprimento foi registrado — **[false]** nenhum caller hoje precisa disso — `DepositForm` só olha `result.ok`/`result.error` e sempre recarrega o estado inteiro via `onRecorded()` → `refresh()`.
 
+#### Rodada 2 — `bmad-code-review` (commit `880f66e`, 2026-09-26)
+
+4 camadas. Cada achado verificado contra o código real antes do veredito.
+
+- [x] `[Review][Patch]` Implementation Notes tinha uma frase desatualizada contradizendo o resto do documento. Corrigido. *blind-hunter*.
+- [x] `[Review][Patch]` Implementation Notes descrevia `DepositForm` como "ao lado de" `WithdrawalForm` (sugere lado a lado), mas os dois empilham verticalmente. Corrigido. *blind-hunter*.
+- [x] `[Review][Defer]` `catch` amplo em `handleCashMovementRoute` (rotula qualquer erro, inclusive falha de `insertEvent`, como JSON inválido) — mesma causa raiz já adiada desde a Story 1.1/1.2, agora centralizada no helper compartilhado em vez de duplicada. *blind-hunter + edge-case-hunter, achado duplicado*.
+- [x] `[Review][Defer]` `recordDeposit`/`DepositForm` não tratam rejeição do `fetch()` em si — mesma causa raiz já adiada desde a Story 1.1/1.2 (`postJson` sem `try/catch` ao redor do `fetch`). *edge-case-hunter, achado duplicado*.
+
+**Rejeitados (Rodada 2):**
+- `sprint-status.yaml` em `review` enquanto a spec já diz `done` — **[false]** é o estado intermediário esperado do próprio fluxo do projeto (mesmo padrão das Stories 1.1/1.2: sprint só avança pra `done` depois deste code-review separado aprovar).
+- Nenhum teste passa um valor NEGATIVO de `amountCents` (só `0`) — **[false]** já resolvido na Rodada 1 com a mesma verificação (comparação `<= 0` não diferencia os dois casos por construção).
+- Resposta 201 não tem os próprios campos (`id`/`recordedAt`/eco de `amountCents`/`reason`) verificados em teste — **[false]** esses valores são as MESMAS variáveis locais usadas pra montar o evento gravado, nunca recalculados — não há caminho de código onde poderiam divergir.
+- `handleCashMovementRoute` só tem cobertura via `concurrency-scenario.mjs` (smoke E2E), sem teste unitário direto — **[false]** convenção documentada e deliberada do próprio arquivo do sidecar (sem vitest de propósito, só smoke test roteirizado) — não é lacuna introduzida por esta story.
+- `amountCents`/`reason` sem limite superior (repetido pela segunda camada) — **[false]** mesmo já aceito nas Stories 1.1/1.2.
+
 ## Implementation Notes
 
 - Todos os arquivos do Code Map foram tocados exatamente como descrito; nenhum desvio de escopo. `cash_deposit_recorded` usa `aggregateType: "cash_session"` (sub-evento, sem tipo próprio), espelho estrutural de `cash_withdrawal_recorded`.
 - `resolveCanonicalCashSession` foi REAPROVEITADA de `reconciliation.ts` (criada na Story 1.2) — nenhuma função nova de reatribuição foi criada, só o novo `case "cash_deposit_recorded"` que dá `push` em `.deposits` em vez de `.withdrawals`.
 - `POST /cash-sessions/deposits`: mesma ordem corpo-antes-de-sessão desde o início (`requireSession` -> bloqueio inline de `waiter`, 403 "garçom não pode registrar suprimento" -> lê e valida `amountCents`/`reason`, 400 -> resolve sessão canônica aberta, 400 "nenhuma sessão de caixa aberta" se não achar -> grava evento). Nenhum helper novo em `context.ts`.
-- UI: `DepositForm` (novo componente em `cash-register.tsx`) renderizado logo abaixo de `WithdrawalForm`, dentro de `CashSessionSection`, reaproveitando as mesmas classes (`.inline-form`/`.table-map-section`/`.catalog-list`). `handleSubmit` chama `onRecorded()` tanto no sucesso quanto no erro (mesmo fix já aplicado à sangria na 1.2). `openSession.deposits ?? []` como fallback de sidecar desatualizado, mesmo racional de `withdrawals`.
+- UI: `DepositForm` (novo componente em `cash-register.tsx`) renderizado logo abaixo de `WithdrawalForm` (empilhado verticalmente — `.table-map-section` é só `margin-bottom`, sem flex/grid; corrigido no code review, 2026-09-26, a descrição anterior dizia "ao lado de", o que sugeria lado a lado), dentro de `CashSessionSection`, reaproveitando as mesmas classes (`.inline-form`/`.table-map-section`/`.catalog-list`). `handleSubmit` chama `onRecorded()` tanto no sucesso quanto no erro (mesmo fix já aplicado à sangria na 1.2). `openSession.deposits ?? []` como fallback de sidecar desatualizado, mesmo racional de `withdrawals`.
 - **Risco de processo (já documentado na Story 1.2, reincidiu aqui):** `packages/shared-types/dist` e `packages/sync-engine/dist` ficam desatualizados em relação ao `src` entre sessões de trabalho — o sidecar importa esses pacotes pelo `dist` compilado. Rebuildar só `shared-types` e pular `sync-engine` faz o `concurrency-scenario.mjs` falhar silenciosamente: a rota aceita o suprimento (201), mas a projeção embutida no bundle do sidecar não tem o `case "cash_deposit_recorded"` novo, então `deposits` fica vazio no `/state` e o teste de propagação estoura em timeout (sem nenhuma mensagem de erro real). Aconteceu exatamente isso nesta verificação; corrigido rodando `npm run build -w packages/sync-engine` antes de `npm run build:bundle -w apps/desktop/sidecar`. Recomendação pro próximo dev: sempre rebuildar TODOS os pacotes de dependência (`shared-types` E `sync-engine`) antes do smoke test do sidecar, não só o pacote que a story tocou diretamente.
-- Nenhum code review formal (`bmad-code-review`) foi rodado nesta sessão — só a implementação + verificação dos comandos abaixo. Status do spec mantido em `in-progress` até esse passo acontecer (mesmo ciclo da Story 1.2: implementação primeiro, `status: done` só depois da rodada de review).
+- **Nota corrigida no code review (achava desatualizada, contradizia o resto do documento):** esta linha dizia "nenhum code review formal foi rodado, status mantido em in-progress" — mas isso descrevia o momento logo após a implementação (`bmad-build` step 3), antes do `bmad-build` step 4 (revisão em 3 camadas) já ter rodado e sido documentado na seção "Review Findings" acima, e antes do frontmatter já ter avançado pra `status: done`. Ciclo completo real: implementação → revisão do `bmad-build` (Review Findings acima) → `status: done` (spec) com `sprint-status.yaml` em `review` → `bmad-code-review` separado (esta rodada) → `sprint-status.yaml` avança pra `done`.
 
 ## Spec Change Log
 
