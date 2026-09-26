@@ -78,12 +78,15 @@ export async function handleCashSessionRoutes(req: http.IncomingMessage, res: ht
         return true;
       }
 
-      // Achado no code review, 2026-09-26: o corpo da requisição precisa ser
-      // lido ANTES de qualquer retorno antecipado (mesma ordem de
+      // Achado no code review, 2026-09-26: o corpo precisa ser lido antes do
+      // retorno antecipado de "sem sessão aberta" (mesma ordem de
       // `POST /cash-sessions` na Story 1.1) — senão o corpo nunca é drenado
-      // do socket num caminho de saída antecipada, o que é um risco real em
-      // conexão HTTP keep-alive (bytes não lidos vazando pra próxima
-      // requisição no mesmo socket).
+      // do socket nesse caminho, risco real em conexão HTTP keep-alive
+      // (bytes não lidos vazando pra próxima requisição no mesmo socket).
+      // Os retornos antecipados ANTERIORES (401 sem sessão de login, 403
+      // garçom) continuam sem ler o corpo — mesmo padrão pré-existente em
+      // toda rota do sidecar (`requireSession`/checagem de papel sempre
+      // vêm antes de `readJsonBody`), não é algo que esta story mudou.
       const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
       const amountCents = body?.amountCents;
       if (typeof amountCents !== "number" || !Number.isInteger(amountCents) || amountCents <= 0) {

@@ -35,9 +35,9 @@ function WithdrawalForm({ withdrawals, onRecorded }: { withdrawals: CashMovement
     if (!result.ok) {
       setError(result.error);
       // Achado no code review, 2026-09-26: mesmo fix já aplicado ao
-      // handleOpen na Story 1.1 — o erro mais provável aqui é a sessão ter
-      // sido fechada/mesclada desde o último render; sem isso, o formulário
-      // continuava exibido em vez de refletir o estado real.
+      // handleOpen na Story 1.1 — atualiza em QUALQUER erro (não só sessão
+      // fechada/mesclada desde o último render), por simplicidade; custo de
+      // uma consulta extra é baixo e cobre qualquer caso de dessincronia.
       onRecorded();
       return;
     }
@@ -142,7 +142,12 @@ function CashSessionSection() {
             {new Date(openSession.openedAt).toLocaleString("pt-BR")} — fundo de
             troco inicial de {formatCentsToBRL(openSession.openingAmountCents)}.
           </p>
-          <WithdrawalForm withdrawals={openSession.withdrawals} onRecorded={refresh} />
+          {/* Achado no code review, 2026-09-26: `?? []` defende contra um
+              sidecar rodando ainda de uma versão anterior a esta story (não
+              reinicia sozinho — mesmo racional já documentado em
+              `useTablesAndOrders.refresh`), cujo `/state` pode devolver a
+              sessão sem o campo `withdrawals` apesar do tipo dizer obrigatório. */}
+          <WithdrawalForm withdrawals={openSession.withdrawals ?? []} onRecorded={refresh} />
         </>
       ) : (
         <>

@@ -43,3 +43,17 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-2-registrar-sangria.md`
   summary: Sangria não tem nenhuma checagem de sanidade contra o que realmente está na gaveta (fundo de troco + vendas em dinheiro da sessão − sangrias já feitas + suprimentos) — aceita qualquer valor positivo, mesmo maior do que o que fisicamente poderia existir na sessão.
   evidence: Achado real (`blind-hunter`, verificado) — calcular "quanto tem na gaveta agora" corretamente exige o mesmo mecanismo de valor esperado que a história 1.4 (fechamento com conferência) constrói (soma de vendas em dinheiro da sessão, ver ARCH §3.4). Implementar essa checagem antes da 1.4 exigiria antecipar esse cálculo fora de ordem — fica pra quando 1.4 existir, ou como melhoria futura se o dono achar necessário.
+
+## Deferred from: bmad-code-review of spec-1-2-registrar-sangria (2026-09-26)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-registrar-sangria.md`
+  summary: Reatribuição histórica de sangria (sessão que perde conflito de abertura tem sua sangria reatribuída à canônica) só é testada no nível de projeção (`arch-4.4-cash-session-conflict.test.ts`), não no nível de rota HTTP real (`concurrency-scenario.mjs`).
+  evidence: Achado real (`blind-hunter`, verificado) — a lógica de reatribuição vive inteiramente em `resolveCanonicalCashSession`/`project()`; a rota HTTP só grava o evento, nunca decide reatribuição. O teste de projeção já cobre a lógica que importa; um teste HTTP adicional seria redundância de confiança (exercita o mesmo código por um caminho mais caro), não cobertura nova de comportamento — vale considerar se a suíte um dia precisar de mais confiança end-to-end nesse mecanismo.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-registrar-sangria.md`
+  summary: Quando "sem sessão de caixa aberta" e "corpo inválido" acontecem ao mesmo tempo, a ordem corrigida de validação (corpo primeiro) faz o operador ver "valor da sangria inválido" em vez de "nenhuma sessão de caixa aberta" — nenhum teste cobre essa combinação.
+  evidence: Achado real (`verification-gap`, disposição própria `defer` já no relatório) — combinação improvável no fluxo real, já que o frontend valida o corpo antes de chamar a rota; o caso comum (sem sessão, corpo válido) já é testado e funciona corretamente. Vale um teste de uma linha em `concurrency-scenario.mjs` se algum dia a ordem precisar ficar formalmente garantida.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-registrar-sangria.md`
+  summary: Formulário de sangria não expõe nenhum valor calculado antes de confirmar — `epic-1-context.md` (UX & Interaction Patterns) pede isso explicitamente pra essa ação ("nunca uma confirmação cega").
+  evidence: Achado real (`acceptance-auditor`, verificado) — sem o mecanismo de valor esperado (história 1.4, soma vendas em dinheiro), qualquer número mostrado agora seria parcial e poderia passar a falsa impressão de ser "o saldo real da gaveta". Decisão do dono (2026-09-26): esperar a história 1.4 trazer o cálculo completo antes de adicionar qualquer preview de valor no formulário de sangria.

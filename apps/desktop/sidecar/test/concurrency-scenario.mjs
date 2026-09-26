@@ -292,7 +292,9 @@ async function main() {
 
     // Épico 1, Story 1.2 — registro normal de sangria contra a sessão canônica já resolvida.
     log("registrando uma sangria normal contra a sessão canônica...");
-    const canonicalSessionId = (await getJson(PORT_A, "/state")).cashSessions.find((s) => s.mergedInto === undefined && s.status === "open").id;
+    const canonicalCashSession = (await getJson(PORT_A, "/state")).cashSessions.find((s) => s.mergedInto === undefined && s.status === "open");
+    assert.ok(canonicalCashSession, "precisa existir uma sessão de caixa canônica aberta neste ponto do cenário");
+    const canonicalSessionId = canonicalCashSession.id;
     const withdrawal = await postJson(PORT_A, "/cash-sessions/withdrawals", { amountCents: 2000, reason: "reforço de troco pro cofre" });
     assert.equal(withdrawal.status, 201, "sangria válida contra sessão aberta precisa ser aceita");
 
