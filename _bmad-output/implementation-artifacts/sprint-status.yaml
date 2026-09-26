@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-25-2026 17:12
-last_updated: 09-26-2026 14:30
+last_updated: 09-26-2026 15:10
 project: passa-a-regua
 project_key: NOKEY
 tracking_system: file-system
@@ -37,7 +37,7 @@ story_location: _bmad-output/implementation-artifacts
 development_status:
   epic-1: in-progress
   1-1-abrir-sessão-de-caixa: done
-  1-2-registrar-sangria: backlog
+  1-2-registrar-sangria: review
   1-3-registrar-suprimento: backlog
   1-4-fechar-sessão-de-caixa-com-conferência: backlog
   epic-1-retrospective: optional

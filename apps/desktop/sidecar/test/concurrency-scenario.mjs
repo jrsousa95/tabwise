@@ -221,11 +221,22 @@ async function main() {
       0,
       "bloqueio de garçom não pode gravar nenhum cash_session_opened"
     );
+
+    // Épico 1, Story 1.2 — garçom também não pode registrar sangria.
+    log("garçom também não pode registrar sangria...");
+    const waiterWithdrawalBlocked = await postJson(PORT_A, "/cash-sessions/withdrawals", { amountCents: 1000, reason: "teste" });
+    assert.equal(waiterWithdrawalBlocked.status, 403, "garçom não pode registrar sangria");
+
     await postJson(PORT_A, "/session/login", { pin: "1234" }); // volta a sessão de A pra Ana (dono)
 
     log("valor de abertura inválido é rejeitado...");
     const invalidAmount = await postJson(PORT_A, "/cash-sessions", { openingAmountCents: 0 });
     assert.equal(invalidAmount.status, 400, "valor de abertura zero/negativo precisa ser rejeitado");
+
+    // Épico 1, Story 1.2 — sangria bloqueada sem nenhuma sessão de caixa aberta ainda.
+    log("sangria sem sessão de caixa aberta é bloqueada...");
+    const withdrawalNoSession = await postJson(PORT_A, "/cash-sessions/withdrawals", { amountCents: 1000, reason: "teste sem sessão" });
+    assert.equal(withdrawalNoSession.status, 400, "sangria sem sessão de caixa aberta precisa ser bloqueada");
 
     log("A e B abrem sessão de caixa simultaneamente, sem se enxergar ainda...");
     const [sessionFromA, sessionFromB] = await Promise.all([
@@ -267,6 +278,41 @@ async function main() {
     log("depois do conflito resolvido, tentar abrir MAIS uma sessão é bloqueado (já existe uma canônica aberta)...");
     const alreadyOpen = await postJson(PORT_A, "/cash-sessions", { openingAmountCents: 1000 });
     assert.equal(alreadyOpen.status, 400, "não pode abrir uma segunda sessão com uma já aberta (canônica)");
+
+    // Épico 1, Story 1.2 — valor inválido e motivo vazio são rejeitados no nível de rota
+    // (mesmo padrão já usado pra abertura de sessão — achado na auditoria da matriz I/O:
+    // a Story 1.1 testou "valor inválido" no nível de rota, esta story precisa do mesmo).
+    log("sangria com valor inválido é rejeitada...");
+    const invalidWithdrawalAmount = await postJson(PORT_A, "/cash-sessions/withdrawals", { amountCents: 0, reason: "motivo válido" });
+    assert.equal(invalidWithdrawalAmount.status, 400, "valor de sangria zero/negativo precisa ser rejeitado");
+
+    log("sangria com motivo vazio é rejeitada...");
+    const emptyReason = await postJson(PORT_A, "/cash-sessions/withdrawals", { amountCents: 1000, reason: "   " });
+    assert.equal(emptyReason.status, 400, "motivo vazio (só espaços) precisa ser rejeitado");
+
+    // Épico 1, Story 1.2 — registro normal de sangria contra a sessão canônica já resolvida.
+    log("registrando uma sangria normal contra a sessão canônica...");
+    const canonicalSessionId = (await getJson(PORT_A, "/state")).cashSessions.find((s) => s.mergedInto === undefined && s.status === "open").id;
+    const withdrawal = await postJson(PORT_A, "/cash-sessions/withdrawals", { amountCents: 2000, reason: "reforço de troco pro cofre" });
+    assert.equal(withdrawal.status, 201, "sangria válida contra sessão aberta precisa ser aceita");
+
+    await waitUntil(
+      async () => {
+        const state = await getJson(PORT_B, "/state");
+        const canonical = state.cashSessions.find((s) => s.id === canonicalSessionId);
+        return canonical && canonical.withdrawals.some((w) => w.amountCents === 2000 && w.reason === "reforço de troco pro cofre");
+      },
+      { description: "sangria propagar de A pra B" }
+    );
+
+    for (const port of [PORT_A, PORT_B]) {
+      const state = await getJson(port, "/state");
+      const canonical = state.cashSessions.find((s) => s.id === canonicalSessionId);
+      assert.ok(
+        canonical && canonical.withdrawals.some((w) => w.amountCents === 2000 && w.reason === "reforço de troco pro cofre"),
+        `terminal ${port}: a sangria precisa aparecer em withdrawals da sessão canônica`
+      );
+    }
 
     log("CENÁRIO 4 OK — validações de sessão de caixa e conflito de abertura resolvidos corretamente.");
 

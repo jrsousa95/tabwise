@@ -61,5 +61,66 @@ export async function handleCashSessionRoutes(req: http.IncomingMessage, res: ht
     return true;
   }
 
+  /**
+   * Épico 1 (Sessão de Caixa), Story 1.2 — sangria. Mesmo padrão de
+   * `POST /cash-sessions`: `requireSession` + bloqueio inline de `waiter`,
+   * mas sem id de sessão no path nem no corpo — só existe uma sessão
+   * canônica aberta por vez, resolvida aqui via o mesmo filtro de
+   * `isCashSessionOpen`.
+   */
+  if (req.method === "POST" && url.pathname === "/cash-sessions/withdrawals") {
+    try {
+      const acting = ctx.requireSession(res);
+      if (!acting) return true;
+      // PRD Épico 1 — garçom não acessa nenhuma ação de sessão de caixa.
+      if (acting.role === "waiter") {
+        sendJson(res, 403, { error: "garçom não pode registrar sangria" });
+        return true;
+      }
+
+      // Achado no code review, 2026-09-26: o corpo da requisição precisa ser
+      // lido ANTES de qualquer retorno antecipado (mesma ordem de
+      // `POST /cash-sessions` na Story 1.1) — senão o corpo nunca é drenado
+      // do socket num caminho de saída antecipada, o que é um risco real em
+      // conexão HTTP keep-alive (bytes não lidos vazando pra próxima
+      // requisição no mesmo socket).
+      const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
+      const amountCents = body?.amountCents;
+      if (typeof amountCents !== "number" || !Number.isInteger(amountCents) || amountCents <= 0) {
+        sendJson(res, 400, { error: "valor da sangria inválido" });
+        return true;
+      }
+      const reason = typeof body?.reason === "string" ? body.reason.trim() : "";
+      if (reason.length === 0) {
+        sendJson(res, 400, { error: "motivo da sangria é obrigatório" });
+        return true;
+      }
+
+      const state = ctx.currentState();
+      const openSession = state.cashSessions.find((s) => s.mergedInto === undefined && s.status === "open");
+      if (!openSession) {
+        sendJson(res, 400, { error: "nenhuma sessão de caixa aberta" });
+        return true;
+      }
+
+      const event = DomainEventSchema.parse({
+        id: randomUUID(),
+        hlc: nextHlc(),
+        operatorId: acting.id,
+        terminalId: ctx.terminalId,
+        createdAt: Date.now(),
+        type: "cash_withdrawal_recorded",
+        aggregateType: "cash_session",
+        aggregateId: openSession.id,
+        payload: { amountCents, reason },
+      });
+      insertEvent(ctx.db, event);
+      sendJson(res, 201, { id: event.id, amountCents, reason, recordedAt: event.createdAt });
+    } catch {
+      sendJson(res, 400, { error: "corpo da requisição não é um JSON válido" });
+    }
+    return true;
+  }
+
   return false;
 }

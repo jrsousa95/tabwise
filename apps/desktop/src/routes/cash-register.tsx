@@ -1,8 +1,95 @@
 import { useState } from "react";
 import { useCashRegisterSummary } from "../lib/cash-register";
 import { useTablesAndOrders } from "../lib/tables";
-import { useCashSessionState, openCashSession } from "../lib/cash-sessions";
+import { useCashSessionState, openCashSession, recordWithdrawal, type CashMovementRecord } from "../lib/cash-sessions";
 import { formatCentsToBRL, parseReaisToCents } from "../lib/money";
+
+/**
+ * Épico 1 (Sessão de Caixa), Story 1.2 — formulário inline de sangria (valor
+ * + motivo), abaixo da linha "Sessão aberta desde..." (mesmo padrão de
+ * formulário curto de `CashSessionSection` acima). Lista as sangrias já
+ * registradas nesta sessão logo abaixo, mais recente primeiro.
+ */
+function WithdrawalForm({ withdrawals, onRecorded }: { withdrawals: CashMovementRecord[]; onRecorded: () => void }) {
+  const [amountText, setAmountText] = useState("");
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (submitting) return;
+    const cents = parseReaisToCents(amountText);
+    if (cents === null || cents <= 0) {
+      setError("valor da sangria inválido");
+      return;
+    }
+    if (reason.trim().length === 0) {
+      setError("motivo da sangria é obrigatório");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    const result = await recordWithdrawal(cents, reason.trim());
+    setSubmitting(false);
+    if (!result.ok) {
+      setError(result.error);
+      // Achado no code review, 2026-09-26: mesmo fix já aplicado ao
+      // handleOpen na Story 1.1 — o erro mais provável aqui é a sessão ter
+      // sido fechada/mesclada desde o último render; sem isso, o formulário
+      // continuava exibido em vez de refletir o estado real.
+      onRecorded();
+      return;
+    }
+    setAmountText("");
+    setReason("");
+    onRecorded();
+  }
+
+  return (
+    <div className="table-map-section">
+      <h3 className="subsection-heading">Sangria</h3>
+      <form onSubmit={handleSubmit} className="inline-form">
+        <input
+          value={amountText}
+          onChange={(e) => {
+            setAmountText(e.target.value.replace(/[^0-9,.]/g, ""));
+            setError(null);
+          }}
+          disabled={submitting}
+          inputMode="decimal"
+          placeholder="Ex: 20,00"
+          aria-label="Valor da sangria"
+        />
+        <input
+          value={reason}
+          onChange={(e) => {
+            setReason(e.target.value);
+            setError(null);
+          }}
+          disabled={submitting}
+          placeholder="Motivo (ex: reforço de troco pro cofre)"
+          aria-label="Motivo da sangria"
+        />
+        <button type="submit" className="button-primary" disabled={submitting}>
+          Registrar sangria
+        </button>
+      </form>
+      {error && <p className="form-error" role="alert">{error}</p>}
+
+      <ul className="catalog-list">
+        {[...withdrawals]
+          .sort((a, b) => b.recordedAt - a.recordedAt)
+          .map((w) => (
+            <li key={w.id}>
+              {formatCentsToBRL(w.amountCents)} — {w.reason} ({new Date(w.recordedAt).toLocaleString("pt-BR")})
+            </li>
+          ))}
+        {withdrawals.length === 0 && <li className="catalog-empty">Nenhuma sangria registrada nesta sessão.</li>}
+      </ul>
+    </div>
+  );
+}
 
 /**
  * Épico 1 (Sessão de Caixa), Story 1.1 — abertura de sessão. Decisão
@@ -49,11 +136,14 @@ function CashSessionSection() {
       {status === "loading" ? (
         <p>Carregando...</p>
       ) : openSession ? (
-        <p>
-          Sessão aberta desde{" "}
-          {new Date(openSession.openedAt).toLocaleString("pt-BR")} — fundo de
-          troco inicial de {formatCentsToBRL(openSession.openingAmountCents)}.
-        </p>
+        <>
+          <p>
+            Sessão aberta desde{" "}
+            {new Date(openSession.openedAt).toLocaleString("pt-BR")} — fundo de
+            troco inicial de {formatCentsToBRL(openSession.openingAmountCents)}.
+          </p>
+          <WithdrawalForm withdrawals={openSession.withdrawals} onRecorded={refresh} />
+        </>
       ) : (
         <>
           <p>Nenhuma sessão de caixa aberta. Informe o valor inicial da gaveta (fundo de troco) pra abrir uma.</p>

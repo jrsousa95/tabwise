@@ -381,6 +381,30 @@ export const CashSessionOpenedSchema = baseEventSchema.extend({
 });
 export type CashSessionOpened = z.infer<typeof CashSessionOpenedSchema>;
 
+/**
+ * Épico 1 (Sessão de Caixa), Story 1.2 — sangria (retirada de dinheiro da
+ * gaveta durante o turno). Sub-evento do ciclo de vida de `cash_session`
+ * (mesmo `aggregateType: "cash_session"`, NÃO ganha tipo próprio — mesmo
+ * princípio de `item_added` usando `aggregateType: "order"`). `aggregateId`
+ * é a sessão canônica aberta no momento do registro (a rota resolve
+ * sozinha via `isCashSessionOpen`; cliente nunca informa um id de sessão).
+ * Reatribuição histórica quando essa sessão perde um conflito de abertura
+ * concorrente depois é responsabilidade da projeção
+ * (`resolveCanonicalCashSession` em `reconciliation.ts`), não deste schema.
+ */
+export const CashWithdrawalRecordedSchema = baseEventSchema.extend({
+  type: z.literal("cash_withdrawal_recorded"),
+  aggregateType: z.literal("cash_session"),
+  aggregateId: z.string().min(1),
+  payload: z.object({
+    /** NFR7 — inteiro em centavos, sempre > 0. */
+    amountCents: z.number().int().positive(),
+    /** Texto livre, obrigatório — validado como não-vazio após `trim()`. */
+    reason: z.string().trim().min(1),
+  }),
+});
+export type CashWithdrawalRecorded = z.infer<typeof CashWithdrawalRecordedSchema>;
+
 export const DomainEventSchema = z.discriminatedUnion("type", [
   EstablishmentSettingsUpdatedSchema,
   OperatorRegisteredSchema,
@@ -406,6 +430,7 @@ export const DomainEventSchema = z.discriminatedUnion("type", [
   OrderClosedSchema,
   PaymentRecordedSchema,
   CashSessionOpenedSchema,
+  CashWithdrawalRecordedSchema,
 ]);
 export type DomainEvent = z.infer<typeof DomainEventSchema>;
 export type DomainEventType = DomainEvent["type"];

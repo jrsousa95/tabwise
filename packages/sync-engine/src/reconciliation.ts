@@ -255,6 +255,28 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
     return current;
   }
 
+  /**
+   * Épico 1 (Sessão de Caixa), Story 1.2 — espelha `resolveCanonical`
+   * (orders): um `cash_withdrawal_recorded` pode ter sido gravado contra uma
+   * sessão que ERA a canônica no momento do registro, mas que depois de
+   * sincronizar perdeu o conflito de abertura concorrente (§4.2/§4.4) e foi
+   * mesclada. Segue `mergedInto` até a sessão que não perdeu nada, com
+   * detecção de ciclo.
+   */
+  function resolveCanonicalCashSession(sessionId: string): MutableCashSession {
+    let current = cashSessions.get(sessionId);
+    if (!current) throw new Error(`Evento referencia sessão de caixa desconhecida: ${sessionId}`);
+    const visited = new Set<string>();
+    while (current.mergedInto) {
+      if (visited.has(current.id)) throw new Error("Ciclo de merge detectado.");
+      visited.add(current.id);
+      const next = cashSessions.get(current.mergedInto);
+      if (!next) throw new Error(`mergedInto aponta pra sessão de caixa desconhecida: ${current.mergedInto}`);
+      current = next;
+    }
+    return current;
+  }
+
   for (const event of sortedEvents) {
     switch (event.type) {
       case "operator_registered": {
@@ -496,6 +518,18 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
             createdAt: event.createdAt,
           });
         }
+        break;
+      }
+
+      case "cash_withdrawal_recorded": {
+        const canonical = resolveCanonicalCashSession(event.aggregateId);
+        canonical.withdrawals.push({
+          id: event.id,
+          amountCents: event.payload.amountCents,
+          reason: event.payload.reason,
+          recordedAt: event.createdAt,
+          operatorId: event.operatorId,
+        });
         break;
       }
     }

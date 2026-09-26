@@ -2,11 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { SIDECAR_URL } from "./sidecar";
 
 /**
- * Épico 1 (Sessão de Caixa), Story 1.1. Espelha `CashSessionState` do
- * sync-engine — `withdrawals`/`deposits`/`closing` chegam vazios/ausentes
- * nesta story (sangria/suprimento/fechamento são 1.2/1.3/1.4, backlog
- * separado), mas já fazem parte do formato pra não quebrar quando forem
- * implementados.
+ * Épico 1 (Sessão de Caixa). Espelha `CashSessionState` do sync-engine —
+ * `withdrawals` já é populado desde a Story 1.2 (sangria); `deposits`
+ * (suprimento, 1.3) e `closing` (fechamento com conferência, 1.4) ainda
+ * chegam vazios/ausentes, backlog separado.
  */
 export type CashMovementRecord = {
   id: string;
@@ -49,6 +48,18 @@ async function postJson<T>(path: string, body: unknown): Promise<ApiResult<T>> {
 /** PRD Épico 1 (Story 1.1) — abre uma sessão de caixa nova; 400 se já existe uma aberta no estabelecimento. */
 export function openCashSession(openingAmountCents: number) {
   return postJson<{ id: string; openingAmountCents: number; openedAt: number }>("/cash-sessions", { openingAmountCents });
+}
+
+/**
+ * PRD Épico 1 (Story 1.2) — registra uma sangria contra a sessão canônica
+ * aberta; nunca informa um id de sessão (o backend resolve sozinho). 400 se
+ * não houver sessão aberta, valor inválido ou motivo vazio.
+ */
+export function recordWithdrawal(amountCents: number, reason: string) {
+  return postJson<{ id: string; amountCents: number; reason: string; recordedAt: number }>("/cash-sessions/withdrawals", {
+    amountCents,
+    reason,
+  });
 }
 
 type Status = "loading" | "ready";

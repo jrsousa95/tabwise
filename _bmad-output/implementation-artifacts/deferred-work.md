@@ -37,3 +37,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-1-abrir-sessão-de-caixa.md`
   summary: Sessão de caixa perdedora do conflito de abertura concorrente não gera nenhum aviso transitório (banner) — só aparece na tela permanente "Conflitos de Sincronização". Conflito de mesa tem os dois (banner em `layout.tsx`/`useMergeWarnings` + tela permanente).
   evidence: Achado real (`blind-hunter`, verificado) — a própria AC4 desta story menciona "aviso não bloqueante". Decisão do dono (2026-09-26): adiar — conflito de sessão de caixa exige dois terminais offline abrindo quase ao mesmo tempo (raro na prática, mesma raridade do conflito de mesa); a tela permanente já mostra o conflito com os valores das duas sessões, o banner transitório seria reforço, não a única forma de descoberta. Revisar se vier a incomodar na prática.
+
+## Deferred from: bmad-build review of spec-1-2-registrar-sangria (2026-09-26)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-registrar-sangria.md`
+  summary: Sangria não tem nenhuma checagem de sanidade contra o que realmente está na gaveta (fundo de troco + vendas em dinheiro da sessão − sangrias já feitas + suprimentos) — aceita qualquer valor positivo, mesmo maior do que o que fisicamente poderia existir na sessão.
+  evidence: Achado real (`blind-hunter`, verificado) — calcular "quanto tem na gaveta agora" corretamente exige o mesmo mecanismo de valor esperado que a história 1.4 (fechamento com conferência) constrói (soma de vendas em dinheiro da sessão, ver ARCH §3.4). Implementar essa checagem antes da 1.4 exigiria antecipar esse cálculo fora de ordem — fica pra quando 1.4 existir, ou como melhoria futura se o dono achar necessário.

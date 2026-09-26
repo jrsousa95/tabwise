@@ -136,4 +136,72 @@ describe("ARCH §4.4 — duas sessões de caixa abertas concorrentemente", () =>
     expect(state.cashSessions.find((s) => s.id === "session-late")!.mergedInto).toBe("session-earliest");
     expect(state.cashSessionMergeWarnings.map((w) => w.losingSession).sort()).toEqual(["session-late", "session-mid"]);
   });
+
+  /**
+   * Épico 1 (Sessão de Caixa), Story 1.2 — Reatribuição histórica: uma
+   * sangria (`cash_withdrawal_recorded`) gravada num terminal offline contra
+   * a sessão que ERA a canônica local naquele momento, mas que perde o
+   * conflito de abertura concorrente depois de sincronizar, precisa aparecer
+   * em `withdrawals` da sessão que realmente venceu — nunca fica "perdida"
+   * na perdedora. Espelha o teste equivalente de `item_added` em
+   * `arch-4.2-table-conflict.test.ts`.
+   */
+  it("sangria registrada contra sessão que depois perde o conflito de abertura é reatribuída à canônica", () => {
+    // T1 abre sessão-B (HLC maior, vai perder) e já registra uma sangria contra ela.
+    const clockT1Open = tick(ZERO, 2000);
+    const sessionOpenedT1: DomainEvent = {
+      id: "ev-1",
+      hlc: serialize(clockT1Open),
+      aggregateType: "cash_session",
+      aggregateId: "session-B",
+      type: "cash_session_opened",
+      terminalId: "T1",
+      operatorId: "cashier-1",
+      createdAt: 2000,
+      payload: { openingAmountCents: 5000 },
+    };
+    const withdrawalAgainstB: DomainEvent = {
+      id: "ev-2",
+      hlc: serialize(tick(clockT1Open, 2500)),
+      aggregateType: "cash_session",
+      aggregateId: "session-B",
+      type: "cash_withdrawal_recorded",
+      terminalId: "T1",
+      operatorId: "cashier-1",
+      createdAt: 2500,
+      payload: { amountCents: 1500, reason: "reforço de troco pro cofre" },
+    };
+
+    // T2 abre sessão-A (HLC menor, vai vencer e virar a canônica).
+    const clockT2Open = tick(ZERO, 1000);
+    const sessionOpenedT2: DomainEvent = {
+      id: "ev-3",
+      hlc: serialize(clockT2Open),
+      aggregateType: "cash_session",
+      aggregateId: "session-A",
+      type: "cash_session_opened",
+      terminalId: "T2",
+      operatorId: "owner-1",
+      createdAt: 1000,
+      payload: { openingAmountCents: 8000 },
+    };
+
+    const logT1 = [sessionOpenedT1, withdrawalAgainstB];
+    const logT2 = [sessionOpenedT2];
+    const state = project(merge(logT1, logT2));
+
+    const canonical = state.cashSessions.find((s) => s.id === "session-A");
+    const losing = state.cashSessions.find((s) => s.id === "session-B");
+    expect(canonical!.mergedInto).toBeUndefined();
+    expect(losing!.mergedInto).toBe("session-A");
+
+    // A sangria "some" da perdedora e aparece na canônica de verdade.
+    expect(losing!.withdrawals).toEqual([]);
+    expect(canonical!.withdrawals).toEqual([
+      { id: "ev-2", amountCents: 1500, reason: "reforço de troco pro cofre", recordedAt: 2500, operatorId: "cashier-1" },
+    ]);
+
+    // Ordem de merge não pode importar.
+    expect(project(merge(logT2, logT1))).toEqual(state);
+  });
 });
