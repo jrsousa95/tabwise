@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DomainEvent } from "@passa-a-regua/shared-types";
 import { serialize, tick, ZERO } from "../src/hlc.js";
-import { merge, project } from "../src/reconciliation.js";
+import { merge, project, sortEvents } from "../src/reconciliation.js";
 
 /**
  * Épico 1 (Sessão de Caixa), Story 1.1 — dois terminais offline, sem se
@@ -270,5 +270,61 @@ describe("ARCH §4.4 — duas sessões de caixa abertas concorrentemente", () =>
 
     // Ordem de merge não pode importar.
     expect(project(merge(logT2, logT1))).toEqual(state);
+  });
+
+  /**
+   * Épico 1 (Sessão de Caixa), Story 1.4 — regressão do bug real já
+   * corrigido pra mesa (`order_closed` limpando `tableToCanonicalOrder`,
+   * comentário em `reconciliation.ts`, achado real 2026-09-23). Fechar uma
+   * sessão de caixa TEM que liberar `canonicalOpenCashSession` — sem isso, a
+   * PRÓXIMA sessão aberta seria tratada como conflito falso contra esta já
+   * fechada. Espelha `"reabrir a mesma mesa depois de fechar a comanda
+   * anterior NÃO é conflito"` em `arch-4.2-table-conflict.test.ts`.
+   */
+  it("reabrir uma sessão depois de fechar a anterior NÃO gera conflito (slot canônico liberado)", () => {
+    const openA: DomainEvent = {
+      id: "ev-open-a",
+      hlc: serialize(tick(ZERO, 1000)),
+      aggregateType: "cash_session",
+      aggregateId: "session-A",
+      type: "cash_session_opened",
+      terminalId: "T1",
+      operatorId: "cashier-1",
+      createdAt: 1000,
+      payload: { openingAmountCents: 5000 },
+    };
+    const closeA: DomainEvent = {
+      id: "ev-close-a",
+      hlc: serialize(tick(ZERO, 2000)),
+      aggregateType: "cash_session",
+      aggregateId: "session-A",
+      type: "cash_session_closed",
+      terminalId: "T1",
+      operatorId: "cashier-1",
+      createdAt: 2000,
+      payload: { countedAmountCents: 5000 },
+    };
+    // Bem depois, mesmo terminal — segunda sessão do dia.
+    const openB: DomainEvent = {
+      id: "ev-open-b",
+      hlc: serialize(tick(ZERO, 3000)),
+      aggregateType: "cash_session",
+      aggregateId: "session-B",
+      type: "cash_session_opened",
+      terminalId: "T1",
+      operatorId: "cashier-1",
+      createdAt: 3000,
+      payload: { openingAmountCents: 3000 },
+    };
+
+    const state = project(sortEvents([openA, closeA, openB]));
+
+    const sessionA = state.cashSessions.find((s) => s.id === "session-A");
+    const sessionB = state.cashSessions.find((s) => s.id === "session-B");
+    expect(sessionA?.status).toBe("closed");
+    expect(sessionA?.closing).toEqual({ countedAmountCents: 5000, closedAt: 2000, closedByOperatorId: "cashier-1" });
+    expect(sessionB?.status).toBe("open");
+    expect(sessionB?.mergedInto).toBeUndefined(); // não pode ser mesclada na sessão velha já fechada
+    expect(state.cashSessionMergeWarnings).toEqual([]); // nenhum conflito de verdade aconteceu
   });
 });

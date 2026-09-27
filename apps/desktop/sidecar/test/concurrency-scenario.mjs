@@ -96,6 +96,13 @@ async function getJson(port, path) {
   return res.json();
 }
 
+/** Espelha `postJson` acima, mas pra GET — precisa do status pra validar bloqueio de papel/invariante (Story 1.4). */
+async function getJsonStatus(port, path) {
+  const res = await fetch(`http://127.0.0.1:${port}${path}`);
+  const data = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, data };
+}
+
 async function main() {
   const dataDirA = mkdtempSync(path.join(tmpdir(), "passa-a-regua-concurrency-a-"));
   const dataDirB = mkdtempSync(path.join(tmpdir(), "passa-a-regua-concurrency-b-"));
@@ -204,12 +211,14 @@ async function main() {
     assert.equal(orderAfterItems.items.length, 2, "nenhum item concorrente pode se perder");
     log("CENÁRIO 2 OK — os dois itens lançados ao mesmo tempo sobreviveram ao sync.");
 
-    // === Cenário 4 (Épico 1 / Story 1.1): sessão de caixa — validações num
-    // terminal só (papel, valor inválido) + conflito de abertura concorrente
-    // entre A e B (mesma regra do §4.2, mas pro slot global do
-    // estabelecimento, não por mesa). Precisa rodar ANTES do Cenário 3
-    // (que derruba o terminal A). ===
-    log("CENÁRIO 4: sessão de caixa — validações e conflito de abertura concorrente...");
+    // === Cenário 4 (Épico 1 / Stories 1.1-1.4): sessão de caixa —
+    // validações num terminal só (papel, valor inválido) + conflito de
+    // abertura concorrente entre A e B (mesma regra do §4.2, mas pro slot
+    // global do estabelecimento, não por mesa) + sangria/suprimento +
+    // fechamento com conferência (preview, diferença não bloqueia,
+    // reabertura pós-fechamento sem conflito falso). Precisa rodar ANTES do
+    // Cenário 3 (que derruba o terminal A). ===
+    log("CENÁRIO 4: sessão de caixa — validações, conflito de abertura e fechamento com conferência...");
 
     log("cadastrando um garçom em A (pra testar o bloqueio de papel)...");
     await postJson(PORT_A, "/operators", { name: "Wagner", role: "waiter", pin: "9999" });
@@ -355,6 +364,92 @@ async function main() {
       assert.ok(
         canonical && canonical.deposits.some((d) => d.amountCents === 5000 && d.reason === "reposição de troco"),
         `terminal ${port}: o suprimento precisa aparecer em deposits da sessão canônica`
+      );
+    }
+
+    // Épico 1, Story 1.4 — fechamento com conferência. Continua no MESMO
+    // terminal A, contra a mesma sessão canônica já usada acima pra
+    // sangria/suprimento (ainda precisa rodar ANTES do Cenário 3, que
+    // derruba A).
+    log("garçom não pode ver o preview do valor esperado nem fechar a sessão...");
+    await postJson(PORT_A, "/session/login", { pin: "9999" }); // Wagner, garçom
+    const waiterPreviewBlocked = await getJsonStatus(PORT_A, "/cash-sessions/expected");
+    assert.equal(waiterPreviewBlocked.status, 403, "garçom não pode ver o preview do valor esperado");
+    const waiterCloseBlocked = await postJson(PORT_A, "/cash-sessions/close", { countedAmountCents: 1000 });
+    assert.equal(waiterCloseBlocked.status, 403, "garçom não pode fechar sessão de caixa");
+    await postJson(PORT_A, "/session/login", { pin: "1234" }); // volta a sessão de A pra Ana (dono)
+
+    log("preview do valor esperado antes de pedir o valor contado...");
+    const preview = await getJsonStatus(PORT_A, "/cash-sessions/expected");
+    assert.equal(preview.status, 200, "preview do valor esperado precisa funcionar com sessão aberta");
+    const expectedAmountCents = preview.data.expectedAmountCents;
+    assert.equal(typeof expectedAmountCents, "number", "preview precisa devolver expectedAmountCents numérico");
+
+    log("valor contado inválido (negativo) é rejeitado no fechamento...");
+    const invalidCountedAmount = await postJson(PORT_A, "/cash-sessions/close", { countedAmountCents: -100 });
+    assert.equal(invalidCountedAmount.status, 400, "valor contado negativo precisa ser rejeitado");
+
+    log("fechando a sessão com um valor contado diferente do esperado (sobra não bloqueia o fechamento)...");
+    const countedAmountCents = expectedAmountCents + 700;
+    const closeResult = await postJson(PORT_A, "/cash-sessions/close", { countedAmountCents });
+    assert.equal(closeResult.status, 201, "fechamento com diferença ≠ 0 precisa ser aceito normalmente");
+    assert.equal(closeResult.data.countedAmountCents, countedAmountCents, "countedAmountCents devolvido precisa bater com o enviado");
+    assert.equal(closeResult.data.expectedAmountCents, expectedAmountCents, "expectedAmountCents devolvido no fechamento precisa bater com o preview");
+    assert.equal(closeResult.data.differenceCents, 700, "diferença precisa ser (contado - esperado)");
+
+    log("depois de fechada, a sessão vira 'closed' nos dois terminais...");
+    await waitUntil(
+      async () => {
+        const state = await getJson(PORT_B, "/state");
+        const closed = state.cashSessions.find((s) => s.id === canonicalSessionId);
+        return closed && closed.status === "closed";
+      },
+      { description: "fechamento propagar de A pra B" }
+    );
+    for (const port of [PORT_A, PORT_B]) {
+      const state = await getJson(port, "/state");
+      const closed = state.cashSessions.find((s) => s.id === canonicalSessionId);
+      assert.ok(closed, `terminal ${port}: sessão fechada precisa continuar conhecida`);
+      assert.equal(closed.status, "closed", `terminal ${port}: sessão precisa estar 'closed'`);
+      assert.equal(closed.closing.countedAmountCents, countedAmountCents, `terminal ${port}: countedAmountCents gravado precisa bater`);
+    }
+
+    log("preview de uma sessão já fechada via ?sessionId= (histórico de 'Sessões encerradas')...");
+    const closedSessionPreview = await getJsonStatus(PORT_A, `/cash-sessions/expected?sessionId=${canonicalSessionId}`);
+    assert.equal(closedSessionPreview.status, 200, "preview por sessionId de sessão já fechada precisa funcionar");
+    assert.equal(
+      closedSessionPreview.data.expectedAmountCents,
+      expectedAmountCents,
+      "preview recalculado da sessão fechada precisa bater com o valor esperado no momento do fechamento (sem venda tardia)"
+    );
+    const bogusSessionPreview = await getJsonStatus(PORT_A, "/cash-sessions/expected?sessionId=id-inexistente");
+    assert.equal(bogusSessionPreview.status, 400, "preview por sessionId desconhecido precisa ser rejeitado");
+
+    log("sem nenhuma sessão aberta, preview e fechamento são bloqueados...");
+    const previewNoSession = await getJsonStatus(PORT_A, "/cash-sessions/expected");
+    assert.equal(previewNoSession.status, 400, "preview sem sessão de caixa aberta precisa ser bloqueado");
+    const closeNoSession = await postJson(PORT_A, "/cash-sessions/close", { countedAmountCents: 1000 });
+    assert.equal(closeNoSession.status, 400, "fechamento sem sessão de caixa aberta precisa ser bloqueado");
+
+    log("reabrir uma sessão nova depois de fechar a anterior NÃO gera conflito falso (slot canônico liberado)...");
+    const reopened = await postJson(PORT_A, "/cash-sessions", { openingAmountCents: 4000 });
+    assert.equal(reopened.status, 201, "reabrir depois de fechar a sessão anterior precisa funcionar normalmente");
+    await waitUntil(
+      async () => {
+        const state = await getJson(PORT_B, "/state");
+        return state.cashSessions.some((s) => s.id === reopened.data.id);
+      },
+      { description: "sessão reaberta propagar de A pra B" }
+    );
+    for (const port of [PORT_A, PORT_B]) {
+      const state = await getJson(port, "/state");
+      const newSession = state.cashSessions.find((s) => s.id === reopened.data.id);
+      assert.ok(newSession, `terminal ${port}: sessão reaberta precisa ser conhecida`);
+      assert.equal(newSession.status, "open", `terminal ${port}: sessão reaberta precisa estar aberta`);
+      assert.equal(newSession.mergedInto, undefined, `terminal ${port}: reabertura NÃO pode ser tratada como conflito contra a sessão já fechada`);
+      assert.ok(
+        !state.cashSessionMergeWarnings.some((w) => w.losingSession === reopened.data.id),
+        `terminal ${port}: reabertura pós-fechamento não pode gerar aviso de conflito`
       );
     }
 

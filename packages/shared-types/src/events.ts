@@ -387,9 +387,10 @@ export type CashSessionOpened = z.infer<typeof CashSessionOpenedSchema>;
  * (mesmo `aggregateType: "cash_session"`, NÃO ganha tipo próprio — mesmo
  * princípio de `item_added` usando `aggregateType: "order"`). `aggregateId`
  * é a sessão canônica aberta no momento do registro (a rota resolve
- * sozinha via `isCashSessionOpen`; cliente nunca informa um id de sessão).
- * Reatribuição histórica quando essa sessão perde um conflito de abertura
- * concorrente depois é responsabilidade da projeção
+ * sozinha via busca inline por `mergedInto === undefined && status ===
+ * "open"`, em `handleCashMovementRoute`; cliente nunca informa um id de
+ * sessão). Reatribuição histórica quando essa sessão perde um conflito de
+ * abertura concorrente depois é responsabilidade da projeção
  * (`resolveCanonicalCashSession` em `reconciliation.ts`), não deste schema.
  */
 export const CashWithdrawalRecordedSchema = baseEventSchema.extend({
@@ -410,11 +411,12 @@ export type CashWithdrawalRecorded = z.infer<typeof CashWithdrawalRecordedSchema
  * gaveta durante o turno). Espelho exato de `CashWithdrawalRecordedSchema`:
  * sub-evento do ciclo de vida de `cash_session` (mesmo `aggregateType:
  * "cash_session"`, NÃO ganha tipo próprio). `aggregateId` é a sessão
- * canônica aberta no momento do registro (a rota resolve sozinha via
- * `isCashSessionOpen`; cliente nunca informa um id de sessão). Reatribuição
- * histórica quando essa sessão perde um conflito de abertura concorrente
- * depois é responsabilidade da projeção (`resolveCanonicalCashSession` em
- * `reconciliation.ts`), não deste schema.
+ * canônica aberta no momento do registro (a rota resolve sozinha via busca
+ * inline por `mergedInto === undefined && status === "open"`, em
+ * `handleCashMovementRoute`; cliente nunca informa um id de sessão).
+ * Reatribuição histórica quando essa sessão perde um conflito de abertura
+ * concorrente depois é responsabilidade da projeção
+ * (`resolveCanonicalCashSession` em `reconciliation.ts`), não deste schema.
  */
 export const CashDepositRecordedSchema = baseEventSchema.extend({
   type: z.literal("cash_deposit_recorded"),
@@ -428,6 +430,35 @@ export const CashDepositRecordedSchema = baseEventSchema.extend({
   }),
 });
 export type CashDepositRecorded = z.infer<typeof CashDepositRecordedSchema>;
+
+/**
+ * Épico 1 (Sessão de Caixa), Story 1.4 — fecha a sessão de caixa canônica
+ * aberta. Sub-evento do ciclo de vida de `cash_session` (mesmo
+ * `aggregateType: "cash_session"`, não ganha tipo próprio, mesmo princípio de
+ * `CashWithdrawalRecordedSchema`/`CashDepositRecordedSchema`). Payload carrega
+ * SÓ o fato físico contado uma vez — `expectedAmountCents`/`differenceCents`
+ * NUNCA entram aqui, são sempre derivados na leitura por
+ * `computeExpectedCashSessionAmountCents` (`packages/sync-engine/src/
+ * reporting.ts`), nunca persistidos (evita o "esperado" ficar
+ * permanentemente errado quando um pedido em dinheiro sincroniza tarde).
+ * `aggregateId` é a sessão canônica aberta no momento do fechamento (a rota
+ * resolve sozinha via busca inline por `mergedInto === undefined && status
+ * === "open"` — mesmo filtro usado em toda rota de sessão de caixa,
+ * `isCashSessionOpen` só devolve um booleano pra abertura, não resolve a
+ * sessão em si; cliente nunca informa um id de sessão). `countedAmountCents`
+ * aceita ZERO (gaveta vazia é raro mas válido) — `.nonnegative()`, DIFERENTE
+ * de `openingAmountCents`/`amountCents` acima (que exigem `.positive()`).
+ */
+export const CashSessionClosedSchema = baseEventSchema.extend({
+  type: z.literal("cash_session_closed"),
+  aggregateType: z.literal("cash_session"),
+  aggregateId: z.string().min(1),
+  payload: z.object({
+    /** Fato físico contado uma vez, inteiro em centavos, `>= 0` (zero é válido). */
+    countedAmountCents: z.number().int().nonnegative(),
+  }),
+});
+export type CashSessionClosed = z.infer<typeof CashSessionClosedSchema>;
 
 export const DomainEventSchema = z.discriminatedUnion("type", [
   EstablishmentSettingsUpdatedSchema,
@@ -456,6 +487,7 @@ export const DomainEventSchema = z.discriminatedUnion("type", [
   CashSessionOpenedSchema,
   CashWithdrawalRecordedSchema,
   CashDepositRecordedSchema,
+  CashSessionClosedSchema,
 ]);
 export type DomainEvent = z.infer<typeof DomainEventSchema>;
 export type DomainEventType = DomainEvent["type"];

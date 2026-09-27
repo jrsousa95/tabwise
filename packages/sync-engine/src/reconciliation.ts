@@ -544,6 +544,26 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
         });
         break;
       }
+
+      case "cash_session_closed": {
+        const canonical = resolveCanonicalCashSession(event.aggregateId);
+        canonical.status = "closed";
+        canonical.closing = {
+          countedAmountCents: event.payload.countedAmountCents,
+          closedAt: event.createdAt,
+          closedByOperatorId: event.operatorId,
+        };
+        // Mesmo princípio já aplicado em order_closed acima pra
+        // `tableToCanonicalOrder`: fechar precisa liberar o slot canônico
+        // (`canonicalOpenCashSession`) quando a sessão fechada é a que
+        // estava ocupando ele — senão a PRÓXIMA sessão aberta seria tratada
+        // como conflito falso contra esta já fechada (achado real 2026-09-23,
+        // ver comentário em order_closed).
+        if (canonicalOpenCashSession === canonical.id) {
+          canonicalOpenCashSession = undefined;
+        }
+        break;
+      }
     }
   }
 

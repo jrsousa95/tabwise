@@ -5,7 +5,7 @@ function base() {
   return { id: "ev-1", hlc: "0000000000000001-00000000", operatorId: "op-1", terminalId: "t-1", createdAt: 1700000000000 };
 }
 
-describe("DomainEventSchema — discriminated union dos 26 tipos (PRD/ARCH §3.1)", () => {
+describe("DomainEventSchema — discriminated union dos 27 tipos (PRD/ARCH §3.1)", () => {
   it("aceita um evento válido de cada tipo", () => {
     const validEvents = [
       { ...base(), type: "establishment_settings_updated", aggregateType: "establishment", aggregateId: "establishment", payload: { defaultServiceFeePercent: 10 } },
@@ -36,6 +36,7 @@ describe("DomainEventSchema — discriminated union dos 26 tipos (PRD/ARCH §3.1
       { ...base(), type: "cash_session_opened", aggregateType: "cash_session", aggregateId: "cs-1", payload: { openingAmountCents: 5000 } },
       { ...base(), type: "cash_withdrawal_recorded", aggregateType: "cash_session", aggregateId: "cs-1", payload: { amountCents: 2000, reason: "reforço de troco pro cofre" } },
       { ...base(), type: "cash_deposit_recorded", aggregateType: "cash_session", aggregateId: "cs-1", payload: { amountCents: 5000, reason: "reposição de troco" } },
+      { ...base(), type: "cash_session_closed", aggregateType: "cash_session", aggregateId: "cs-1", payload: { countedAmountCents: 4500 } },
     ];
 
     for (const event of validEvents) {
@@ -225,5 +226,34 @@ describe("DomainEventSchema — discriminated union dos 26 tipos (PRD/ARCH §3.1
       payload: { amountCents: 5000, reason: "   " },
     });
     expect(blank.success).toBe(false);
+  });
+
+  it("cash_session_closed exige countedAmountCents inteiro e >= 0 — ZERO é aceito, diferente das outras 3 validações de valor do épico (Story 1.4)", () => {
+    const zero = DomainEventSchema.safeParse({
+      ...base(),
+      type: "cash_session_closed",
+      aggregateType: "cash_session",
+      aggregateId: "cs-1",
+      payload: { countedAmountCents: 0 },
+    });
+    expect(zero.success).toBe(true);
+
+    const negative = DomainEventSchema.safeParse({
+      ...base(),
+      type: "cash_session_closed",
+      aggregateType: "cash_session",
+      aggregateId: "cs-1",
+      payload: { countedAmountCents: -100 },
+    });
+    expect(negative.success).toBe(false);
+
+    const nonInteger = DomainEventSchema.safeParse({
+      ...base(),
+      type: "cash_session_closed",
+      aggregateType: "cash_session",
+      aggregateId: "cs-1",
+      payload: { countedAmountCents: 45.5 },
+    });
+    expect(nonInteger.success).toBe(false);
   });
 });

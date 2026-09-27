@@ -1,4 +1,4 @@
-import type { OrderState } from "./reconciliation.js";
+import type { OrderState, CashSessionState } from "./reconciliation.js";
 
 /** "YYYY-MM-DD" no fuso local de quem está calculando (sidecar: fuso da máquina do usuário; backend: fuso do servidor — ok pro MVP, ambos processam eventos com `createdAt` em epoch ms). */
 export function localDateKey(epochMs: number): string {
@@ -48,4 +48,39 @@ export function computeCashRegisterSummary(orders: readonly OrderState[], dateKe
     totalByPaymentMethod,
     pendingOrders: pending.map((o) => ({ id: o.id, origin: o.origin, currentTableId: o.currentTableId })),
   };
+}
+
+/**
+ * Épico 1 (Sessão de Caixa), Story 1.4 — valor esperado da gaveta pra uma
+ * sessão de caixa: `openingAmountCents` + pagamentos em dinheiro de `orders`
+ * fechadas com `closing.closedAt` dentro de `[session.openedAt,
+ * session.closing?.closedAt ?? nowMs]` + suprimentos − sangrias (mesmo
+ * padrão de filtro/soma de `computeCashRegisterSummary` acima, mas por
+ * intervalo de tempo da sessão em vez de por `dateKey`).
+ *
+ * Reaproveitada tanto pelo preview (sessão ainda aberta, janela até `nowMs`)
+ * quanto pelo histórico (sessão já fechada, janela até `closing.closedAt`) —
+ * `expectedAmountCents` NUNCA é persistido, é recalculado a cada leitura
+ * (Design Notes de `spec-1-4`). Isso é o que resolve o caso de uma venda em
+ * dinheiro que sincroniza depois do fechamento: a próxima leitura já reflete
+ * o valor certo, sem evento de correção manual.
+ *
+ * A correlação NÃO filtra por `terminalId` — a sessão é do estabelecimento
+ * inteiro, qualquer terminal pode ter recebido o dinheiro.
+ */
+export function computeExpectedCashSessionAmountCents(
+  session: CashSessionState,
+  orders: readonly OrderState[],
+  nowMs: number
+): number {
+  const windowEnd = session.closing?.closedAt ?? nowMs;
+  const cashFromOrders = orders
+    .filter((o) => o.mergedInto === undefined && o.status === "closed")
+    .filter((o) => o.closing!.closedAt >= session.openedAt && o.closing!.closedAt <= windowEnd)
+    .reduce((sum, o) => sum + o.payments.filter((p) => p.paymentMethod === "cash").reduce((s, p) => s + p.amountCents, 0), 0);
+
+  const deposits = session.deposits.reduce((sum, d) => sum + d.amountCents, 0);
+  const withdrawals = session.withdrawals.reduce((sum, w) => sum + w.amountCents, 0);
+
+  return session.openingAmountCents + cashFromOrders + deposits - withdrawals;
 }
