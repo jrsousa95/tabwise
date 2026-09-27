@@ -294,6 +294,14 @@ async function main() {
       );
     }
 
+    // Achado no code review (edge-case-hunter): capturado aqui pra uso mais
+    // abaixo — regressão específica do bug já corrigido em `?sessionId=` (não
+    // filtrava `mergedInto === undefined`), usando uma sessão PERDEDORA de
+    // conflito de verdade, não só um id desconhecido qualquer.
+    const stateAfterCashSessionMerge = await getJson(PORT_A, "/state");
+    const sessionAAfterMerge = stateAfterCashSessionMerge.cashSessions.find((s) => s.id === sessionIdA);
+    const losingCashSessionId = sessionAAfterMerge.mergedInto === undefined ? sessionIdB : sessionIdA;
+
     log("depois do conflito resolvido, tentar abrir MAIS uma sessão é bloqueado (já existe uma canônica aberta)...");
     const alreadyOpen = await postJson(PORT_A, "/cash-sessions", { openingAmountCents: 1000 });
     assert.equal(alreadyOpen.status, 400, "não pode abrir uma segunda sessão com uma já aberta (canônica)");
@@ -375,8 +383,10 @@ async function main() {
     await postJson(PORT_A, "/session/login", { pin: "9999" }); // Wagner, garçom
     const waiterPreviewBlocked = await getJsonStatus(PORT_A, "/cash-sessions/expected");
     assert.equal(waiterPreviewBlocked.status, 403, "garçom não pode ver o preview do valor esperado");
+    assert.equal(waiterPreviewBlocked.data.error, "garçom não pode ver o valor esperado da sessão de caixa", "mensagem de erro do bloqueio de preview precisa ser a esperada");
     const waiterCloseBlocked = await postJson(PORT_A, "/cash-sessions/close", { countedAmountCents: 1000 });
     assert.equal(waiterCloseBlocked.status, 403, "garçom não pode fechar sessão de caixa");
+    assert.equal(waiterCloseBlocked.data.error, "garçom não pode fechar sessão de caixa", "mensagem de erro do bloqueio de fechamento precisa ser a esperada");
     await postJson(PORT_A, "/session/login", { pin: "1234" }); // volta a sessão de A pra Ana (dono)
 
     log("preview do valor esperado antes de pedir o valor contado...");
@@ -425,6 +435,10 @@ async function main() {
     const bogusSessionPreview = await getJsonStatus(PORT_A, "/cash-sessions/expected?sessionId=id-inexistente");
     assert.equal(bogusSessionPreview.status, 400, "preview por sessionId desconhecido precisa ser rejeitado");
 
+    log("preview por sessionId de uma sessão PERDEDORA de conflito é rejeitado (regressão do achado de code review)...");
+    const losingSessionPreview = await getJsonStatus(PORT_A, `/cash-sessions/expected?sessionId=${losingCashSessionId}`);
+    assert.equal(losingSessionPreview.status, 400, "preview por sessionId de sessão perdedora de conflito precisa ser rejeitado, não calculado");
+
     log("sem nenhuma sessão aberta, preview e fechamento são bloqueados...");
     const previewNoSession = await getJsonStatus(PORT_A, "/cash-sessions/expected");
     assert.equal(previewNoSession.status, 400, "preview sem sessão de caixa aberta precisa ser bloqueado");
@@ -452,6 +466,15 @@ async function main() {
         `terminal ${port}: reabertura pós-fechamento não pode gerar aviso de conflito`
       );
     }
+
+    // Achado no code review (blind-hunter): `countedAmountCents: 0` (gaveta
+    // vazia) só era testado no nível de schema (`events.test.ts`), nunca no
+    // nível de rota HTTP real — diferente de `openingAmountCents`/sangria/
+    // suprimento (que exigem `> 0` e nunca aceitam zero).
+    log("fechando a sessão reaberta com countedAmountCents ZERO (gaveta vazia é raro mas válido, nível de rota real)...");
+    const closeWithZero = await postJson(PORT_A, "/cash-sessions/close", { countedAmountCents: 0 });
+    assert.equal(closeWithZero.status, 201, "fechamento com valor contado ZERO precisa ser aceito pela rota real");
+    assert.equal(closeWithZero.data.countedAmountCents, 0, "countedAmountCents devolvido precisa ser 0, não rejeitado nem convertido");
 
     log("CENÁRIO 4 OK — validações de sessão de caixa e conflito de abertura resolvidos corretamente.");
 

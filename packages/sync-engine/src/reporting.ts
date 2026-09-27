@@ -79,8 +79,21 @@ export function computeExpectedCashSessionAmountCents(
     .filter((o) => o.closing!.closedAt >= session.openedAt && o.closing!.closedAt <= windowEnd)
     .reduce((sum, o) => sum + o.payments.filter((p) => p.paymentMethod === "cash").reduce((s, p) => s + p.amountCents, 0), 0);
 
-  const deposits = session.deposits.reduce((sum, d) => sum + d.amountCents, 0);
-  const withdrawals = session.withdrawals.reduce((sum, w) => sum + w.amountCents, 0);
+  // Achado no code review (edge-case-hunter, 2026-09-27): mesma janela
+  // aplicada a `orders` acima também precisa valer pra sangria/suprimento —
+  // um terminal offline pode registrar uma sangria contra esta sessão
+  // enquanto ainda a vê como aberta localmente, e só sincronizar DEPOIS que
+  // outro terminal já a fechou (`recordedAt` cai depois de `closing.closedAt`).
+  // Sem este filtro, essa sangria/suprimento tardia entraria pra sempre no
+  // valor esperado de uma sessão já fechada, mesmo tendo acontecido depois
+  // dela ser contada e trancada — diferente do comportamento intencional de
+  // AC5 (venda em dinheiro), que é sempre filtrada pela janela da sessão.
+  const deposits = session.deposits
+    .filter((d) => d.recordedAt >= session.openedAt && d.recordedAt <= windowEnd)
+    .reduce((sum, d) => sum + d.amountCents, 0);
+  const withdrawals = session.withdrawals
+    .filter((w) => w.recordedAt >= session.openedAt && w.recordedAt <= windowEnd)
+    .reduce((sum, w) => sum + w.amountCents, 0);
 
   return session.openingAmountCents + cashFromOrders + deposits - withdrawals;
 }

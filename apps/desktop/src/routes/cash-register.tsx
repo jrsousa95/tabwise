@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCashRegisterSummary } from "../lib/cash-register";
 import { useTablesAndOrders } from "../lib/tables";
 import {
@@ -212,8 +212,16 @@ function CloseSessionFlow({ onClosed }: { onClosed: (result: { countedAmountCent
   const [error, setError] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Achado no code review (edge-case-hunter, 2026-09-27): `state` (`step`)
+  // só é atualizado no próximo render, então um duplo-clique rápido no botão
+  // "Fechar sessão" podia disparar `handleStart` duas vezes antes do botão
+  // sumir da tela, cada chamada com sua própria requisição de preview. Uma
+  // `ref` (síncrona, não espera render) bloqueia a segunda chamada.
+  const startingRef = useRef(false);
 
   async function handleStart() {
+    if (startingRef.current) return;
+    startingRef.current = true;
     setStep("confirming");
     setError(null);
     setCountedText("");
@@ -221,6 +229,7 @@ function CloseSessionFlow({ onClosed }: { onClosed: (result: { countedAmountCent
     setLoadingPreview(true);
     const result = await getExpectedAmount();
     setLoadingPreview(false);
+    startingRef.current = false;
     if (!result.ok) {
       setError(result.error);
       return;
@@ -432,12 +441,28 @@ function CashSessionSection({
  */
 function ClosedSessionCard({ session }: { session: CashSessionState }) {
   const [expectedAmountCents, setExpectedAmountCents] = useState<number | null>(null);
+  // Achado no code review (blind-hunter + edge-case-hunter, 2026-09-27): o
+  // `.then` original só tratava `result.ok === true` — um erro de resposta
+  // (`result.ok === false`) ou a própria Promise rejeitando (rede fora) nunca
+  // eram tratados, deixando o card preso em "carregando..." pra sempre, sem
+  // nenhuma indicação de erro (diferente de `CloseSessionFlow`, que já trata
+  // `!result.ok` pro mesmo `getExpectedAmount`).
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    getExpectedAmount(session.id).then((result) => {
-      if (!cancelled && result.ok) setExpectedAmountCents(result.data.expectedAmountCents);
-    });
+    getExpectedAmount(session.id)
+      .then((result) => {
+        if (cancelled) return;
+        if (result.ok) {
+          setExpectedAmountCents(result.data.expectedAmountCents);
+        } else {
+          setError(result.error);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setError("não foi possível completar a ação");
+      });
     return () => {
       cancelled = true;
     };
@@ -456,7 +481,7 @@ function ClosedSessionCard({ session }: { session: CashSessionState }) {
       </p>
       <p>
         Contado: {formatCentsToBRL(closing.countedAmountCents)} — Esperado (recalculado agora):{" "}
-        {expectedAmountCents === null ? "carregando..." : formatCentsToBRL(expectedAmountCents)}
+        {expectedAmountCents === null ? (error ?? "carregando...") : formatCentsToBRL(expectedAmountCents)}
         {differenceCents !== null && <> — {formatDifference(differenceCents)}</>}
       </p>
       <span className="status-badge status-badge-warning">

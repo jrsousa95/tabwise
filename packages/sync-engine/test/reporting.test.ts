@@ -224,6 +224,25 @@ describe("computeExpectedCashSessionAmountCents (Épico 1, Story 1.4)", () => {
     expect(computeExpectedCashSessionAmountCents(session, state.orders, DAY_1 + 999999)).toBe(6000);
   });
 
+  it("achado no code review (edge-case-hunter): sangria/suprimento registrado DEPOIS do fechamento (terminal offline que ainda via a sessão como aberta) não conta no valor esperado recalculado", () => {
+    const events: DomainEvent[] = [
+      cashSessionOpened("session-1", DAY_1, 5000),
+      cashSessionClosed("session-1", DAY_1 + 2000, 5000),
+      // Terminal offline registrou sangria/suprimento contra esta sessão
+      // enquanto ainda a via como aberta localmente; só sincronizou DEPOIS
+      // que outro terminal já tinha fechado (recordedAt > closedAt).
+      cashWithdrawalRecorded("session-1", DAY_1 + 9000, 1000),
+      cashDepositRecorded("session-1", DAY_1 + 9000, 2000),
+    ];
+
+    const state = project(sortEvents(events));
+    const session = state.cashSessions.find((s) => s.id === "session-1")!;
+    expect(session.status).toBe("closed");
+    // Se a sangria/suprimento tardios contassem, seria 5000 - 1000 + 2000 = 6000.
+    // Como aconteceram DEPOIS de closedAt (DAY_1+2000), ficam fora da janela — só o fundo de troco.
+    expect(computeExpectedCashSessionAmountCents(session, state.orders, DAY_1 + 999999)).toBe(5000);
+  });
+
   it("Acceptance Criteria 5 — venda em dinheiro que sincroniza DEPOIS do fechamento, mas com closedAt DENTRO da janela original, muda o valor esperado recalculado (nunca fica congelado)", () => {
     // Mesmo cenário real da história: terminal ficou offline, fechou uma
     // comanda em dinheiro DENTRO da janela da sessão (antes do fechamento do
