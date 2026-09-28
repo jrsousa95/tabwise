@@ -103,6 +103,28 @@ async function getJsonStatus(port, path) {
   return { ok: res.ok, status: res.status, data };
 }
 
+/** Espelha `localDateKey` de `packages/sync-engine/src/reporting.ts` — este script roda na mesma máquina/fuso que os sidecars que ele sobe, então lê a mesma chave de dia que o servidor calcula pro `closedAt` real. */
+function localDateKeyForTest(epochMs) {
+  const d = new Date(epochMs);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Desloca uma chave "YYYY-MM-DD" em dias, INDEPENDENTE da implementação de
+ * `shiftDateKey` em `reports.ts` (aritmética em hora LOCAL via `Date`, não
+ * UTC) — usado só pra este script calcular de forma independente qual
+ * período anterior a rota DEVERIA devolver, sem reimplementar a mesma
+ * lógica que está sendo testada.
+ */
+function shiftLocalDateKeyForTest(baseDateKey, deltaDays) {
+  const [year, month, day] = baseDateKey.split("-").map(Number);
+  const shifted = new Date(year, month - 1, day + deltaDays);
+  return localDateKeyForTest(shifted.getTime());
+}
+
 async function main() {
   const dataDirA = mkdtempSync(path.join(tmpdir(), "passa-a-regua-concurrency-a-"));
   const dataDirB = mkdtempSync(path.join(tmpdir(), "passa-a-regua-concurrency-b-"));
@@ -477,6 +499,124 @@ async function main() {
     assert.equal(closeWithZero.data.countedAmountCents, 0, "countedAmountCents devolvido precisa ser 0, não rejeitado nem convertido");
 
     log("CENÁRIO 4 OK — validações de sessão de caixa e conflito de abertura resolvidos corretamente.");
+
+    // === Cenário 5 (Épico 2, Story 2.1): relatório por período — matriz de
+    // I/O completa no nível de rota HTTP real (spec-2-1): parâmetros
+    // ausentes/inválidos, bloqueio de papel (waiter E cashier, não só
+    // waiter), bounds inclusivos e `pendingOrders` nunca filtrado pelo
+    // intervalo pedido. Roda ANTES do Cenário 3 (que derruba o terminal A). ===
+    log("CENÁRIO 5: relatório por período — validações, bloqueio de papel, bounds inclusivos...");
+
+    log("sem from/to é rejeitado...");
+    const reportNoParams = await getJsonStatus(PORT_A, "/reports/cash-register/range");
+    assert.equal(reportNoParams.status, 400, "GET sem from/to precisa ser rejeitado");
+    assert.equal(reportNoParams.data.error, "intervalo de datas obrigatório");
+
+    log("intervalo invertido (from > to) é rejeitado...");
+    const reportInverted = await getJsonStatus(PORT_A, "/reports/cash-register/range?from=2026-09-10&to=2026-09-01");
+    assert.equal(reportInverted.status, 400, "from > to precisa ser rejeitado");
+    assert.equal(reportInverted.data.error, "intervalo de datas inválido");
+
+    log("data fora do formato YYYY-MM-DD é rejeitada...");
+    const reportMalformed = await getJsonStatus(PORT_A, "/reports/cash-register/range?from=01-09-2026&to=2026-09-10");
+    assert.equal(reportMalformed.status, 400, "formato de data inválido precisa ser rejeitado");
+    assert.equal(reportMalformed.data.error, "intervalo de datas inválido");
+
+    log("garçom não pode acessar o relatório por período...");
+    await postJson(PORT_A, "/session/login", { pin: "9999" }); // Wagner, garçom
+    const waiterReportBlocked = await getJsonStatus(PORT_A, "/reports/cash-register/range?from=2026-09-01&to=2026-09-07");
+    assert.equal(waiterReportBlocked.status, 403, "garçom não pode acessar o relatório por período");
+    assert.equal(waiterReportBlocked.data.error, "acesso restrito ao dono");
+
+    log("caixa também não pode acessar o relatório por período (owner-only, não é o mesmo padrão de /cash-register)...");
+    await postJson(PORT_A, "/session/login", { pin: "1234" }); // Ana, dono, pra cadastrar a caixa
+    await postJson(PORT_A, "/operators", { name: "Carla", role: "cashier", pin: "5555" });
+    await postJson(PORT_A, "/session/login", { pin: "5555" }); // Carla, caixa
+    const cashierReportBlocked = await getJsonStatus(PORT_A, "/reports/cash-register/range?from=2026-09-01&to=2026-09-07");
+    assert.equal(cashierReportBlocked.status, 403, "caixa não pode acessar o relatório por período");
+    assert.equal(cashierReportBlocked.data.error, "acesso restrito ao dono");
+
+    await postJson(PORT_A, "/session/login", { pin: "1234" }); // volta a sessão de A pra Ana (dono)
+
+    log("abrindo e fechando uma comanda avulsa HOJE, pra testar bounds inclusivos do relatório...");
+    const reportOrder = (await postJson(PORT_A, "/orders", { source: "standalone" })).data;
+    const reportItem = await postJson(PORT_A, `/orders/${reportOrder.id}/items`, { productId: productBeer.id, quantity: 1 });
+    assert.equal(reportItem.status, 201, "lançar item na comanda de teste do relatório precisa funcionar");
+    const closeReportOrder = await postJson(PORT_A, `/orders/${reportOrder.id}/close`, {
+      serviceFeePercent: 0,
+      splits: [{ amountCents: 1000, paymentMethod: "cash", cashReceivedCents: 1000 }],
+    });
+    assert.equal(closeReportOrder.status, 200, "fechamento da comanda de teste do relatório precisa funcionar");
+
+    const todayKey = localDateKeyForTest(Date.now());
+    log(`relatório de HOJE (${todayKey}) — bound inclusivo, current inclui a comanda recém-fechada...`);
+    const todayReport = await getJsonStatus(PORT_A, `/reports/cash-register/range?from=${todayKey}&to=${todayKey}`);
+    assert.equal(todayReport.status, 200, "dono precisa conseguir ver o relatório de um intervalo válido");
+    assert.ok(todayReport.data.current.closedOrdersCount >= 1, "current precisa incluir a comanda fechada hoje (bound inclusivo)");
+    assert.ok(todayReport.data.current.totalSoldCents >= 1000, "current.totalSoldCents precisa refletir a comanda de R$10 fechada hoje");
+    assert.ok(
+      todayReport.data.current.pendingOrders.some((o) => o.id === canonicalIdFromA),
+      "pendingOrders precisa mostrar a comanda de mesa ainda aberta (canonicalIdFromA), mesmo pedindo o relatório de HOJE (aberta em outro momento)"
+    );
+    assert.ok(
+      !todayReport.data.current.pendingOrders.some((o) => o.id === reportOrder.id),
+      "a comanda de teste do relatório já foi FECHADA — não pode aparecer em pendingOrders"
+    );
+    assert.equal(
+      typeof todayReport.data.previous.totalSoldCents,
+      "number",
+      "previous precisa vir calculado no MESMO payload (sem segunda viagem de rede)"
+    );
+
+    log("verificando que o offset/duração do período anterior está correto (não só que `previous` existe)...");
+    const yesterdayKey = shiftLocalDateKeyForTest(todayKey, -1);
+    const twoDayReport = await getJsonStatus(PORT_A, `/reports/cash-register/range?from=${yesterdayKey}&to=${todayKey}`);
+    assert.equal(twoDayReport.status, 200, "relatório de um intervalo de 2 dias [ontem, hoje] precisa funcionar");
+    assert.ok(
+      twoDayReport.data.current.totalSoldCents >= 1000,
+      "current de [ontem, hoje] precisa incluir a comanda de R$10 fechada hoje"
+    );
+    // Duração de 2 dias ([ontem, hoje]) → período anterior esperado é
+    // [3 dias atrás, 2 dias atrás] (mesma duração, deslocado imediatamente
+    // pra trás de `from`=ontem). Calculado aqui de forma INDEPENDENTE da
+    // rota, pra pegar uma regressão de offset/duração que um `typeof`
+    // nunca pegaria.
+    const expectedPreviousTo = shiftLocalDateKeyForTest(yesterdayKey, -1);
+    const expectedPreviousFrom = shiftLocalDateKeyForTest(expectedPreviousTo, -1);
+    const independentPreviousReport = await getJsonStatus(
+      PORT_A,
+      `/reports/cash-register/range?from=${expectedPreviousFrom}&to=${expectedPreviousTo}`
+    );
+    assert.equal(independentPreviousReport.status, 200, "consulta independente do período anterior esperado precisa funcionar");
+    assert.deepEqual(
+      twoDayReport.data.previous.totalByPaymentMethod,
+      independentPreviousReport.data.current.totalByPaymentMethod,
+      `previous devolvido pra [${yesterdayKey}, ${todayKey}] precisa bater EXATAMENTE com uma consulta independente de [${expectedPreviousFrom}, ${expectedPreviousTo}] — prova que o offset/duração do período anterior está certo, não só que o campo existe`
+    );
+    assert.equal(
+      twoDayReport.data.previous.closedOrdersCount,
+      independentPreviousReport.data.current.closedOrdersCount,
+      "closedOrdersCount do previous precisa bater com a consulta independente do mesmo intervalo esperado"
+    );
+    // A comanda de R$10 fechada HOJE está DENTRO de [ontem, hoje] (current)
+    // mas FORA de [3 dias atrás, 2 dias atrás] (previous) — se o offset
+    // estivesse errado (ex: período anterior incluindo hoje por engano),
+    // ela vazaria pro total do período anterior também.
+    assert.ok(
+      twoDayReport.data.previous.totalSoldCents < twoDayReport.data.current.totalSoldCents,
+      "previous não pode incluir a venda de hoje que só pertence ao período atual — offset/duração errados fariam os dois totais convergirem"
+    );
+
+    log("relatório de um intervalo bem no passado (sem nenhuma venda) — pendingOrders continua mostrando a comanda aberta AGORA...");
+    const pastReport = await getJsonStatus(PORT_A, "/reports/cash-register/range?from=2020-01-01&to=2020-01-07");
+    assert.equal(pastReport.status, 200);
+    assert.equal(pastReport.data.current.closedOrdersCount, 0, "nenhuma comanda foi fechada em 2020 neste cenário");
+    assert.ok(
+      pastReport.data.current.pendingOrders.some((o) => o.id === canonicalIdFromA),
+      "pendingOrders nunca filtra pelo intervalo pedido — precisa aparecer mesmo consultando um período totalmente fora de quando foi aberta"
+    );
+
+    log("CENÁRIO 5 OK — validações, bloqueio de papel e bounds inclusivos do relatório por período.");
 
     // === Cenário 3 (PRD 7.1, NFR2): queda do "host" não trava o outro terminal. ===
     log("CENÁRIO 3: derrubando o terminal A — B precisa continuar funcionando sozinho...");

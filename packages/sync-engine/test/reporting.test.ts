@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { DomainEvent } from "@passa-a-regua/shared-types";
 import { serialize, tick, ZERO } from "../src/hlc.js";
 import { project, sortEvents } from "../src/reconciliation.js";
-import { computeCashRegisterSummary, computeExpectedCashSessionAmountCents, localDateKey } from "../src/reporting.js";
+import {
+  computeCashRegisterSummary,
+  computeCashRegisterSummaryForRange,
+  computeExpectedCashSessionAmountCents,
+  localDateKey,
+} from "../src/reporting.js";
 
 /** 2026-01-15 12:00:00 UTC — usado como wall-clock fixo pros testes (evita depender do fuso da máquina que roda o teste). */
 const DAY_1 = Date.UTC(2026, 0, 15, 12, 0, 0);
@@ -161,6 +166,120 @@ describe("computeCashRegisterSummary (PRD 6.1/6.2)", () => {
     expect(summary.totalSoldCents).toBe(3300);
     expect(summary.totalByPaymentMethod).toEqual({ cash: 2300, card: 500, pix: 500 });
     expect(summary.pendingOrders).toEqual([{ id: "pending-1", origin: { source: "table", tableId: "table-4" }, currentTableId: "table-4" }]);
+  });
+});
+
+describe("computeCashRegisterSummaryForRange (Épico 2, Story 2.1)", () => {
+  // 4 dias consecutivos, todos ao meio-dia UTC (evita depender do fuso da
+  // máquina que roda o teste): DAY_MINUS_2, DAY_MINUS_1 (período anterior,
+  // 2 dias), DAY_0, DAY_1_RANGE (período atual, mesma duração de 2 dias).
+  const DAY_MINUS_2 = Date.UTC(2026, 2, 1, 12, 0, 0); // 2026-03-01
+  const DAY_MINUS_1 = Date.UTC(2026, 2, 2, 12, 0, 0); // 2026-03-02
+  const DAY_0 = Date.UTC(2026, 2, 3, 12, 0, 0); // 2026-03-03
+  const DAY_1_RANGE = Date.UTC(2026, 2, 4, 12, 0, 0); // 2026-03-04
+  const DAY_2_RANGE = Date.UTC(2026, 2, 5, 12, 0, 0); // 2026-03-05 (fora dos dois períodos)
+
+  it("bounds inclusivos: comanda fechada exatamente em `from` ou em `to` conta; um dia antes/depois fica de fora", () => {
+    const events: DomainEvent[] = [
+      // Fechada um dia ANTES do `from` — fora do intervalo.
+      orderOpened("before-range", "table-1", DAY_MINUS_1),
+      orderClosed("before-range", DAY_MINUS_1, { subtotalCents: 100, serviceFeeCents: 0, totalCents: 100 }),
+      paymentRecorded("before-range", DAY_MINUS_1, 100, "cash"),
+
+      // Fechada exatamente em `from` — bound inclusivo, conta.
+      orderOpened("at-from", "table-2", DAY_0),
+      orderClosed("at-from", DAY_0, { subtotalCents: 1000, serviceFeeCents: 100, totalCents: 1100 }),
+      paymentRecorded("at-from", DAY_0, 1100, "cash"),
+
+      // Fechada exatamente em `to` — bound inclusivo, conta.
+      orderOpened("at-to", "table-3", DAY_1_RANGE),
+      orderClosed("at-to", DAY_1_RANGE, { subtotalCents: 2000, serviceFeeCents: 200, totalCents: 2200 }),
+      paymentRecorded("at-to", DAY_1_RANGE, 2200, "card"),
+
+      // Fechada um dia DEPOIS do `to` — fora do intervalo.
+      orderOpened("after-range", "table-4", DAY_2_RANGE),
+      orderClosed("after-range", DAY_2_RANGE, { subtotalCents: 300, serviceFeeCents: 0, totalCents: 300 }),
+      paymentRecorded("after-range", DAY_2_RANGE, 300, "pix"),
+    ];
+
+    const state = project(sortEvents(events));
+    const summary = computeCashRegisterSummaryForRange(state.orders, localDateKey(DAY_0), localDateKey(DAY_1_RANGE));
+
+    expect(summary.date).toBe("2026-03-03..2026-03-04");
+    expect(summary.closedOrdersCount).toBe(2);
+    expect(summary.subtotalCents).toBe(3000);
+    expect(summary.serviceFeeCents).toBe(300);
+    expect(summary.totalSoldCents).toBe(3300);
+    expect(summary.totalByPaymentMethod).toEqual({ cash: 1100, card: 2200, pix: 0 });
+  });
+
+  it("`pendingOrders` nunca filtra pelo intervalo pedido — mostra toda comanda aberta agora, mesmo fechada fora ou aberta fora do período", () => {
+    const events: DomainEvent[] = [
+      // Aberta bem fora do intervalo pedido — ainda assim precisa aparecer em pendingOrders (retrato do agora).
+      orderOpened("pending-outside-range", "table-5", DAY_MINUS_2),
+    ];
+
+    const state = project(sortEvents(events));
+    const summary = computeCashRegisterSummaryForRange(state.orders, localDateKey(DAY_0), localDateKey(DAY_1_RANGE));
+
+    expect(summary.pendingOrders).toEqual([
+      { id: "pending-outside-range", origin: { source: "table", tableId: "table-5" }, currentTableId: "table-5" },
+    ]);
+  });
+
+  it("período anterior (mesma duração, deslocado pra trás) não vaza pro período atual nem vice-versa, mesmo com fronteira adjacente", () => {
+    const events: DomainEvent[] = [
+      // Período ANTERIOR (2 dias: DAY_MINUS_2..DAY_MINUS_1).
+      orderOpened("previous-1", "table-1", DAY_MINUS_2),
+      orderClosed("previous-1", DAY_MINUS_2, { subtotalCents: 500, serviceFeeCents: 0, totalCents: 500 }),
+      paymentRecorded("previous-1", DAY_MINUS_2, 500, "cash"),
+
+      orderOpened("previous-2", "table-2", DAY_MINUS_1),
+      orderClosed("previous-2", DAY_MINUS_1, { subtotalCents: 700, serviceFeeCents: 0, totalCents: 700 }),
+      paymentRecorded("previous-2", DAY_MINUS_1, 700, "cash"),
+
+      // Período ATUAL (mesma duração de 2 dias: DAY_0..DAY_1_RANGE), imediatamente adjacente ao anterior.
+      orderOpened("current-1", "table-3", DAY_0),
+      orderClosed("current-1", DAY_0, { subtotalCents: 1000, serviceFeeCents: 0, totalCents: 1000 }),
+      paymentRecorded("current-1", DAY_0, 1000, "card"),
+
+      orderOpened("current-2", "table-4", DAY_1_RANGE),
+      orderClosed("current-2", DAY_1_RANGE, { subtotalCents: 1200, serviceFeeCents: 0, totalCents: 1200 }),
+      paymentRecorded("current-2", DAY_1_RANGE, 1200, "card"),
+    ];
+
+    const state = project(sortEvents(events));
+
+    const current = computeCashRegisterSummaryForRange(state.orders, localDateKey(DAY_0), localDateKey(DAY_1_RANGE));
+    const previous = computeCashRegisterSummaryForRange(state.orders, localDateKey(DAY_MINUS_2), localDateKey(DAY_MINUS_1));
+
+    expect(current.closedOrdersCount).toBe(2);
+    expect(current.totalSoldCents).toBe(2200);
+    expect(current.totalByPaymentMethod).toEqual({ cash: 0, card: 2200, pix: 0 });
+
+    expect(previous.closedOrdersCount).toBe(2);
+    expect(previous.totalSoldCents).toBe(1200);
+    expect(previous.totalByPaymentMethod).toEqual({ cash: 1200, card: 0, pix: 0 });
+  });
+
+  it("não altera a assinatura nem o comportamento de computeCashRegisterSummary — mesmo resultado de antes pra um único dia", () => {
+    const events: DomainEvent[] = [
+      orderOpened("single-day", "table-1", DAY_0),
+      orderClosed("single-day", DAY_0, { subtotalCents: 1000, serviceFeeCents: 100, totalCents: 1100 }),
+      paymentRecorded("single-day", DAY_0, 1100, "cash"),
+    ];
+    const state = project(sortEvents(events));
+    const dateKey = localDateKey(DAY_0);
+
+    const daySummary = computeCashRegisterSummary(state.orders, dateKey);
+    const rangeSummary = computeCashRegisterSummaryForRange(state.orders, dateKey, dateKey);
+
+    expect(rangeSummary.closedOrdersCount).toBe(daySummary.closedOrdersCount);
+    expect(rangeSummary.subtotalCents).toBe(daySummary.subtotalCents);
+    expect(rangeSummary.serviceFeeCents).toBe(daySummary.serviceFeeCents);
+    expect(rangeSummary.totalSoldCents).toBe(daySummary.totalSoldCents);
+    expect(rangeSummary.totalByPaymentMethod).toEqual(daySummary.totalByPaymentMethod);
+    expect(rangeSummary.pendingOrders).toEqual(daySummary.pendingOrders);
   });
 });
 

@@ -20,6 +20,39 @@ export interface CashRegisterSummary {
 }
 
 /**
+ * Épico 2 (Story 2.1) — agregação compartilhada entre `computeCashRegisterSummary`
+ * (dia único) e `computeCashRegisterSummaryForRange` (intervalo) abaixo: soma
+ * dos totais sobre uma lista JÁ FILTRADA de comandas fechadas. Quem chama
+ * decide o filtro (um `dateKey` ou um intervalo `[from, to]`) — este helper
+ * não sabe nada sobre datas.
+ */
+function aggregateClosedOrders(
+  closedOrders: readonly OrderState[]
+): Pick<CashRegisterSummary, "closedOrdersCount" | "subtotalCents" | "serviceFeeCents" | "totalSoldCents" | "totalByPaymentMethod"> {
+  const totalByPaymentMethod = { cash: 0, card: 0, pix: 0 };
+  for (const order of closedOrders) {
+    for (const payment of order.payments) {
+      totalByPaymentMethod[payment.paymentMethod] += payment.amountCents;
+    }
+  }
+
+  return {
+    closedOrdersCount: closedOrders.length,
+    subtotalCents: closedOrders.reduce((sum, o) => sum + o.closing!.subtotalCents, 0),
+    serviceFeeCents: closedOrders.reduce((sum, o) => sum + o.closing!.serviceFeeCents, 0),
+    totalSoldCents: closedOrders.reduce((sum, o) => sum + o.closing!.totalCents, 0),
+    totalByPaymentMethod,
+  };
+}
+
+/** `pendingOrders` é sempre um retrato de TODAS as comandas abertas AGORA — nunca filtrado por data/intervalo (mesma semântica em `computeCashRegisterSummary` e `computeCashRegisterSummaryForRange`). */
+function pendingOrdersSnapshot(orders: readonly OrderState[]): CashRegisterSummary["pendingOrders"] {
+  return orders
+    .filter((o) => o.mergedInto === undefined && o.status === "open")
+    .map((o) => ({ id: o.id, origin: o.origin, currentTableId: o.currentTableId }));
+}
+
+/**
  * PRD 6.1/6.2 — resumo do dia (fechamento de caixa). Extraído do sidecar
  * (M8) pro `sync-engine` no M11 pra ser reaproveitado tal e qual pelo
  * endpoint de relatório do backend (mesma lógica, duas fontes de `orders`
@@ -30,23 +63,43 @@ export function computeCashRegisterSummary(orders: readonly OrderState[], dateKe
   const closedToday = orders.filter(
     (o) => o.mergedInto === undefined && o.status === "closed" && localDateKey(o.closing!.closedAt) === dateKey
   );
-  const pending = orders.filter((o) => o.mergedInto === undefined && o.status === "open");
-
-  const totalByPaymentMethod = { cash: 0, card: 0, pix: 0 };
-  for (const order of closedToday) {
-    for (const payment of order.payments) {
-      totalByPaymentMethod[payment.paymentMethod] += payment.amountCents;
-    }
-  }
 
   return {
     date: dateKey,
-    closedOrdersCount: closedToday.length,
-    subtotalCents: closedToday.reduce((sum, o) => sum + o.closing!.subtotalCents, 0),
-    serviceFeeCents: closedToday.reduce((sum, o) => sum + o.closing!.serviceFeeCents, 0),
-    totalSoldCents: closedToday.reduce((sum, o) => sum + o.closing!.totalCents, 0),
-    totalByPaymentMethod,
-    pendingOrders: pending.map((o) => ({ id: o.id, origin: o.origin, currentTableId: o.currentTableId })),
+    ...aggregateClosedOrders(closedToday),
+    pendingOrders: pendingOrdersSnapshot(orders),
+  };
+}
+
+/**
+ * Épico 2 (Story 2.1) — relatório por período (`ARCH §3.5`): mesma agregação
+ * de `computeCashRegisterSummary` acima, mas sobre um INTERVALO de datas em
+ * vez de um único `dateKey`. Bounds INCLUSIVOS nas duas pontas
+ * (`fromDateKey <= localDateKey(closedAt) <= toDateKey`), comparação
+ * lexicográfica de string `YYYY-MM-DD` — funciona porque o formato tem
+ * largura fixa (zero-padded), então ordem lexicográfica === ordem
+ * cronológica, sem precisar converter pra `Date`.
+ *
+ * NÃO altera a assinatura nem o comportamento de `computeCashRegisterSummary`
+ * (dois call sites hoje: sidecar M8, backend M11) — função nova, helper
+ * interno compartilhado. `pendingOrders` mantém a mesma semântica de sempre:
+ * retrato de agora, nunca filtrado pelo intervalo pedido.
+ */
+export function computeCashRegisterSummaryForRange(
+  orders: readonly OrderState[],
+  fromDateKey: string,
+  toDateKey: string
+): CashRegisterSummary {
+  const closedInRange = orders.filter((o) => {
+    if (o.mergedInto !== undefined || o.status !== "closed") return false;
+    const closedDateKey = localDateKey(o.closing!.closedAt);
+    return closedDateKey >= fromDateKey && closedDateKey <= toDateKey;
+  });
+
+  return {
+    date: `${fromDateKey}..${toDateKey}`,
+    ...aggregateClosedOrders(closedInRange),
+    pendingOrders: pendingOrdersSnapshot(orders),
   };
 }
 

@@ -11,6 +11,7 @@ import Catalog from "./routes/catalog";
 import EstablishmentSettings from "./routes/establishment-settings";
 import Pairing from "./routes/pairing";
 import TableConflicts from "./routes/table-conflicts";
+import Reports from "./routes/reports";
 
 /** M2/M3/M4 (implementation-plan.md): shell navegável com autenticação, permissões por papel e catálogo. */
 function App() {
@@ -30,6 +31,7 @@ function App() {
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/settings" element={<EstablishmentSettings />} />
             <Route path="/table-conflicts" element={<TableConflicts />} />
+            <Route path="/reports" element={<Reports />} />
           </Route>
         </Route>
       </Route>
