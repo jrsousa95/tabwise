@@ -522,6 +522,17 @@ async function main() {
     assert.equal(reportMalformed.status, 400, "formato de data inválido precisa ser rejeitado");
     assert.equal(reportMalformed.data.error, "intervalo de datas inválido");
 
+    // Achado no code review, 2026-09-28 (verification-gap): o guard de data
+    // calendário-inválida (`isValidCalendarDateKey`) só tinha sido verificado
+    // manualmente via Node, nunca num teste automatizado.
+    log("data com formato certo mas calendário inválido (29/02 fora de ano bissexto, mês 13) é rejeitada...");
+    const reportInvalidCalendarDay = await getJsonStatus(PORT_A, "/reports/cash-register/range?from=2026-02-30&to=2026-02-30");
+    assert.equal(reportInvalidCalendarDay.status, 400, "2026-02-30 (fevereiro não tem dia 30) precisa ser rejeitado");
+    assert.equal(reportInvalidCalendarDay.data.error, "intervalo de datas inválido");
+    const reportInvalidCalendarMonth = await getJsonStatus(PORT_A, "/reports/cash-register/range?from=2026-13-01&to=2026-13-01");
+    assert.equal(reportInvalidCalendarMonth.status, 400, "2026-13-01 (mês 13 não existe) precisa ser rejeitado");
+    assert.equal(reportInvalidCalendarMonth.data.error, "intervalo de datas inválido");
+
     log("garçom não pode acessar o relatório por período...");
     await postJson(PORT_A, "/session/login", { pin: "9999" }); // Wagner, garçom
     const waiterReportBlocked = await getJsonStatus(PORT_A, "/reports/cash-register/range?from=2026-09-01&to=2026-09-07");

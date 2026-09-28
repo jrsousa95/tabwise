@@ -81,8 +81,17 @@ export async function handleReportRoutes(req: http.IncomingMessage, res: http.Se
     // deslocada imediatamente pra trás de `from` — regra única, sem
     // semântica de calendário civil (Design Notes de spec-2-1).
     const durationDays = Math.round((dateKeyToUtcDayMs(to) - dateKeyToUtcDayMs(from)) / MS_PER_DAY) + 1;
+    // Achado no code review, 2026-09-28 (edge-case-hunter): os dois limites
+    // do período anterior precisam ser derivados do `from` ORIGINAL (já
+    // validado por `isValidCalendarDateKey`), nunca um do outro — encadear
+    // `shiftDateKey(previousTo, ...)` reprocessa a STRING intermediária de
+    // `previousTo` por `dateKeyToUtcDayMs`, e pra anos < 100 isso reaciona o
+    // mesmo quirk de "ano de 2-3 dígitos" que a validação de entrada evita
+    // (repro real: from=to="0100-01-01" produzia previousFrom="1999-12-31"
+    // > previousTo="0099-12-31", um intervalo invertido devolvido como 200
+    // vazio em vez de erro).
     const previousTo = shiftDateKey(from, -1);
-    const previousFrom = shiftDateKey(previousTo, -(durationDays - 1));
+    const previousFrom = shiftDateKey(from, -durationDays);
     const previous = computeCashRegisterSummaryForRange(orders, previousFrom, previousTo);
 
     sendJson(res, 200, { current, previous });

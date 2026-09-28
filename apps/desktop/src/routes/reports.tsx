@@ -73,7 +73,10 @@ function SummaryBlock({ title, summary }: { title: string; summary: CashRegister
 function ComparisonBlock({ current, previous }: { current: CashRegisterSummary; previous: CashRegisterSummary }) {
   const deltaCents = current.totalSoldCents - previous.totalSoldCents;
   const deltaLabel = deltaCents === 0 ? "sem variação" : `${deltaCents > 0 ? "+" : "-"}${formatCentsToBRL(Math.abs(deltaCents))}`;
-  const deltaPercent = previous.totalSoldCents > 0 ? (deltaCents / previous.totalSoldCents) * 100 : null;
+  // Achado no code review, 2026-09-28 (blind-hunter): antes mostrava "sem
+  // variação (0.0%)" quando deltaCents === 0 — percentual redundante junto
+  // do próprio rótulo "sem variação". Suprimido nesse caso.
+  const deltaPercent = deltaCents !== 0 && previous.totalSoldCents > 0 ? (deltaCents / previous.totalSoldCents) * 100 : null;
 
   return (
     <div className="table-map-section">
@@ -130,10 +133,13 @@ function Reports() {
     setStatus("ready");
   }
 
+  // Achado no code review, 2026-09-28 (blind-hunter): faltava o mesmo
+  // fallback "?" que o ramo de mesa já tem, pro caso (raro) de `number` vir
+  // ausente numa comanda avulsa.
   const orderLabel = (order: { origin: { source: "table" | "standalone"; number?: number }; currentTableId?: string }) =>
     order.origin.source === "table"
       ? `Comanda ${tables.find((t) => t.id === order.currentTableId)?.identifier ?? "?"}`
-      : `Comanda avulsa #${order.origin.number}`;
+      : `Comanda avulsa #${order.origin.number ?? "?"}`;
 
   return (
     <section>
@@ -157,6 +163,11 @@ function Reports() {
             type="date"
             value={toDate}
             onChange={(e) => setToDate(e.target.value)}
+            // Achado no code review, 2026-09-28 (blind-hunter): sem isso, um
+            // intervalo invertido só era percebido depois do 400 do
+            // servidor — o próprio seletor nativo já bloqueia escolher uma
+            // data "Até" anterior à "De".
+            min={fromDate}
             aria-label="Data final do período"
             required
           />
