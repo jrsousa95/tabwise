@@ -6,6 +6,7 @@ import {
   computeCashRegisterSummary,
   computeCashRegisterSummaryForRange,
   computeExpectedCashSessionAmountCents,
+  computeProductRanking,
   countCanceledItemsByOperator,
   localDateKey,
 } from "../src/reporting.js";
@@ -108,7 +109,14 @@ function cashWithdrawalRecorded(sessionId: string, createdAt: number, amountCent
   };
 }
 
-function itemAdded(orderId: string, itemId: string, createdAt: number, unitPriceCents = 1000): DomainEvent {
+function itemAdded(
+  orderId: string,
+  itemId: string,
+  createdAt: number,
+  unitPriceCents = 1000,
+  name = "Item de teste",
+  quantity = 1
+): DomainEvent {
   return {
     id: `${orderId}-${itemId}-added`,
     hlc: nextHlc(),
@@ -118,7 +126,7 @@ function itemAdded(orderId: string, itemId: string, createdAt: number, unitPrice
     terminalId: "T1",
     operatorId: "op-1",
     createdAt,
-    payload: { itemId, name: "Item de teste", unitPriceCents, quantity: 1 },
+    payload: { itemId, name, unitPriceCents, quantity },
   };
 }
 
@@ -134,6 +142,21 @@ function itemCanceled(orderId: string, itemId: string, createdAt: number, operat
     operatorId,
     createdAt,
     payload: { itemId, reason: "other", note: "teste" },
+  };
+}
+
+/** Achado no code review, 2026-09-29 (blind-hunter): `computeProductRanking` lê `item.quantity` do estado final projetado, que já reflete `item_quantity_incremented` — precisa de teste explícito dessa interação. */
+function itemQuantityIncremented(orderId: string, itemId: string, createdAt: number, deltaQuantity: number): DomainEvent {
+  return {
+    id: `${orderId}-${itemId}-incremented-${createdAt}`,
+    hlc: nextHlc(),
+    aggregateType: "order",
+    aggregateId: orderId,
+    type: "item_quantity_incremented",
+    terminalId: "T1",
+    operatorId: "op-1",
+    createdAt,
+    payload: { itemId, deltaQuantity },
   };
 }
 
@@ -315,6 +338,134 @@ describe("computeCashRegisterSummaryForRange (Épico 2, Story 2.1)", () => {
     expect(rangeSummary.totalSoldCents).toBe(daySummary.totalSoldCents);
     expect(rangeSummary.totalByPaymentMethod).toEqual(daySummary.totalByPaymentMethod);
     expect(rangeSummary.pendingOrders).toEqual(daySummary.pendingOrders);
+  });
+});
+
+describe("computeProductRanking (Épico 2, Story 2.3)", () => {
+  const DAY_X = Date.UTC(2026, 4, 1, 12, 0, 0); // 2026-05-01
+  const DAY_Y = Date.UTC(2026, 4, 2, 12, 0, 0); // 2026-05-02
+  const DAY_OUTSIDE = Date.UTC(2026, 4, 10, 12, 0, 0); // 2026-05-10, fora da janela usada nos testes abaixo
+
+  it("ranking de um intervalo válido: array {name, quantitySold, totalSoldCents} ordenado por totalSoldCents desc", () => {
+    const events: DomainEvent[] = [
+      orderOpened("order-1", "table-1", DAY_X),
+      itemAdded("order-1", "item-cheap", DAY_X, 500, "Refrigerante", 2), // 1000 no total
+      itemAdded("order-1", "item-pricey", DAY_X, 3000, "Picanha", 1), // 3000 no total
+      orderClosed("order-1", DAY_X, { subtotalCents: 4000, serviceFeeCents: 0, totalCents: 4000 }),
+    ];
+    const state = project(sortEvents(events));
+
+    const ranking = computeProductRanking(state.orders, localDateKey(DAY_X), localDateKey(DAY_Y));
+
+    expect(ranking).toEqual([
+      { name: "Picanha", quantitySold: 1, totalSoldCents: 3000 },
+      { name: "Refrigerante", quantitySold: 2, totalSoldCents: 1000 },
+    ]);
+  });
+
+  it("item cancelado não conta na quantidade nem no valor — se for o único desse nome, nem aparece no ranking", () => {
+    const events: DomainEvent[] = [
+      orderOpened("order-1", "table-1", DAY_X),
+      itemAdded("order-1", "item-keep", DAY_X, 1000, "Cerveja", 1),
+      itemAdded("order-1", "item-cancel", DAY_X, 2000, "Picanha", 1),
+      itemCanceled("order-1", "item-cancel", DAY_X, "op-1"), // cancelado antes do fechamento
+      orderClosed("order-1", DAY_X, { subtotalCents: 1000, serviceFeeCents: 0, totalCents: 1000 }),
+    ];
+    const state = project(sortEvents(events));
+
+    const ranking = computeProductRanking(state.orders, localDateKey(DAY_X), localDateKey(DAY_Y));
+
+    expect(ranking).toEqual([{ name: "Cerveja", quantitySold: 1, totalSoldCents: 1000 }]);
+  });
+
+  it("mesmo produto vendido em comandas diferentes: quantidade e valor somados numa única entrada", () => {
+    const events: DomainEvent[] = [
+      orderOpened("order-1", "table-1", DAY_X),
+      itemAdded("order-1", "item-1", DAY_X, 1000, "Cerveja", 1),
+      orderClosed("order-1", DAY_X, { subtotalCents: 1000, serviceFeeCents: 0, totalCents: 1000 }),
+
+      orderOpened("order-2", "table-2", DAY_Y),
+      itemAdded("order-2", "item-1", DAY_Y, 1000, "Cerveja", 1),
+      orderClosed("order-2", DAY_Y, { subtotalCents: 1000, serviceFeeCents: 0, totalCents: 1000 }),
+    ];
+    const state = project(sortEvents(events));
+
+    const ranking = computeProductRanking(state.orders, localDateKey(DAY_X), localDateKey(DAY_Y));
+
+    expect(ranking).toEqual([{ name: "Cerveja", quantitySold: 2, totalSoldCents: 2000 }]);
+  });
+
+  it("comanda ainda aberta no período: nenhum item dela conta (mesma janela de closing.closedAt, comanda sem closing não entra)", () => {
+    const events: DomainEvent[] = [
+      orderOpened("order-open", "table-1", DAY_X),
+      itemAdded("order-open", "item-1", DAY_X, 1000, "Cerveja", 3),
+      // Sem order_closed — a order continua aberta.
+    ];
+    const state = project(sortEvents(events));
+    const order = state.orders.find((o) => o.id === "order-open")!;
+    expect(order.status).toBe("open");
+
+    const ranking = computeProductRanking(state.orders, localDateKey(DAY_X), localDateKey(DAY_Y));
+
+    expect(ranking).toEqual([]);
+  });
+
+  it("comanda fechada fora do intervalo pedido não conta", () => {
+    const events: DomainEvent[] = [
+      orderOpened("order-1", "table-1", DAY_OUTSIDE),
+      itemAdded("order-1", "item-1", DAY_OUTSIDE, 1000, "Cerveja", 1),
+      orderClosed("order-1", DAY_OUTSIDE, { subtotalCents: 1000, serviceFeeCents: 0, totalCents: 1000 }),
+    ];
+    const state = project(sortEvents(events));
+
+    const ranking = computeProductRanking(state.orders, localDateKey(DAY_X), localDateKey(DAY_Y));
+
+    expect(ranking).toEqual([]);
+  });
+
+  it("sem nenhuma comanda fechada no intervalo, ranking vazio", () => {
+    const ranking = computeProductRanking([], localDateKey(DAY_X), localDateKey(DAY_Y));
+    expect(ranking).toEqual([]);
+  });
+
+  // Achado no code review, 2026-09-29 (blind-hunter): `computeProductRanking`
+  // lê `item.quantity` do estado FINAL projetado — precisa de teste explícito
+  // confirmando que um incremento posterior (`item_quantity_incremented`,
+  // Épico 4) entra corretamente no ranking, não só a quantidade original de
+  // `item_added`.
+  it("item com quantidade incrementada depois de adicionado usa o total final (item_added + item_quantity_incremented)", () => {
+    const events: DomainEvent[] = [
+      orderOpened("order-1", "table-1", DAY_X),
+      itemAdded("order-1", "item-1", DAY_X, 1000, "Cerveja", 1),
+      itemQuantityIncremented("order-1", "item-1", DAY_X, 2), // 1 + 2 = 3 no total
+      orderClosed("order-1", DAY_X, { subtotalCents: 3000, serviceFeeCents: 0, totalCents: 3000 }),
+    ];
+    const state = project(sortEvents(events));
+
+    const ranking = computeProductRanking(state.orders, localDateKey(DAY_X), localDateKey(DAY_Y));
+
+    expect(ranking).toEqual([{ name: "Cerveja", quantitySold: 3, totalSoldCents: 3000 }]);
+  });
+
+  // Achado no code review, 2026-09-29 (blind-hunter + verification-gap,
+  // achado duplicado): nenhum teste construía um empate real de
+  // `totalSoldCents` pra verificar o desempate por nome — sem isso, uma
+  // regressão que removesse/invertesse o desempate passaria despercebida.
+  it("empate em totalSoldCents é desempatado por nome em ordem alfabética", () => {
+    const events: DomainEvent[] = [
+      orderOpened("order-1", "table-1", DAY_X),
+      itemAdded("order-1", "item-1", DAY_X, 1000, "Refrigerante", 2), // 2000 no total
+      itemAdded("order-1", "item-2", DAY_X, 2000, "Cerveja", 1), // 2000 no total — empate
+      orderClosed("order-1", DAY_X, { subtotalCents: 4000, serviceFeeCents: 0, totalCents: 4000 }),
+    ];
+    const state = project(sortEvents(events));
+
+    const ranking = computeProductRanking(state.orders, localDateKey(DAY_X), localDateKey(DAY_Y));
+
+    expect(ranking).toEqual([
+      { name: "Cerveja", quantitySold: 1, totalSoldCents: 2000 },
+      { name: "Refrigerante", quantitySold: 2, totalSoldCents: 2000 },
+    ]);
   });
 });
 

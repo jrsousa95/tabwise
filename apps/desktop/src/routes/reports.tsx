@@ -2,8 +2,10 @@ import { useState } from "react";
 import {
   getCashRegisterSummaryRange,
   getCashRegisterSummaryByOperator,
+  getCashRegisterSummaryByProduct,
   type CashRegisterSummaryRange,
   type CashRegisterSummaryByOperator,
+  type CashRegisterSummaryByProduct,
 } from "../lib/reports";
 import { useTablesAndOrders } from "../lib/tables";
 import { formatCentsToBRL } from "../lib/money";
@@ -147,6 +149,44 @@ function ByOperatorBlock({ byOperator }: { byOperator: CashRegisterSummaryByOper
 }
 
 /**
+ * Épico 2 (Story 2.3) — seção nova "Por produto" na MESMA tela `/reports`,
+ * disparada pelo mesmo botão "Ver relatório" (mesmo `fromDate`/`toDate`).
+ * Ao contrário de `ByOperatorBlock`, não existe uma lista fixa de "todo
+ * produto conhecido" — só aparece quem vendeu ao menos uma unidade no
+ * intervalo (já ordenado por `totalSoldCents` desc, mesma ordem devolvida
+ * pela rota — curva ABC: contribuição de receita, não quantidade).
+ */
+function ByProductBlock({ byProduct }: { byProduct: CashRegisterSummaryByProduct[] }) {
+  return (
+    <div className="table-map-section">
+      <h2 className="section-heading">Por produto</h2>
+      {byProduct.length === 0 ? (
+        <p className="catalog-empty">Nenhum produto vendido no período.</p>
+      ) : (
+        <table className="catalog-table">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Quantidade vendida</th>
+              <th>Total vendido</th>
+            </tr>
+          </thead>
+          <tbody>
+            {byProduct.map((row) => (
+              <tr key={row.name}>
+                <td>{row.name}</td>
+                <td>{row.quantitySold}</td>
+                <td className="amount">{formatCentsToBRL(row.totalSoldCents)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+/**
  * Épico 2 (Story 2.1) — tela nova `/reports`, owner-only (`RequireRole`,
  * `app.tsx`). Dois `<input type="date">` nativos (from/to) — primeiro
  * date-picker do app, sem lib nova (Design Notes de `spec-2-1`). O resumo
@@ -161,19 +201,21 @@ function Reports() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CashRegisterSummaryRange | null>(null);
   const [byOperator, setByOperator] = useState<CashRegisterSummaryByOperator[] | null>(null);
+  const [byProduct, setByProduct] = useState<CashRegisterSummaryByProduct[] | null>(null);
   const { tables } = useTablesAndOrders();
 
-  // Épico 2 (Story 2.2) — o MESMO botão "Ver relatório" dispara as duas
-  // chamadas (período + por-operador) em paralelo, pro mesmo `fromDate`/
-  // `toDate` já selecionado — sem repetir o seletor de datas.
+  // Épico 2 (Story 2.3) — o MESMO botão "Ver relatório" dispara as TRÊS
+  // chamadas (período + por-operador + por-produto) em paralelo, pro mesmo
+  // `fromDate`/`toDate` já selecionado — sem repetir o seletor de datas.
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (status === "loading") return;
     setStatus("loading");
     setError(null);
-    const [rangeResponse, byOperatorResponse] = await Promise.all([
+    const [rangeResponse, byOperatorResponse, byProductResponse] = await Promise.all([
       getCashRegisterSummaryRange(fromDate, toDate),
       getCashRegisterSummaryByOperator(fromDate, toDate),
+      getCashRegisterSummaryByProduct(fromDate, toDate),
     ]);
     if (!rangeResponse.ok) {
       setError(rangeResponse.error);
@@ -185,8 +227,14 @@ function Reports() {
       setStatus("error");
       return;
     }
+    if (!byProductResponse.ok) {
+      setError(byProductResponse.error);
+      setStatus("error");
+      return;
+    }
     setResult(rangeResponse.data);
     setByOperator(byOperatorResponse.data);
+    setByProduct(byProductResponse.data);
     setStatus("ready");
   }
 
@@ -247,6 +295,7 @@ function Reports() {
           <SummaryBlock title={`Período escolhido (${fromDate} a ${toDate})`} summary={result.current} />
           <SummaryBlock title="Período anterior" summary={result.previous} />
           {byOperator && <ByOperatorBlock byOperator={byOperator} />}
+          {byProduct && <ByProductBlock byProduct={byProduct} />}
 
           {/* PRD/ARCH — `pendingOrders` é sempre um retrato de AGORA, nunca
               filtrado pelo intervalo pedido (mesma semântica do Resumo de

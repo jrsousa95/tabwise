@@ -745,6 +745,117 @@ async function main() {
 
     log("CENÁRIO 6 OK — relatório por operador atribui venda/cancelamento corretamente e lista todo operador conhecido.");
 
+    // === Cenário 7 (Épico 2, Story 2.3): relatório por produto / curva ABC —
+    // matriz de I/O completa no nível de rota HTTP real (spec-2-3): reaproveita
+    // `parseDateRange` (mesmos erros das Stories 2.1/2.2), bloqueio de papel
+    // (waiter E cashier), item cancelado não conta, mesmo produto em comandas
+    // diferentes soma, comanda ainda aberta não conta, ordenação por valor
+    // desc. Roda ANTES do Cenário 3 (que derruba o terminal A). ===
+    log("CENÁRIO 7: relatório por produto / curva ABC — validações, cancelamento, agregação e ordenação...");
+
+    log("sem from/to é rejeitado (mesmo parseDateRange compartilhado das Stories 2.1/2.2)...");
+    const byProductNoParams = await getJsonStatus(PORT_A, "/reports/cash-register/by-product");
+    assert.equal(byProductNoParams.status, 400, "GET sem from/to precisa ser rejeitado");
+    assert.equal(byProductNoParams.data.error, "intervalo de datas obrigatório");
+
+    log("intervalo invertido (from > to) é rejeitado...");
+    const byProductInverted = await getJsonStatus(PORT_A, "/reports/cash-register/by-product?from=2026-09-10&to=2026-09-01");
+    assert.equal(byProductInverted.status, 400, "from > to precisa ser rejeitado");
+    assert.equal(byProductInverted.data.error, "intervalo de datas inválido");
+
+    log("garçom não pode acessar o relatório por produto...");
+    await postJson(PORT_A, "/session/login", { pin: "9999" }); // Wagner, garçom
+    const waiterByProductBlocked = await getJsonStatus(PORT_A, `/reports/cash-register/by-product?from=${todayKey}&to=${todayKey}`);
+    assert.equal(waiterByProductBlocked.status, 403, "garçom não pode acessar o relatório por produto");
+    assert.equal(waiterByProductBlocked.data.error, "acesso restrito ao dono");
+
+    log("caixa também não pode acessar o relatório por produto (owner-only)...");
+    await postJson(PORT_A, "/session/login", { pin: "5555" }); // Carla, caixa
+    const cashierByProductBlocked = await getJsonStatus(PORT_A, `/reports/cash-register/by-product?from=${todayKey}&to=${todayKey}`);
+    assert.equal(cashierByProductBlocked.status, 403, "caixa não pode acessar o relatório por produto");
+    assert.equal(cashierByProductBlocked.data.error, "acesso restrito ao dono");
+
+    await postJson(PORT_A, "/session/login", { pin: "1234" }); // volta a sessão de A pra Ana (dono)
+
+    log("cadastrando um segundo produto mais caro, pra testar ordenação por valor (não por quantidade)...");
+    const productSteak = (
+      await postJson(PORT_A, "/products", { name: "Picanha", priceCents: 8000, categoryId: category.id, active: true })
+    ).data;
+    await waitUntil(async () => (await getJson(PORT_B, "/state")).products.some((p) => p.id === productSteak.id), {
+      description: "produto (Picanha) propagar de A pra B",
+    });
+
+    const byProductBefore = await getJsonStatus(PORT_A, `/reports/cash-register/by-product?from=${todayKey}&to=${todayKey}`);
+    assert.equal(byProductBefore.status, 200);
+    const beerBefore = byProductBefore.data.find((r) => r.name === "Cerveja")?.quantitySold ?? 0;
+    const beerTotalBefore = byProductBefore.data.find((r) => r.name === "Cerveja")?.totalSoldCents ?? 0;
+
+    log("montando uma comanda: 3 cervejas (uma delas cancelada) + 1 picanha, comanda ainda ABERTA não conta...");
+    const byProductOrder = (await postJson(PORT_A, "/orders", { source: "standalone" })).data;
+    const beerItemKeep1 = await postJson(PORT_A, `/orders/${byProductOrder.id}/items`, { productId: productBeer.id, quantity: 1 });
+    assert.equal(beerItemKeep1.status, 201);
+    const beerItemKeep2 = await postJson(PORT_A, `/orders/${byProductOrder.id}/items`, { productId: productBeer.id, quantity: 1 });
+    assert.equal(beerItemKeep2.status, 201);
+    const beerItemCancel = await postJson(PORT_A, `/orders/${byProductOrder.id}/items`, { productId: productBeer.id, quantity: 1 });
+    assert.equal(beerItemCancel.status, 201);
+    const steakItem = await postJson(PORT_A, `/orders/${byProductOrder.id}/items`, { productId: productSteak.id, quantity: 1 });
+    assert.equal(steakItem.status, 201);
+
+    const cancelBeerResult = await postJson(PORT_A, `/orders/${byProductOrder.id}/items/${beerItemCancel.data.itemId}/cancel`, {
+      reason: "entry_error",
+    });
+    assert.equal(cancelBeerResult.status, 200, "cancelar a terceira cerveja precisa funcionar");
+
+    log("comanda ainda ABERTA (itens já lançados, inclusive o cancelado) — nenhum item dela conta ainda...");
+    const byProductWhileOpen = await getJsonStatus(PORT_A, `/reports/cash-register/by-product?from=${todayKey}&to=${todayKey}`);
+    assert.equal(byProductWhileOpen.status, 200);
+    assert.equal(
+      byProductWhileOpen.data.find((r) => r.name === "Cerveja")?.quantitySold ?? 0,
+      beerBefore,
+      "comanda ainda aberta não pode contribuir pro ranking (mesma janela de closing.closedAt)"
+    );
+
+    const closeByProductOrder = await postJson(PORT_A, `/orders/${byProductOrder.id}/close`, {
+      serviceFeePercent: 0,
+      splits: [{ amountCents: 10000, paymentMethod: "cash", cashReceivedCents: 10000 }],
+    });
+    assert.equal(closeByProductOrder.status, 200, "fechamento da comanda de teste do relatório por produto precisa funcionar");
+
+    log(`relatório por produto de HOJE (${todayKey}) — cerveja cancelada não conta, picanha aparece primeiro (maior valor)...`);
+    const byProductToday = await getJsonStatus(PORT_A, `/reports/cash-register/by-product?from=${todayKey}&to=${todayKey}`);
+    assert.equal(byProductToday.status, 200, "dono precisa conseguir ver o relatório por produto de um intervalo válido");
+    const beerRow = byProductToday.data.find((r) => r.name === "Cerveja");
+    const steakRow = byProductToday.data.find((r) => r.name === "Picanha");
+    assert.ok(beerRow, "Cerveja precisa aparecer no ranking (2 unidades não canceladas contam)");
+    assert.ok(steakRow, "Picanha precisa aparecer no ranking");
+    // Só as 2 cervejas NÃO canceladas somam (a terceira, cancelada, nunca conta) — comparado por delta,
+    // robusto a outras vendas de cerveja já fechadas hoje em cenários anteriores.
+    assert.equal(beerRow.quantitySold, beerBefore + 2, "exatamente 2 cervejas (a cancelada não conta) precisam somar ao ranking");
+    assert.equal(beerRow.totalSoldCents, beerTotalBefore + 2000, "valor de 2 cervejas de R$10 cada precisa somar ao ranking, sem a cancelada");
+    assert.equal(steakRow.quantitySold, 1, "1 picanha precisa aparecer no ranking");
+    assert.equal(steakRow.totalSoldCents, 8000, "valor da picanha (R$80) precisa aparecer no ranking");
+
+    log("array devolvido ordenado por totalSoldCents desc (picanha a R$80 > cerveja mesmo com mais quantidade)...");
+    const steakIndex = byProductToday.data.findIndex((r) => r.name === "Picanha");
+    const beerIndex = byProductToday.data.findIndex((r) => r.name === "Cerveja");
+    assert.ok(steakIndex < beerIndex, "picanha (maior valor total) precisa vir ANTES de cerveja no ranking, mesmo com menos unidades vendidas");
+    for (let i = 1; i < byProductToday.data.length; i++) {
+      assert.ok(
+        byProductToday.data[i - 1].totalSoldCents >= byProductToday.data[i].totalSoldCents,
+        "relatório por produto precisa vir ordenado por totalSoldCents desc"
+      );
+    }
+
+    log("relatório por produto de um intervalo totalmente no passado não inclui as vendas de hoje...");
+    const byProductPast = await getJsonStatus(PORT_A, "/reports/cash-register/by-product?from=2020-01-01&to=2020-01-07");
+    assert.equal(byProductPast.status, 200);
+    assert.ok(
+      !byProductPast.data.some((r) => r.name === "Picanha"),
+      "venda de picanha de HOJE não pode aparecer num intervalo totalmente no passado"
+    );
+
+    log("CENÁRIO 7 OK — relatório por produto agrega corretamente, exclui cancelados e ordena por valor.");
+
     // === Cenário 3 (PRD 7.1, NFR2): queda do "host" não trava o outro terminal. ===
     log("CENÁRIO 3: derrubando o terminal A — B precisa continuar funcionando sozinho...");
     stopSidecar(sidecarA);

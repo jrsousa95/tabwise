@@ -72,6 +72,24 @@ export function computeCashRegisterSummary(orders: readonly OrderState[], dateKe
 }
 
 /**
+ * Épico 2 (Story 2.3) — filtro compartilhado de "comandas fechadas dentro do
+ * intervalo": extraído do que já existia inline em
+ * `computeCashRegisterSummaryForRange` abaixo, pra ser reaproveitado também
+ * por `computeProductRanking` (que precisa da mesma janela, mas iterando os
+ * ITENS das orders em vez de agregar `closing.*`). Mesma checagem de sempre:
+ * `mergedInto === undefined && status === "closed"` e `closing.closedAt`
+ * dentro de `[fromDateKey, toDateKey]` (bounds inclusivos, comparação
+ * lexicográfica de string `YYYY-MM-DD`).
+ */
+function ordersClosedInRange(orders: readonly OrderState[], fromDateKey: string, toDateKey: string): OrderState[] {
+  return orders.filter((o) => {
+    if (o.mergedInto !== undefined || o.status !== "closed") return false;
+    const closedDateKey = localDateKey(o.closing!.closedAt);
+    return closedDateKey >= fromDateKey && closedDateKey <= toDateKey;
+  });
+}
+
+/**
  * Épico 2 (Story 2.1) — relatório por período (`ARCH §3.5`): mesma agregação
  * de `computeCashRegisterSummary` acima, mas sobre um INTERVALO de datas em
  * vez de um único `dateKey`. Bounds INCLUSIVOS nas duas pontas
@@ -90,17 +108,61 @@ export function computeCashRegisterSummaryForRange(
   fromDateKey: string,
   toDateKey: string
 ): CashRegisterSummary {
-  const closedInRange = orders.filter((o) => {
-    if (o.mergedInto !== undefined || o.status !== "closed") return false;
-    const closedDateKey = localDateKey(o.closing!.closedAt);
-    return closedDateKey >= fromDateKey && closedDateKey <= toDateKey;
-  });
+  const closedInRange = ordersClosedInRange(orders, fromDateKey, toDateKey);
 
   return {
     date: `${fromDateKey}..${toDateKey}`,
     ...aggregateClosedOrders(closedInRange),
     pendingOrders: pendingOrdersSnapshot(orders),
   };
+}
+
+export interface ProductRankingEntry {
+  readonly name: string;
+  readonly quantitySold: number;
+  readonly totalSoldCents: number;
+}
+
+/**
+ * Épico 2 (Story 2.3) — ranking de produtos vendidos (curva ABC), num
+ * intervalo de datas (mesma janela/bounds de `computeCashRegisterSummaryForRange`,
+ * via `ordersClosedInRange` compartilhado). Não adiciona nenhum evento novo
+ * nem campo retroativo — leitura pura sobre `item_added`/`item_canceled` já
+ * materializados em `OrderState[]`.
+ *
+ * Agrupa por `item.name` (string), não por um id de produto: `item_added`
+ * nunca carregou `productId`, só uma cópia própria de `name`/`unitPriceCents`
+ * no momento da venda (decisão original: preserva o histórico de vendas
+ * mesmo que o produto seja renomeado/removido depois — ver Design Notes de
+ * spec-2-3). Item cancelado (`item.canceled === true`) nunca conta, seja qual
+ * for o momento do cancelamento.
+ *
+ * Ordenado por `totalSoldCents` desc (convenção de curva ABC: classificar por
+ * contribuição de receita) — `quantitySold` é exposto junto, mas nunca como
+ * critério de ordenação primário. Não implementa cortes A/B/C (percentual
+ * acumulado de receita) — fora do escopo desta story (Design Notes de
+ * spec-2-3).
+ */
+export function computeProductRanking(orders: readonly OrderState[], fromDateKey: string, toDateKey: string): ProductRankingEntry[] {
+  const closedInRange = ordersClosedInRange(orders, fromDateKey, toDateKey);
+
+  const byName = new Map<string, { quantitySold: number; totalSoldCents: number }>();
+  for (const order of closedInRange) {
+    for (const item of order.items) {
+      if (item.canceled) continue;
+      const existing = byName.get(item.name) ?? { quantitySold: 0, totalSoldCents: 0 };
+      existing.quantitySold += item.quantity;
+      existing.totalSoldCents += item.unitPriceCents * item.quantity;
+      byName.set(item.name, existing);
+    }
+  }
+
+  return Array.from(byName.entries())
+    .map(([name, totals]) => ({ name, ...totals }))
+    // Desempate por nome, determinístico e legível (mesma convenção do
+    // relatório por operador, Story 2.2) — empate de `totalSoldCents` é
+    // possível entre dois produtos vendidos pelo mesmo valor total.
+    .sort((a, b) => b.totalSoldCents - a.totalSoldCents || a.name.localeCompare(b.name));
 }
 
 /**

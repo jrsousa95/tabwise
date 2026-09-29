@@ -46,3 +46,22 @@ export function getCashRegisterSummaryByOperator(from: string, to: string) {
     `/reports/cash-register/by-operator?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
   );
 }
+
+export type CashRegisterSummaryByProduct = {
+  name: string;
+  quantitySold: number;
+  totalSoldCents: number;
+};
+
+/**
+ * Épico 2 (Story 2.3) — ranking de produtos (curva ABC), owner-only, mesmo
+ * intervalo de datas do relatório por período. Devolve só os produtos
+ * vendidos no intervalo (sem entrada zerada pra quem não vendeu nada — ao
+ * contrário do relatório por operador, aqui não existe uma lista fixa de
+ * "todo produto conhecido"), já ordenado por `totalSoldCents` desc.
+ */
+export function getCashRegisterSummaryByProduct(from: string, to: string) {
+  return getJson<CashRegisterSummaryByProduct[]>(
+    `/reports/cash-register/by-product?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+  );
+}

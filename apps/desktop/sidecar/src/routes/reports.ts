@@ -1,5 +1,5 @@
 import type http from "node:http";
-import { computeCashRegisterSummaryForRange, countCanceledItemsByOperator } from "@passa-a-regua/sync-engine";
+import { computeCashRegisterSummaryForRange, computeProductRanking, countCanceledItemsByOperator } from "@passa-a-regua/sync-engine";
 import { sendJson } from "../http-helpers.js";
 import type { RequestContext } from "../context.js";
 
@@ -176,6 +176,35 @@ export async function handleReportRoutes(req: http.IncomingMessage, res: http.Se
       .sort((a, b) => b.totalSoldCents - a.totalSoldCents || a.operatorName.localeCompare(b.operatorName));
 
     sendJson(res, 200, byOperator);
+    return true;
+  }
+
+  /**
+   * Épico 2 (Story 2.3) — ranking de produtos (curva ABC), owner-only, mesmo
+   * padrão de acesso/validação das duas rotas acima. `GET
+   * /reports/cash-register/by-product?from=&to=` devolve o ranking de
+   * `computeProductRanking` (já ordenado por `totalSoldCents` desc) direto —
+   * sem cortes A/B/C, sem evento novo, leitura agregada pura sobre `orders`
+   * já materializado (Design Notes de spec-2-3).
+   */
+  if (req.method === "GET" && url.pathname === "/reports/cash-register/by-product") {
+    const acting = ctx.requireSession(res);
+    if (!acting) return true;
+    if (acting.role !== "owner") {
+      sendJson(res, 403, { error: "acesso restrito ao dono" });
+      return true;
+    }
+
+    // Corpo/query lido e validado ANTES de qualquer cálculo.
+    const range = parseDateRange(url);
+    if (!range.ok) {
+      sendJson(res, 400, { error: range.error });
+      return true;
+    }
+    const { from, to } = range;
+
+    const ranking = computeProductRanking(ctx.currentState().orders, from, to);
+    sendJson(res, 200, ranking);
     return true;
   }
 
