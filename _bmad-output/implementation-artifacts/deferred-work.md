@@ -106,3 +106,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-3-relatório-por-produto-curva-abc.md`
   summary: `Reports.tsx`'s `handleSubmit` agora dispara TRÊS chamadas (período + por-operador + por-produto) no mesmo `Promise.all` sem `try/catch` — se o `fetch()` de qualquer uma rejeitar, a exceção não tratada deixa `status` travado em `"loading"` pra sempre.
   evidence: Achado real (`edge-case-hunter`, verificado) — mesma causa raiz já adiada repetidamente desde as Stories 1.1-2.2 (`getJson`/`postJson` em todo o app não capturam a rejeição do `fetch()` em si), reincidindo (com uma terceira chamada) no `Promise.all` já existente. Corrigir de verdade é a mesma mudança de convenção já registrada nas entradas anteriores — não pontual desta story.
+
+## Deferred from: bmad-code-review of spec-2-3-relatório-por-produto-curva-abc (2026-09-29)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-relatório-por-produto-curva-abc.md`
+  summary: `docs/architecture.md` (§3.4/3.5/4.4) ainda chama este trabalho de "Epic B — Relatórios Avançados", nunca atualizado pra "Epic 2" quando `epics.md`/`sprint-status.yaml` foram renumerados de letras pra números (achado real de arquitetura, necessário pro parser de `sprint_plan.py`). Quem lê só `architecture.md` não encontra "Epic 2" em lugar nenhum.
+  evidence: Achado real (`blind-hunter`, verificado) — drift de documentação pré-existente desde a renumeração original (antes até da Story 1.1 começar), não introduzido nem agravado especificamente por esta story. Corrigir é uma limpeza de doc que abrange todo o Épico 9 (§3.4/3.5/4.4 inteiras), não algo pontual da Story 2.3.

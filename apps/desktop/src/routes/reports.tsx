@@ -175,7 +175,10 @@ function ByProductBlock({ byProduct }: { byProduct: CashRegisterSummaryByProduct
             {byProduct.map((row) => (
               <tr key={row.name}>
                 <td>{row.name}</td>
-                <td>{row.quantitySold}</td>
+                {/* Achado no code review, 2026-09-29 (blind-hunter): quantidade sem
+                    formatação de milhar enquanto o valor ao lado já usa
+                    formatCentsToBRL — inconsistente na mesma linha. */}
+                <td>{row.quantitySold.toLocaleString("pt-BR")}</td>
                 <td className="amount">{formatCentsToBRL(row.totalSoldCents)}</td>
               </tr>
             ))}

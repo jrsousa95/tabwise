@@ -395,6 +395,28 @@ describe("computeProductRanking (Épico 2, Story 2.3)", () => {
     expect(ranking).toEqual([{ name: "Cerveja", quantitySold: 2, totalSoldCents: 2000 }]);
   });
 
+  // Achado no code review, 2026-09-29 (blind-hunter): o teste acima usa o
+  // MESMO preço nas duas vendas — a razão de existir da curva ABC (ranquear
+  // por VALOR acumulado, não só quantidade) nunca era verificada com preços
+  // DIFERENTES pro mesmo produto (ex: reajuste de preço no meio do período).
+  it("mesmo produto vendido a preços diferentes em comandas diferentes: valor soma pelo preço de CADA venda, não pelo preço mais recente", () => {
+    const events: DomainEvent[] = [
+      orderOpened("order-1", "table-1", DAY_X),
+      itemAdded("order-1", "item-1", DAY_X, 1000, "Cerveja", 1), // vendida a R$10
+      orderClosed("order-1", DAY_X, { subtotalCents: 1000, serviceFeeCents: 0, totalCents: 1000 }),
+
+      orderOpened("order-2", "table-2", DAY_Y),
+      itemAdded("order-2", "item-1", DAY_Y, 1200, "Cerveja", 1), // reajustada pra R$12
+      orderClosed("order-2", DAY_Y, { subtotalCents: 1200, serviceFeeCents: 0, totalCents: 1200 }),
+    ];
+    const state = project(sortEvents(events));
+
+    const ranking = computeProductRanking(state.orders, localDateKey(DAY_X), localDateKey(DAY_Y));
+
+    // 1000 (a R$10) + 1200 (a R$12) = 2200 — nunca 2 * 1200 nem 2 * 1000.
+    expect(ranking).toEqual([{ name: "Cerveja", quantitySold: 2, totalSoldCents: 2200 }]);
+  });
+
   it("comanda ainda aberta no período: nenhum item dela conta (mesma janela de closing.closedAt, comanda sem closing não entra)", () => {
     const events: DomainEvent[] = [
       orderOpened("order-open", "table-1", DAY_X),
