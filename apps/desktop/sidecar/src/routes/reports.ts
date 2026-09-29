@@ -168,7 +168,12 @@ export async function handleReportRoutes(req: http.IncomingMessage, res: http.Se
           itemsCanceledCount: canceledCounts.get(operator.id) ?? 0,
         };
       })
-      .sort((a, b) => b.totalSoldCents - a.totalSoldCents);
+      // Achado no code review, 2026-09-29 (blind-hunter): empate de
+      // `totalSoldCents` (comum entre operadores sem nenhuma atividade —
+      // exatamente o caso que o Design Notes destaca como importante pro
+      // dono ver) ficava só na ordem incidental de `state.operators` (por
+      // `id`). Desempate por nome, determinístico e legível.
+      .sort((a, b) => b.totalSoldCents - a.totalSoldCents || a.operatorName.localeCompare(b.operatorName));
 
     sendJson(res, 200, byOperator);
     return true;
