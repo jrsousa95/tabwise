@@ -26,3 +26,23 @@ export type CashRegisterSummaryRange = { current: CashRegisterSummary; previous:
 export function getCashRegisterSummaryRange(from: string, to: string) {
   return getJson<CashRegisterSummaryRange>(`/reports/cash-register/range?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
 }
+
+export type CashRegisterSummaryByOperator = {
+  operatorId: string;
+  operatorName: string;
+  totalSoldCents: number;
+  closedOrdersCount: number;
+  itemsCanceledCount: number;
+};
+
+/**
+ * Épico 2 (Story 2.2) — relatório por operador, owner-only, mesmo intervalo
+ * de datas do relatório por período. Devolve TODOS os operadores conhecidos
+ * (mesmo os sem nenhuma atividade no intervalo, que aparecem zerados),
+ * ordenados por `totalSoldCents` desc.
+ */
+export function getCashRegisterSummaryByOperator(from: string, to: string) {
+  return getJson<CashRegisterSummaryByOperator[]>(
+    `/reports/cash-register/by-operator?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+  );
+}

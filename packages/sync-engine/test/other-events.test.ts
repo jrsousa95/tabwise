@@ -180,6 +180,8 @@ describe("projeção — demais tipos de evento", () => {
       serviceFeeCents: 300,
       totalCents: 3300,
       closedAt: 1000,
+      // Épico 2 (Story 2.2) — retrofit aditivo: `ClosingState.operatorId` vem de `event.operatorId`.
+      operatorId: "op-1",
     });
     expect(order.payments).toEqual([
       { amountCents: 2000, paymentMethod: "cash", changeCents: 500 },

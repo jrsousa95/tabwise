@@ -6,6 +6,7 @@ import {
   computeCashRegisterSummary,
   computeCashRegisterSummaryForRange,
   computeExpectedCashSessionAmountCents,
+  countCanceledItemsByOperator,
   localDateKey,
 } from "../src/reporting.js";
 
@@ -32,7 +33,12 @@ function orderOpened(id: string, tableId: string, createdAt: number): DomainEven
   };
 }
 
-function orderClosed(id: string, createdAt: number, totals: { subtotalCents: number; serviceFeeCents: number; totalCents: number }): DomainEvent {
+function orderClosed(
+  id: string,
+  createdAt: number,
+  totals: { subtotalCents: number; serviceFeeCents: number; totalCents: number },
+  operatorId = "op-1"
+): DomainEvent {
   return {
     id: `${id}-closed`,
     hlc: nextHlc(),
@@ -40,7 +46,7 @@ function orderClosed(id: string, createdAt: number, totals: { subtotalCents: num
     aggregateId: id,
     type: "order_closed",
     terminalId: "T1",
-    operatorId: "op-1",
+    operatorId,
     createdAt,
     payload: { subtotalCents: totals.subtotalCents, serviceFeePercent: 10, serviceFeeCents: totals.serviceFeeCents, totalCents: totals.totalCents },
   };
@@ -99,6 +105,35 @@ function cashWithdrawalRecorded(sessionId: string, createdAt: number, amountCent
     operatorId: "op-1",
     createdAt,
     payload: { amountCents, reason: "teste" },
+  };
+}
+
+function itemAdded(orderId: string, itemId: string, createdAt: number, unitPriceCents = 1000): DomainEvent {
+  return {
+    id: `${orderId}-${itemId}-added`,
+    hlc: nextHlc(),
+    aggregateType: "order",
+    aggregateId: orderId,
+    type: "item_added",
+    terminalId: "T1",
+    operatorId: "op-1",
+    createdAt,
+    payload: { itemId, name: "Item de teste", unitPriceCents, quantity: 1 },
+  };
+}
+
+/** `operatorId` é quem CANCELOU o item (Épico 2, Story 2.2) — nem sempre o mesmo que abriu/fechou a order. */
+function itemCanceled(orderId: string, itemId: string, createdAt: number, operatorId: string): DomainEvent {
+  return {
+    id: `${orderId}-${itemId}-canceled-${createdAt}`,
+    hlc: nextHlc(),
+    aggregateType: "order",
+    aggregateId: orderId,
+    type: "item_canceled",
+    terminalId: "T1",
+    operatorId,
+    createdAt,
+    payload: { itemId, reason: "other", note: "teste" },
   };
 }
 
@@ -280,6 +315,104 @@ describe("computeCashRegisterSummaryForRange (Épico 2, Story 2.1)", () => {
     expect(rangeSummary.totalSoldCents).toBe(daySummary.totalSoldCents);
     expect(rangeSummary.totalByPaymentMethod).toEqual(daySummary.totalByPaymentMethod);
     expect(rangeSummary.pendingOrders).toEqual(daySummary.pendingOrders);
+  });
+});
+
+describe("countCanceledItemsByOperator (Épico 2, Story 2.2)", () => {
+  const DAY_A = Date.UTC(2026, 3, 1, 12, 0, 0); // 2026-04-01
+  const DAY_B = Date.UTC(2026, 3, 2, 12, 0, 0); // 2026-04-02
+  const DAY_C = Date.UTC(2026, 3, 3, 12, 0, 0); // 2026-04-03
+
+  it("janela pelo `canceledAt` do item, não pelo `closedAt` da order — cancelamento numa order ainda ABERTA conta", () => {
+    const events: DomainEvent[] = [
+      orderOpened("order-open", "table-1", DAY_A),
+      itemAdded("order-open", "item-1", DAY_A),
+      // Cancelado dentro da janela — a order NUNCA fecha (sem order_closed nenhum no log).
+      itemCanceled("order-open", "item-1", DAY_B, "op-2"),
+    ];
+    const state = project(sortEvents(events));
+    const order = state.orders.find((o) => o.id === "order-open")!;
+    expect(order.status).toBe("open"); // confirma que a order realmente segue aberta
+
+    const counts = countCanceledItemsByOperator(state.orders, localDateKey(DAY_A), localDateKey(DAY_C));
+    expect(counts.get("op-2")).toBe(1);
+  });
+
+  it("cancelamento atribuído ao operador que CANCELOU, independente de quem fechou a order", () => {
+    const events: DomainEvent[] = [
+      orderOpened("order-1", "table-1", DAY_A),
+      itemAdded("order-1", "item-1", DAY_A),
+      itemCanceled("order-1", "item-1", DAY_A, "op-cancel"),
+      orderClosed("order-1", DAY_B, { subtotalCents: 0, serviceFeeCents: 0, totalCents: 0 }, "op-close"),
+    ];
+    const state = project(sortEvents(events));
+
+    const counts = countCanceledItemsByOperator(state.orders, localDateKey(DAY_A), localDateKey(DAY_C));
+    expect(counts.get("op-cancel")).toBe(1);
+    expect(counts.has("op-close")).toBe(false);
+  });
+
+  it("cancelamento fora da janela (antes de `from` ou depois de `to`) não conta pra ninguém", () => {
+    const events: DomainEvent[] = [
+      orderOpened("order-1", "table-1", DAY_A),
+      itemAdded("order-1", "item-1", DAY_A),
+      itemAdded("order-1", "item-2", DAY_A),
+      itemCanceled("order-1", "item-1", DAY_A, "op-early"), // antes de `from`
+      itemCanceled("order-1", "item-2", DAY_C, "op-late"), // depois de `to`
+    ];
+    const state = project(sortEvents(events));
+
+    const counts = countCanceledItemsByOperator(state.orders, localDateKey(DAY_B), localDateKey(DAY_B));
+    expect(counts.get("op-early")).toBeUndefined();
+    expect(counts.get("op-late")).toBeUndefined();
+  });
+
+  it("bounds inclusivos nas duas pontas, mesma regra de computeCashRegisterSummaryForRange", () => {
+    const events: DomainEvent[] = [
+      orderOpened("order-1", "table-1", DAY_A),
+      itemAdded("order-1", "item-1", DAY_A),
+      itemAdded("order-1", "item-2", DAY_A),
+      itemCanceled("order-1", "item-1", DAY_A, "op-x"), // exatamente em `from`
+      itemCanceled("order-1", "item-2", DAY_C, "op-x"), // exatamente em `to`
+    ];
+    const state = project(sortEvents(events));
+
+    const counts = countCanceledItemsByOperator(state.orders, localDateKey(DAY_A), localDateKey(DAY_C));
+    expect(counts.get("op-x")).toBe(2);
+  });
+
+  it("agrupa por operador diferente e ignora item nunca cancelado", () => {
+    const events: DomainEvent[] = [
+      orderOpened("order-1", "table-1", DAY_A),
+      itemAdded("order-1", "item-1", DAY_A),
+      itemAdded("order-1", "item-2", DAY_A),
+      itemAdded("order-1", "item-3", DAY_A), // nunca cancelado
+      itemCanceled("order-1", "item-1", DAY_B, "op-a"),
+      itemCanceled("order-1", "item-2", DAY_B, "op-b"),
+    ];
+    const state = project(sortEvents(events));
+
+    const counts = countCanceledItemsByOperator(state.orders, localDateKey(DAY_A), localDateKey(DAY_C));
+    expect(counts.get("op-a")).toBe(1);
+    expect(counts.get("op-b")).toBe(1);
+    expect(counts.size).toBe(2); // item-3 (não cancelado) não gera nenhuma entrada
+  });
+
+  it("order mesclada PERDEDORA (ARCH §4.2) nunca conta — o item redirecionado só existe na canônica", () => {
+    const events: DomainEvent[] = [
+      orderOpened("order-canonical", "table-1", DAY_A),
+      orderOpened("order-losing", "table-1", DAY_A + 1), // mesma mesa, HLC maior -> perde o conflito
+      // Evento referencia a perdedora, mas `resolveCanonical` redireciona o item pra canônica.
+      itemAdded("order-losing", "item-1", DAY_A),
+      itemCanceled("order-losing", "item-1", DAY_B, "op-a"),
+    ];
+    const state = project(sortEvents(events));
+    const losing = state.orders.find((o) => o.id === "order-losing")!;
+    expect(losing.mergedInto).toBe("order-canonical");
+    expect(losing.items).toEqual([]); // o item nunca fica na perdedora
+
+    const counts = countCanceledItemsByOperator(state.orders, localDateKey(DAY_A), localDateKey(DAY_C));
+    expect(counts.get("op-a")).toBe(1); // contado uma única vez, via canônica
   });
 });
 

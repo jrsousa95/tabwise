@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { getCashRegisterSummaryRange, type CashRegisterSummaryRange } from "../lib/reports";
+import {
+  getCashRegisterSummaryRange,
+  getCashRegisterSummaryByOperator,
+  type CashRegisterSummaryRange,
+  type CashRegisterSummaryByOperator,
+} from "../lib/reports";
 import { useTablesAndOrders } from "../lib/tables";
 import { formatCentsToBRL } from "../lib/money";
 import type { CashRegisterSummary } from "../lib/cash-register";
@@ -103,6 +108,45 @@ function ComparisonBlock({ current, previous }: { current: CashRegisterSummary; 
 }
 
 /**
+ * Épico 2 (Story 2.2) — seção nova "Por operador" na MESMA tela `/reports`,
+ * disparada pelo mesmo botão "Ver relatório" (mesmo `fromDate`/`toDate`).
+ * Lista TODOS os operadores conhecidos (mesmo sem nenhuma venda/cancelamento
+ * no período — aparecem zerados, Design Notes de spec-2-2), já ordenados
+ * por total vendido desc (mesma ordem devolvida pela rota).
+ */
+function ByOperatorBlock({ byOperator }: { byOperator: CashRegisterSummaryByOperator[] }) {
+  return (
+    <div className="table-map-section">
+      <h2 className="section-heading">Por operador</h2>
+      {byOperator.length === 0 ? (
+        <p className="catalog-empty">Nenhum operador cadastrado.</p>
+      ) : (
+        <table className="catalog-table">
+          <thead>
+            <tr>
+              <th>Operador</th>
+              <th>Total vendido</th>
+              <th>Comandas fechadas</th>
+              <th>Itens cancelados</th>
+            </tr>
+          </thead>
+          <tbody>
+            {byOperator.map((row) => (
+              <tr key={row.operatorId}>
+                <td>{row.operatorName}</td>
+                <td className="amount">{formatCentsToBRL(row.totalSoldCents)}</td>
+                <td>{row.closedOrdersCount}</td>
+                <td>{row.itemsCanceledCount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+/**
  * Épico 2 (Story 2.1) — tela nova `/reports`, owner-only (`RequireRole`,
  * `app.tsx`). Dois `<input type="date">` nativos (from/to) — primeiro
  * date-picker do app, sem lib nova (Design Notes de `spec-2-1`). O resumo
@@ -116,20 +160,33 @@ function Reports() {
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CashRegisterSummaryRange | null>(null);
+  const [byOperator, setByOperator] = useState<CashRegisterSummaryByOperator[] | null>(null);
   const { tables } = useTablesAndOrders();
 
+  // Épico 2 (Story 2.2) — o MESMO botão "Ver relatório" dispara as duas
+  // chamadas (período + por-operador) em paralelo, pro mesmo `fromDate`/
+  // `toDate` já selecionado — sem repetir o seletor de datas.
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (status === "loading") return;
     setStatus("loading");
     setError(null);
-    const response = await getCashRegisterSummaryRange(fromDate, toDate);
-    if (!response.ok) {
-      setError(response.error);
+    const [rangeResponse, byOperatorResponse] = await Promise.all([
+      getCashRegisterSummaryRange(fromDate, toDate),
+      getCashRegisterSummaryByOperator(fromDate, toDate),
+    ]);
+    if (!rangeResponse.ok) {
+      setError(rangeResponse.error);
       setStatus("error");
       return;
     }
-    setResult(response.data);
+    if (!byOperatorResponse.ok) {
+      setError(byOperatorResponse.error);
+      setStatus("error");
+      return;
+    }
+    setResult(rangeResponse.data);
+    setByOperator(byOperatorResponse.data);
     setStatus("ready");
   }
 
@@ -189,6 +246,7 @@ function Reports() {
           <ComparisonBlock current={result.current} previous={result.previous} />
           <SummaryBlock title={`Período escolhido (${fromDate} a ${toDate})`} summary={result.current} />
           <SummaryBlock title="Período anterior" summary={result.previous} />
+          {byOperator && <ByOperatorBlock byOperator={byOperator} />}
 
           {/* PRD/ARCH — `pendingOrders` é sempre um retrato de AGORA, nunca
               filtrado pelo intervalo pedido (mesma semântica do Resumo de

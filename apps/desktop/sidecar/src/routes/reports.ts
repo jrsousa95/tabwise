@@ -1,5 +1,5 @@
 import type http from "node:http";
-import { computeCashRegisterSummaryForRange } from "@passa-a-regua/sync-engine";
+import { computeCashRegisterSummaryForRange, countCanceledItemsByOperator } from "@passa-a-regua/sync-engine";
 import { sendJson } from "../http-helpers.js";
 import type { RequestContext } from "../context.js";
 
@@ -32,6 +32,34 @@ function isValidCalendarDateKey(dateKey: string): boolean {
   return shiftDateKey(dateKey, 0) === dateKey;
 }
 
+type DateRangeResult = { ok: true; from: string; to: string } | { ok: false; error: string };
+
+/**
+ * Épico 2 (Story 2.2) — extraído da validação que já existia inline na rota
+ * da Story 2.1 abaixo, agora reaproveitado pelas DUAS rotas deste arquivo:
+ * presença de `from`/`to`, formato `YYYY-MM-DD`, `from <= to` e calendário
+ * válido (rejeita `2026-02-30`). Corpo/query sempre lido e validado ANTES de
+ * qualquer cálculo (AC literal — achado no code review, 2026-09-29: essa regra
+ * não é NFR7, que é sobre dinheiro em centavos; a spec-2-2 não dá tag NFR a ela).
+ */
+function parseDateRange(url: URL): DateRangeResult {
+  const from = url.searchParams.get("from");
+  const to = url.searchParams.get("to");
+  if (!from || !to) {
+    return { ok: false, error: "intervalo de datas obrigatório" };
+  }
+  if (
+    !DATE_KEY_PATTERN.test(from) ||
+    !DATE_KEY_PATTERN.test(to) ||
+    from > to ||
+    !isValidCalendarDateKey(from) ||
+    !isValidCalendarDateKey(to)
+  ) {
+    return { ok: false, error: "intervalo de datas inválido" };
+  }
+  return { ok: true, from, to };
+}
+
 /**
  * Épico 2 (Story 2.1) — relatório por período, owner-only. Rota em arquivo
  * PRÓPRIO (não em `state.ts`, que serve `/cash-register/summary` sem
@@ -57,22 +85,12 @@ export async function handleReportRoutes(req: http.IncomingMessage, res: http.Se
     }
 
     // Corpo/query lido e validado ANTES de qualquer cálculo.
-    const from = url.searchParams.get("from");
-    const to = url.searchParams.get("to");
-    if (!from || !to) {
-      sendJson(res, 400, { error: "intervalo de datas obrigatório" });
+    const range = parseDateRange(url);
+    if (!range.ok) {
+      sendJson(res, 400, { error: range.error });
       return true;
     }
-    if (
-      !DATE_KEY_PATTERN.test(from) ||
-      !DATE_KEY_PATTERN.test(to) ||
-      from > to ||
-      !isValidCalendarDateKey(from) ||
-      !isValidCalendarDateKey(to)
-    ) {
-      sendJson(res, 400, { error: "intervalo de datas inválido" });
-      return true;
-    }
+    const { from, to } = range;
 
     const orders = ctx.currentState().orders;
     const current = computeCashRegisterSummaryForRange(orders, from, to);
@@ -95,6 +113,64 @@ export async function handleReportRoutes(req: http.IncomingMessage, res: http.Se
     const previous = computeCashRegisterSummaryForRange(orders, previousFrom, previousTo);
 
     sendJson(res, 200, { current, previous });
+    return true;
+  }
+
+  /**
+   * Épico 2 (Story 2.2) — relatório por operador, owner-only, mesmo padrão
+   * de acesso/validação da rota acima. `GET
+   * /reports/cash-register/by-operator?from=&to=` devolve, pra CADA operador
+   * conhecido (mesmo os sem nenhuma atividade no período — Design Notes de
+   * spec-2-2), o total vendido/comandas fechadas do intervalo e o total de
+   * itens cancelados no mesmo intervalo. Filtro por operador acontece FORA
+   * de `computeCashRegisterSummaryForRange` (ARCH §3.5/AC literal): esta
+   * rota pré-filtra `orders` por `closing?.operatorId` antes de chamar o
+   * helper — a função em si não sabe o que é "operador".
+   */
+  if (req.method === "GET" && url.pathname === "/reports/cash-register/by-operator") {
+    const acting = ctx.requireSession(res);
+    if (!acting) return true;
+    if (acting.role !== "owner") {
+      sendJson(res, 403, { error: "acesso restrito ao dono" });
+      return true;
+    }
+
+    // Corpo/query lido e validado ANTES de qualquer cálculo.
+    const range = parseDateRange(url);
+    if (!range.ok) {
+      sendJson(res, 400, { error: range.error });
+      return true;
+    }
+    const { from, to } = range;
+
+    const state = ctx.currentState();
+    const canceledCounts = countCanceledItemsByOperator(state.orders, from, to);
+
+    const byOperator = state.operators
+      .map((operator) => {
+        // Pré-filtro por `closing.operatorId`, não parâmetro do helper
+        // compartilhado (`Never` da spec-2-2) — comandas ainda abertas nunca
+        // têm `closing`, então não entram em nenhum agrupamento de vendas.
+        const ordersClosedByOperator = state.orders.filter((o) => o.closing?.operatorId === operator.id);
+        // Achado no code review, 2026-09-29 (blind-hunter): só `totalSoldCents`/
+        // `closedOrdersCount` importam aqui — `subtotalCents`/`serviceFeeCents`/
+        // `totalByPaymentMethod`/`pendingOrders` do `summary` são descartados de
+        // propósito. Em especial, `summary.pendingOrders` SEMPRE vem `[]` nesta
+        // chamada (todo item de `ordersClosedByOperator` já tem `closing`, então
+        // nenhum está `status: "open"`) — não é um bug, mas não confie nesse
+        // campo se um dia reaproveitar este `summary` pra outra coisa.
+        const summary = computeCashRegisterSummaryForRange(ordersClosedByOperator, from, to);
+        return {
+          operatorId: operator.id,
+          operatorName: operator.name,
+          totalSoldCents: summary.totalSoldCents,
+          closedOrdersCount: summary.closedOrdersCount,
+          itemsCanceledCount: canceledCounts.get(operator.id) ?? 0,
+        };
+      })
+      .sort((a, b) => b.totalSoldCents - a.totalSoldCents);
+
+    sendJson(res, 200, byOperator);
     return true;
   }
 

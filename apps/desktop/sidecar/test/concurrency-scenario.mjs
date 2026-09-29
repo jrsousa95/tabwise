@@ -629,6 +629,122 @@ async function main() {
 
     log("CENÁRIO 5 OK — validações, bloqueio de papel e bounds inclusivos do relatório por período.");
 
+    // === Cenário 6 (Épico 2, Story 2.2): relatório por operador — matriz de
+    // I/O completa no nível de rota HTTP real (spec-2-2): reaproveita
+    // `parseDateRange` (mesmos erros da Story 2.1), bloqueio de papel (waiter
+    // E cashier), venda atribuída a quem FECHOU a comanda, cancelamento
+    // atribuído a quem CANCELOU o item (pode ser outro operador), operador
+    // sem nenhuma atividade aparece zerado, e cancelamento fora da janela não
+    // vaza pra outro intervalo. Roda ANTES do Cenário 3 (que derruba A). ===
+    log("CENÁRIO 6: relatório por operador — validações, atribuição de venda/cancelamento por operador...");
+
+    log("sem from/to é rejeitado (mesmo parseDateRange compartilhado da Story 2.1)...");
+    const byOperatorNoParams = await getJsonStatus(PORT_A, "/reports/cash-register/by-operator");
+    assert.equal(byOperatorNoParams.status, 400, "GET sem from/to precisa ser rejeitado");
+    assert.equal(byOperatorNoParams.data.error, "intervalo de datas obrigatório");
+
+    log("intervalo invertido (from > to) é rejeitado...");
+    const byOperatorInverted = await getJsonStatus(PORT_A, "/reports/cash-register/by-operator?from=2026-09-10&to=2026-09-01");
+    assert.equal(byOperatorInverted.status, 400, "from > to precisa ser rejeitado");
+    assert.equal(byOperatorInverted.data.error, "intervalo de datas inválido");
+
+    log("garçom não pode acessar o relatório por operador...");
+    await postJson(PORT_A, "/session/login", { pin: "9999" }); // Wagner, garçom
+    const waiterByOperatorBlocked = await getJsonStatus(PORT_A, `/reports/cash-register/by-operator?from=${todayKey}&to=${todayKey}`);
+    assert.equal(waiterByOperatorBlocked.status, 403, "garçom não pode acessar o relatório por operador");
+    assert.equal(waiterByOperatorBlocked.data.error, "acesso restrito ao dono");
+
+    log("caixa também não pode acessar o relatório por operador (owner-only)...");
+    await postJson(PORT_A, "/session/login", { pin: "5555" }); // Carla, caixa
+    const cashierByOperatorBlocked = await getJsonStatus(PORT_A, `/reports/cash-register/by-operator?from=${todayKey}&to=${todayKey}`);
+    assert.equal(cashierByOperatorBlocked.status, 403, "caixa não pode acessar o relatório por operador");
+    assert.equal(cashierByOperatorBlocked.data.error, "acesso restrito ao dono");
+
+    // Achado no code review, 2026-09-29 (blind-hunter): resolver os ids ANTES
+    // de abrir a comanda, pra poder consultar o relatório num estado
+    // INTERMEDIÁRIO (comanda já com item cancelado, mas ainda ABERTA) — a AC
+    // congelada diz literalmente que comanda aberta não entra em nenhum
+    // agrupamento de vendas, e isso nunca tinha sido verificado à parte do
+    // caso já fechado.
+    const stateForOperatorIds = await getJson(PORT_A, "/state");
+    const anaId = stateForOperatorIds.operators.find((o) => o.name === "Ana").id;
+    const carlaId = stateForOperatorIds.operators.find((o) => o.name === "Carla").id;
+    const wagnerId = stateForOperatorIds.operators.find((o) => o.name === "Wagner").id;
+
+    log("montando uma comanda: Carla (caixa) lança 2 itens e cancela 1, Ana (dono) fecha a comanda...");
+    const byOperatorOrder = (await postJson(PORT_A, "/orders", { source: "standalone" })).data;
+    const byOperatorItemKeep = await postJson(PORT_A, `/orders/${byOperatorOrder.id}/items`, { productId: productBeer.id, quantity: 1 });
+    assert.equal(byOperatorItemKeep.status, 201);
+    const byOperatorItemCancel = await postJson(PORT_A, `/orders/${byOperatorOrder.id}/items`, { productId: productBeer.id, quantity: 1 });
+    assert.equal(byOperatorItemCancel.status, 201);
+
+    // Carla (caixa) ainda logada em A — cancela o segundo item (order continua ABERTA, cancelamento não fecha).
+    const cancelResult = await postJson(PORT_A, `/orders/${byOperatorOrder.id}/items/${byOperatorItemCancel.data.itemId}/cancel`, {
+      reason: "entry_error",
+    });
+    assert.equal(cancelResult.status, 200, "caixa precisa conseguir cancelar item");
+
+    await postJson(PORT_A, "/session/login", { pin: "1234" }); // Ana, dono, pra consultar o relatório com a comanda ainda aberta
+    log("comanda ainda ABERTA (item já cancelado, ainda não fechada) — venda não conta em nenhum agrupamento...");
+    const byOperatorBeforeClose = await getJsonStatus(PORT_A, `/reports/cash-register/by-operator?from=${todayKey}&to=${todayKey}`);
+    assert.equal(byOperatorBeforeClose.status, 200);
+    const anaRowBeforeClose = byOperatorBeforeClose.data.find((r) => r.operatorId === anaId);
+    const carlaRowBeforeClose = byOperatorBeforeClose.data.find((r) => r.operatorId === carlaId);
+    // Cancelamento já conta (é propriedade do ITEM, independe da comanda estar aberta ou fechada).
+    assert.equal(carlaRowBeforeClose.itemsCanceledCount, 1, "cancelamento já conta mesmo com a comanda ainda aberta (janela é por canceledAt, não por closedAt)");
+    const anaTotalBeforeClose = anaRowBeforeClose.totalSoldCents;
+    const anaCountBeforeClose = anaRowBeforeClose.closedOrdersCount;
+
+    const closeByOperatorOrder = await postJson(PORT_A, `/orders/${byOperatorOrder.id}/close`, {
+      serviceFeePercent: 0,
+      splits: [{ amountCents: 1000, paymentMethod: "cash", cashReceivedCents: 1000 }],
+    });
+    assert.equal(closeByOperatorOrder.status, 200, "fechamento da comanda de teste do relatório por operador precisa funcionar");
+
+    log(`relatório por operador de HOJE (${todayKey}) — venda atribuída a Ana (fechou), cancelamento atribuído a Carla (cancelou)...`);
+    const byOperatorToday = await getJsonStatus(PORT_A, `/reports/cash-register/by-operator?from=${todayKey}&to=${todayKey}`);
+    assert.equal(byOperatorToday.status, 200, "dono precisa conseguir ver o relatório por operador de um intervalo válido");
+    const anaRow = byOperatorToday.data.find((r) => r.operatorId === anaId);
+    const carlaRow = byOperatorToday.data.find((r) => r.operatorId === carlaId);
+    const wagnerRow = byOperatorToday.data.find((r) => r.operatorId === wagnerId);
+    assert.ok(anaRow, "Ana precisa aparecer no relatório por operador");
+    assert.ok(carlaRow, "Carla precisa aparecer no relatório por operador");
+    assert.ok(wagnerRow, "rota lista TODOS os operadores conhecidos — Wagner precisa aparecer mesmo sem nenhuma atividade neste relatório");
+
+    // Achado no code review, 2026-09-29 (verification-gap): asserção era só
+    // `>= 1000` (frouxa) e `closedOrdersCount` nunca era verificado no caso
+    // POPULADO (só no zerado, wagnerRow) — uma regressão que zerasse ou
+    // trocasse esse campo pra Ana/Carla passaria despercebida. Comparado
+    // contra o "antes de fechar" capturado acima (delta), não um valor
+    // absoluto — robusto a outras comandas de Ana já fechadas hoje em
+    // cenários anteriores (ex: o Cenário 5 já fecha uma comanda de R$10).
+    assert.equal(anaRow.totalSoldCents, anaTotalBeforeClose + 1000, "fechar a comanda precisa somar exatamente R$10 ao total de Ana (quem FECHOU), não a Carla (quem só cancelou um item)");
+    assert.equal(anaRow.closedOrdersCount, anaCountBeforeClose + 1, "fechar a comanda precisa incrementar em exatamente 1 o closedOrdersCount de Ana");
+    assert.equal(carlaRow.totalSoldCents, 0, "Carla não fechou nenhuma comanda neste cenário — não pode herdar venda de Ana");
+    assert.equal(carlaRow.closedOrdersCount, 0, "Carla não fechou nenhuma comanda neste cenário");
+    assert.equal(carlaRow.itemsCanceledCount, 1, "cancelamento precisa ser atribuído a Carla (quem CANCELOU), não a Ana (quem só fechou)");
+    assert.equal(anaRow.itemsCanceledCount, 0, "Ana não cancelou nenhum item — não pode herdar o cancelamento de Carla");
+    assert.equal(wagnerRow.totalSoldCents, 0, "operador sem atividade precisa aparecer zerado, não ausente");
+    assert.equal(wagnerRow.closedOrdersCount, 0, "operador sem atividade precisa aparecer zerado, não ausente");
+    assert.equal(wagnerRow.itemsCanceledCount, 0, "operador sem atividade precisa aparecer zerado, não ausente");
+
+    log("array devolvido ordenado por totalSoldCents desc...");
+    for (let i = 1; i < byOperatorToday.data.length; i++) {
+      assert.ok(
+        byOperatorToday.data[i - 1].totalSoldCents >= byOperatorToday.data[i].totalSoldCents,
+        "relatório por operador precisa vir ordenado por totalSoldCents desc"
+      );
+    }
+
+    log("cancelamento de HOJE não vaza pra um intervalo do passado (janela pelo canceledAt do item)...");
+    const byOperatorPast = await getJsonStatus(PORT_A, "/reports/cash-register/by-operator?from=2020-01-01&to=2020-01-07");
+    assert.equal(byOperatorPast.status, 200);
+    const carlaRowPast = byOperatorPast.data.find((r) => r.operatorId === carlaId);
+    assert.equal(carlaRowPast.itemsCanceledCount, 0, "cancelamento de HOJE não pode contar num intervalo totalmente no passado");
+    assert.equal(carlaRowPast.totalSoldCents, 0, "sem nenhuma venda fechada em 2020 neste cenário");
+
+    log("CENÁRIO 6 OK — relatório por operador atribui venda/cancelamento corretamente e lista todo operador conhecido.");
+
     // === Cenário 3 (PRD 7.1, NFR2): queda do "host" não trava o outro terminal. ===
     log("CENÁRIO 3: derrubando o terminal A — B precisa continuar funcionando sozinho...");
     stopSidecar(sidecarA);

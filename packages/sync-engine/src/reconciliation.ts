@@ -36,6 +36,16 @@ export interface ItemState {
   readonly cancelReason?: CancelReason;
   /** PRD 1.3 — texto livre do cancelamento (obrigatório na prática quando `cancelReason === "other"`). */
   readonly cancelNote?: string;
+  /**
+   * Épico 2 (Story 2.2) — retrofit aditivo: `event.operatorId`/`event.createdAt`
+   * do `item_canceled` já existiam no log, mas nunca eram expostos na
+   * projeção. Ausentes num item cancelado ANTES desta mudança de código
+   * (leitura retroativa, aceitável — ver spec-2-2). `canceledAt` (não
+   * `closing.closedAt` da order) é o único timestamp correto pra janelar
+   * este cancelamento por data: a order pode nem ter fechado ainda.
+   */
+  readonly canceledByOperatorId?: string;
+  readonly canceledAt?: number;
 }
 
 export interface TransferState {
@@ -57,6 +67,13 @@ export interface ClosingState {
   readonly totalCents: number;
   /** PRD 6.1 — wall-clock do evento `order_closed`, usado só pra agrupar o resumo do dia por data (nunca pra ordenação/conflito, isso é papel do `hlc`). */
   readonly closedAt: number;
+  /**
+   * Épico 2 (Story 2.2) — retrofit aditivo: `event.operatorId` do
+   * `order_closed` já existia no log desde sempre, só nunca era exposto na
+   * projeção. Ausente numa comanda fechada ANTES desta mudança de código
+   * (leitura retroativa, aceitável — ver spec-2-2).
+   */
+  readonly operatorId: string;
 }
 
 export interface OrderState {
@@ -439,6 +456,9 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
             canceled: true,
             cancelReason: event.payload.reason,
             cancelNote: event.payload.note,
+            // Épico 2 (Story 2.2) — retrofit aditivo, ver Design Notes de spec-2-2.
+            canceledByOperatorId: event.operatorId,
+            canceledAt: event.createdAt,
           });
         }
         break;
@@ -465,7 +485,8 @@ export function project(sortedEvents: readonly DomainEvent[]): ProjectedState {
       case "order_closed": {
         const canonical = resolveCanonical(event.aggregateId);
         canonical.status = "closed";
-        canonical.closing = { ...event.payload, closedAt: event.createdAt };
+        // Épico 2 (Story 2.2) — retrofit aditivo, ver Design Notes de spec-2-2.
+        canonical.closing = { ...event.payload, closedAt: event.createdAt, operatorId: event.operatorId };
         // Achado real em uso, 2026-09-23: `tableToCanonicalOrder` nunca era
         // limpo aqui (só em order_transferred) — a PRIMEIRA order que uma
         // mesa recebia na vida ficava "dona" da mesa pra sempre, mesmo

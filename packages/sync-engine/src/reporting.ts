@@ -104,6 +104,40 @@ export function computeCashRegisterSummaryForRange(
 }
 
 /**
+ * Épico 2 (Story 2.2) — cancelamentos de item agrupados por operador, num
+ * intervalo de datas (mesmos bounds inclusivos/comparação lexicográfica de
+ * `computeCashRegisterSummaryForRange`). Função NOVA (não cabe no helper
+ * compartilhado de vendas acima): cancelamento é propriedade de ITEM, não de
+ * order — percorre TODOS os itens de TODAS as orders (abertas OU fechadas,
+ * `mergedInto === undefined`), janelando por `item.canceledAt` (o único
+ * timestamp correto aqui, ver Design Notes de spec-2-2), nunca por
+ * `closing.closedAt` da order (que pode nem existir se ela seguir aberta).
+ *
+ * Devolve um `Map`, não um objeto plano — `JSON.stringify`/`sendJson` NUNCA
+ * serializam um `Map` como esperado (vira `{}`). Quem chama sempre precisa
+ * ler via `.get(operatorId)` e montar a resposta HTTP à mão a partir disso
+ * (achado no code review, 2026-09-29) — nunca passar este retorno direto pra
+ * `sendJson`.
+ */
+export function countCanceledItemsByOperator(
+  orders: readonly OrderState[],
+  fromDateKey: string,
+  toDateKey: string
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const order of orders) {
+    if (order.mergedInto !== undefined) continue;
+    for (const item of order.items) {
+      if (!item.canceled || !item.canceledByOperatorId || item.canceledAt === undefined) continue;
+      const canceledDateKey = localDateKey(item.canceledAt);
+      if (canceledDateKey < fromDateKey || canceledDateKey > toDateKey) continue;
+      counts.set(item.canceledByOperatorId, (counts.get(item.canceledByOperatorId) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/**
  * Épico 1 (Sessão de Caixa), Story 1.4 — valor esperado da gaveta pra uma
  * sessão de caixa: `openingAmountCents` + pagamentos em dinheiro de `orders`
  * fechadas com `closing.closedAt` dentro de `[session.openedAt,

@@ -59,6 +59,11 @@ describe("projeção — lançamento e cancelamento de item (PRD Épico 4/M6)", 
     expect(item.note).toBe("bem gelada");
     expect(item.name).toBe("Cerveja");
     expect(item.quantity).toBe(2);
+    // Épico 2 (Story 2.2) — retrofit aditivo: `canceledByOperatorId`/`canceledAt`
+    // vêm de `event.operatorId`/`event.createdAt` do `item_canceled` (op-2, quem
+    // cancelou — diferente de op-1, que abriu a order).
+    expect(item.canceledByOperatorId).toBe("op-2");
+    expect(item.canceledAt).toBe(1000);
   });
 
   it("item_canceled pra um item que não existe na order não quebra a projeção", () => {

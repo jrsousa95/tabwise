@@ -88,3 +88,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-relatório-por-período.md`
   summary: `getJson` (`apps/desktop/src/lib/reports.ts`, novo nesta story) reincide na mesma lacuna já adiada desde as Stories 1.1-1.4 — não captura a rejeição do `fetch()` em si (só `.json()` tem `.catch`), e trata uma resposta 200 com corpo não-JSON como `{ok: true, data: null}` em vez de erro.
   evidence: Achado real (`blind-hunter` + `edge-case-hunter`, verificado) — mesma causa raiz já documentada e aceita em `deferred-work.md` (Stories 1.1/1.2/1.3), reincidindo no `getJson` novo desta story por seguir o mesmo padrão estabelecido de `postJson`/`getJson` (cada lib de rota mantém seu próprio helper HTTP, não um cliente compartilhado). Corrigir de verdade é uma mudança de convenção em todo helper HTTP do app, não algo pontual desta story.
+
+## Deferred from: bmad-build review of spec-2-2-relatório-por-operador (2026-09-29)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-relatório-por-operador.md`
+  summary: `Reports.tsx`'s `handleSubmit` dispara `getCashRegisterSummaryRange`/`getCashRegisterSummaryByOperator` num `Promise.all` sem `try/catch` — se o `fetch()` de qualquer um dos dois rejeitar (rede fora), a exceção não tratada deixa `status` travado em `"loading"` pra sempre.
+  evidence: Achado real (`edge-case-hunter`, verificado) — mesma causa raiz já adiada repetidamente desde as Stories 1.1-2.1 (`getJson`/`postJson` em todo o app não capturam a rejeição do `fetch()` em si), reincidindo no novo `Promise.all` da Story 2.2. Corrigir de verdade é a mesma mudança de convenção já registrada nas entradas anteriores — não pontual desta story.
