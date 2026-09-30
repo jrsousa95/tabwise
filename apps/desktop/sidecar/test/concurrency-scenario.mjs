@@ -57,16 +57,36 @@ function startSidecar(port, dataDir, extraEnv = {}) {
  * não sabe a diferença entre isto e o backend real, já que só faz `fetch` +
  * repassa a resposta.
  */
-function startStandinBackend(port, responseBody) {
-  const server = http.createServer((req, res) => {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(responseBody));
+/**
+ * `status`/`body` para o caso comum (sempre a mesma resposta JSON); passe uma
+ * função em `status` para um handler bruto `(req, res) => {...}` quando um
+ * cenário precisar de outra coisa. `server.on("error", reject)` é registrado
+ * ANTES do listen — achado no code review (edge-case-hunter): sem isso, uma
+ * porta já ocupada por um processo travado de uma execução anterior derruba
+ * o script inteiro com um erro não tratado, em vez de falhar como asserção.
+ */
+function startStandinBackend(port, status, body) {
+  const handler =
+    typeof status === "function"
+      ? status
+      : (req, res) => {
+          res.writeHead(status, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(body));
+        };
+  const server = http.createServer(handler);
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, () => resolve(server));
   });
-  return new Promise((resolve) => server.listen(port, () => resolve(server)));
 }
 
+/** `closeAllConnections()` (Node 18.2+) evita travar esperando conexões keep-alive pendurada — achado no code review (edge-case-hunter). */
 function stopStandinBackend(server) {
-  return new Promise((resolve) => (server ? server.close(() => resolve()) : resolve()));
+  return new Promise((resolve) => {
+    if (!server) return resolve();
+    if (typeof server.closeAllConnections === "function") server.closeAllConnections();
+    server.close(() => resolve());
+  });
 }
 
 /** Só mata o PID exato que este script spawnou — mesma regra de segurança usada em toda a sessão. */
@@ -962,7 +982,7 @@ async function main() {
       };
 
       log("com stand-in de backend no ar: proxy devolve 200 com o corpo repassado tal e qual...");
-      standinBackend = await startStandinBackend(STANDIN_BACKEND_PORT, fakeBackendBody);
+      standinBackend = await startStandinBackend(STANDIN_BACKEND_PORT, 200, fakeBackendBody);
       const consolidatedOk = await getJsonStatus(PORT_C, "/reports/cash-register/consolidated");
       assert.equal(consolidatedOk.status, 200, "com credencial válida e backend no ar, o proxy precisa devolver 200");
       assert.deepEqual(consolidatedOk.data, fakeBackendBody, "o proxy precisa repassar o corpo do backend TAL E QUAL, sem alterar nenhum campo");
@@ -976,6 +996,36 @@ async function main() {
         consolidatedUnreachable.data.error,
         "não foi possível conectar à nuvem agora",
         "mensagem de nuvem inalcançável precisa ser diferente da de 'não configurado' (400)"
+      );
+
+      // Achado no code review (verification-gap): 401 do backend (credencial de
+      // nuvem inválida/revogada) precisa virar uma mensagem DIFERENTE das duas
+      // acima — nem "não configurado" (400, não tem credencial no disco) nem
+      // "não foi possível conectar" genérico (502 por rede/servidor fora).
+      log("com o stand-in de backend devolvendo 401: proxy devolve 502 com mensagem de credencial inválida, distinta das outras duas...");
+      standinBackend = await startStandinBackend(STANDIN_BACKEND_PORT, 401, { error: "unauthorized" });
+      const consolidatedUnauthorized = await getJsonStatus(PORT_C, "/reports/cash-register/consolidated");
+      assert.equal(consolidatedUnauthorized.status, 502, "401 do backend precisa virar 502 pro terminal, não repassar o 401 cru");
+      assert.equal(
+        consolidatedUnauthorized.data.error,
+        "credencial de nuvem inválida — reconfigure a sincronização",
+        "mensagem de credencial inválida precisa ser distinta da de nuvem inalcançável genérica"
+      );
+      await stopStandinBackend(standinBackend);
+      standinBackend = null;
+
+      // Achado no code review (verification-gap, confirmado por edge-case-hunter):
+      // `typeof [] === "object"` em JS, então o guard original `typeof body !== "object"`
+      // não rejeitava um array — corrigido com `Array.isArray(body)` explícito.
+      // Este teste trava essa correção.
+      log("com o stand-in de backend devolvendo um array (corpo malformado): proxy devolve 502, não repassa o array...");
+      standinBackend = await startStandinBackend(STANDIN_BACKEND_PORT, 200, [1, 2, 3]);
+      const consolidatedMalformed = await getJsonStatus(PORT_C, "/reports/cash-register/consolidated");
+      assert.equal(consolidatedMalformed.status, 502, "corpo array do backend precisa ser rejeitado como resposta inválida, não repassado");
+      assert.equal(
+        consolidatedMalformed.data.error,
+        "resposta inválida da nuvem",
+        "mensagem precisa indicar resposta inválida da nuvem (typeof [] === 'object' em JS — array não é um guard grátis)"
       );
     } finally {
       await stopStandinBackend(standinBackend);

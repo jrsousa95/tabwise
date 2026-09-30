@@ -806,4 +806,26 @@ describe("computeConsolidatedCashSessionSummary (Épico 3, Story 3.1)", () => {
     expect(summary?.depositsCents).toBe(500);
     expect(summary?.withdrawalsCents).toBe(1000);
   });
+
+  // Achado no code review, 2026-09-30 (blind-hunter + edge-case-hunter,
+  // achado duplicado): depositsCents/withdrawalsCents precisam da MESMA
+  // janela que expectedAmountCents já aplica — um movimento com `recordedAt`
+  // DEPOIS de `nowMs` (relógio de outro terminal adiantado, cenário
+  // multi-terminal) não pode contar nos totais exibidos, senão eles
+  // divergem do valor esperado calculado ao lado.
+  it("sangria/suprimento com `recordedAt` DEPOIS de `nowMs` (relógio de outro terminal adiantado) não conta nos totais exibidos nem no valor esperado", () => {
+    const events: DomainEvent[] = [
+      cashSessionOpened("session-1", DAY_1, 10000),
+      cashDepositRecorded("session-1", DAY_1 + 1000, 500), // dentro da janela
+      cashWithdrawalRecorded("session-1", DAY_1 + 50000, 999), // "no futuro" relativo ao nowMs usado abaixo
+    ];
+
+    const state = project(sortEvents(events));
+    const nowMs = DAY_1 + 2000; // ANTES do withdrawal de DAY_1 + 50000
+    const summary = computeConsolidatedCashSessionSummary(state.cashSessions, state.orders, nowMs);
+
+    expect(summary?.depositsCents).toBe(500);
+    expect(summary?.withdrawalsCents).toBe(0); // a sangria "do futuro" não conta
+    expect(summary?.expectedAmountCents).toBe(10500); // 10000 + 500 — sem subtrair a sangria fora da janela
+  });
 });

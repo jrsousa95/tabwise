@@ -259,7 +259,10 @@ export async function handleReportRoutes(req: http.IncomingMessage, res: http.Se
       // sem checagem nenhuma de forma — um backend desalinhado (skew de
       // versão) devolveria `200` com algo que não é o `ConsolidatedCashRegisterReport`
       // esperado, e o frontend quebraria tentando ler campos que não existem.
-      if (typeof body !== "object" || body === null) {
+      // Achado real de SEGUNDA rodada (verification-gap): `typeof [] ===
+      // "object"` em JS — a checagem original deixava um array passar
+      // direto, exatamente o formato errado que ela devia barrar.
+      if (typeof body !== "object" || body === null || Array.isArray(body)) {
         sendJson(res, 502, { error: "resposta inválida da nuvem" });
         return true;
       }

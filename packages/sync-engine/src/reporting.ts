@@ -275,11 +275,18 @@ export interface ConsolidatedCashSessionSummary {
  * 1.4) — só o status ATUAL.
  *
  * `expectedAmountCents` reaproveita `computeExpectedCashSessionAmountCents`
- * tal e qual (mesma função usada pelo preview de fechamento local) —
- * `depositsCents`/`withdrawalsCents` aqui são só os totais brutos da
- * sessão (exibição), não window-filtrados feito o helper reaproveitado,
- * porque uma sessão ainda ABERTA nunca tem sangria/suprimento fora de
- * `[openedAt, nowMs]` pra começo de conversa.
+ * tal e qual (mesma função usada pelo preview de fechamento local).
+ *
+ * Achado no code review, 2026-09-30 (blind-hunter + edge-case-hunter,
+ * achado duplicado): `depositsCents`/`withdrawalsCents` precisam da MESMA
+ * janela `[openedAt, nowMs]` que `computeExpectedCashSessionAmountCents` já
+ * aplica internamente — a suposição original de que "sessão aberta nunca
+ * tem movimento fora da janela" ignorava que este é justamente o relatório
+ * MULTI-TERMINAL: um depósito/sangria registrado por outro terminal, com
+ * `recordedAt` no relógio DAQUELE terminal (HLC entre relógios diferentes),
+ * podia cair depois do `nowMs` calculado pelo BACKEND no momento desta
+ * leitura — sem o filtro, "Suprimentos"/"Sangrias" exibidos podiam divergir
+ * do "Valor esperado" ao lado, mesmo cálculo, fontes diferentes.
  */
 export function computeConsolidatedCashSessionSummary(
   cashSessions: readonly CashSessionState[],
@@ -289,12 +296,15 @@ export function computeConsolidatedCashSessionSummary(
   const canonicalOpenSession = cashSessions.find((s) => s.mergedInto === undefined && s.status === "open");
   if (!canonicalOpenSession) return null;
 
+  const windowEnd = nowMs;
+  const inWindow = (recordedAt: number) => recordedAt >= canonicalOpenSession.openedAt && recordedAt <= windowEnd;
+
   return {
     status: "open",
     openedAt: canonicalOpenSession.openedAt,
     openingAmountCents: canonicalOpenSession.openingAmountCents,
-    depositsCents: canonicalOpenSession.deposits.reduce((sum, d) => sum + d.amountCents, 0),
-    withdrawalsCents: canonicalOpenSession.withdrawals.reduce((sum, w) => sum + w.amountCents, 0),
+    depositsCents: canonicalOpenSession.deposits.filter((d) => inWindow(d.recordedAt)).reduce((sum, d) => sum + d.amountCents, 0),
+    withdrawalsCents: canonicalOpenSession.withdrawals.filter((w) => inWindow(w.recordedAt)).reduce((sum, w) => sum + w.amountCents, 0),
     expectedAmountCents: computeExpectedCashSessionAmountCents(canonicalOpenSession, orders, nowMs),
   };
 }
