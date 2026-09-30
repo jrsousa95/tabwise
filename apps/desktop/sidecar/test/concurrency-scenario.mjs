@@ -17,30 +17,56 @@
  * Uso: node test/concurrency-scenario.mjs   (precisa de `npm run build:bundle` antes)
  */
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
+import http from "node:http";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SIDECAR_ENTRY = path.join(__dirname, "..", "dist", "index.js");
 
 const PORT_A = 4700;
 const PORT_B = 4701;
+// Épico 3 (Story 3.1) — terceiro sidecar isolado, só pra testar o proxy do
+// relatório consolidado contra um stand-in de backend local (sem Postgres
+// real, achado no code review: os caminhos de sucesso/502 SÃO testáveis
+// assim, ao contrário do que a spec-3-1 originalmente presumia).
+const PORT_C = 4702;
+const STANDIN_BACKEND_PORT = 4552;
 
 function log(msg) {
   console.log(`[concurrency-scenario] ${msg}`);
 }
 
-function startSidecar(port, dataDir) {
+function startSidecar(port, dataDir, extraEnv = {}) {
   const child = spawn(process.execPath, [SIDECAR_ENTRY], {
-    env: { ...process.env, PASSA_A_REGUA_PORT: String(port), PASSA_A_REGUA_DATA_DIR: dataDir },
+    env: { ...process.env, PASSA_A_REGUA_PORT: String(port), PASSA_A_REGUA_DATA_DIR: dataDir, ...extraEnv },
     stdio: ["ignore", "pipe", "pipe"],
   });
   child.stdout.on("data", () => {}); // silencia stdout normal; erros ainda vão pro stderr do processo pai
   child.stderr.pipe(process.stderr);
   return child;
+}
+
+/**
+ * Épico 3 (Story 3.1) — stand-in mínimo de `apps/backend`, só pra responder
+ * `GET /reports/cash-register` com um corpo conhecido (nunca fala Postgres
+ * de verdade) — o proxy do sidecar (`GET /reports/cash-register/consolidated`)
+ * não sabe a diferença entre isto e o backend real, já que só faz `fetch` +
+ * repassa a resposta.
+ */
+function startStandinBackend(port, responseBody) {
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(responseBody));
+  });
+  return new Promise((resolve) => server.listen(port, () => resolve(server)));
+}
+
+function stopStandinBackend(server) {
+  return new Promise((resolve) => (server ? server.close(() => resolve()) : resolve()));
 }
 
 /** Só mata o PID exato que este script spawnou — mesma regra de segurança usada em toda a sessão. */
@@ -855,6 +881,109 @@ async function main() {
     );
 
     log("CENÁRIO 7 OK — relatório por produto agrega corretamente, exclui cancelados e ordena por valor.");
+
+    // === Cenário 8 (Épico 3, Story 3.1): relatório consolidado multi-terminal
+    // — só a parte testável SEM Postgres real: o bloqueio de papel acontece
+    // ANTES de qualquer chamada à nuvem, então dá pra testar aqui mesmo (achado
+    // no Matrix Test Audit do orquestrador: essa linha da matriz não tinha
+    // NENHUM teste). Owner sem credencial de nuvem configurada (nenhum
+    // terminal deste harness se registra num backend real) também é testável
+    // de graça aqui — cobre a mensagem clara de "não configurado" (400),
+    // distinta do bloqueio de papel (403). O caminho de sucesso/backend-
+    // inalcançável é coberto no Cenário 9 a seguir (achado no code review:
+    // não exige Postgres real, ao contrário do que se presumia aqui
+    // originalmente) — só a sessão de caixa consolidada de VERDADE (com
+    // Postgres real) segue verificada manualmente, ver spec-3-1 Verification. ===
+    log("CENÁRIO 8: relatório consolidado multi-terminal — bloqueio de papel e mensagem de nuvem não configurada...");
+
+    log("garçom não pode acessar o relatório consolidado...");
+    await postJson(PORT_A, "/session/login", { pin: "9999" }); // Wagner, garçom
+    const waiterConsolidatedBlocked = await getJsonStatus(PORT_A, "/reports/cash-register/consolidated");
+    assert.equal(waiterConsolidatedBlocked.status, 403, "garçom não pode acessar o relatório consolidado");
+    assert.equal(waiterConsolidatedBlocked.data.error, "acesso restrito ao dono");
+
+    log("caixa também não pode acessar o relatório consolidado (owner-only)...");
+    await postJson(PORT_A, "/session/login", { pin: "5555" }); // Carla, caixa
+    const cashierConsolidatedBlocked = await getJsonStatus(PORT_A, "/reports/cash-register/consolidated");
+    assert.equal(cashierConsolidatedBlocked.status, 403, "caixa não pode acessar o relatório consolidado");
+    assert.equal(cashierConsolidatedBlocked.data.error, "acesso restrito ao dono");
+
+    await postJson(PORT_A, "/session/login", { pin: "1234" }); // Ana, dono
+
+    log("dono SEM credencial de nuvem configurada recebe mensagem clara, não um erro genérico...");
+    const ownerConsolidatedNoCloud = await getJsonStatus(PORT_A, "/reports/cash-register/consolidated");
+    assert.equal(ownerConsolidatedNoCloud.status, 400, "sem credencial de nuvem configurada precisa ser 400, não um erro genérico");
+    assert.equal(
+      ownerConsolidatedNoCloud.data.error,
+      "configure a sincronização com a nuvem primeiro",
+      "mensagem precisa ser clara sobre precisar configurar a nuvem, distinta de uma falha de rede (502)"
+    );
+
+    log("CENÁRIO 8 OK — bloqueio de papel e mensagem de nuvem não configurada corretos (sucesso/nuvem-inalcançável cobertos no Cenário 9 a seguir; só a sessão de caixa consolidada de verdade exige Postgres real, verificado manualmente).");
+
+    // === Cenário 9 (Épico 3, Story 3.1): proxy do relatório consolidado
+    // contra um stand-in de backend local — achado no code review
+    // (blind-hunter + verification-gap, independentemente): os caminhos de
+    // sucesso (200, corpo repassado tal e qual) e de nuvem inalcançável (502)
+    // NÃO exigem Postgres real pra testar, ao contrário do que a Rodada 1
+    // desta story presumia — só precisam de um servidor HTTP mínimo na URL
+    // que o sidecar já usa por padrão, e uma credencial de nuvem escrita
+    // direto no data-dir (sem passar pelo fluxo de registro de verdade). ===
+    log("CENÁRIO 9: proxy do relatório consolidado — sucesso (200, corpo repassado) e nuvem inalcançável (502)...");
+
+    const dataDirC = mkdtempSync(path.join(tmpdir(), "passa-a-regua-concurrency-c-"));
+    let sidecarC;
+    let standinBackend;
+    try {
+      sidecarC = startSidecar(PORT_C, dataDirC, { PASSA_A_REGUA_BACKEND_URL: `http://127.0.0.1:${STANDIN_BACKEND_PORT}` });
+      await waitForHealth(PORT_C);
+      await postJson(PORT_C, "/operators", { name: "Ana", role: "owner", pin: "1234" });
+      await postJson(PORT_C, "/session/login", { pin: "1234" });
+
+      // Credencial escrita direto no disco (mesmo formato de `cloud-credential.ts`,
+      // sem depender do fluxo de registro/patrocínio real) — o objetivo aqui é só
+      // o comportamento do PROXY (`GET /reports/cash-register/consolidated`),
+      // não o fluxo de pareamento com a nuvem (já coberto por outras stories/M9-M10).
+      writeFileSync(
+        path.join(dataDirC, "cloud-credential.json"),
+        JSON.stringify({ establishmentId: "estab-fake", credential: "terminal-fake:segredo-fake" }),
+        "utf8"
+      );
+
+      const fakeBackendBody = {
+        date: "2026-01-01",
+        closedOrdersCount: 3,
+        subtotalCents: 5000,
+        serviceFeeCents: 500,
+        totalSoldCents: 5500,
+        totalByPaymentMethod: { cash: 3000, card: 1500, pix: 1000 },
+        pendingOrders: [],
+        cashSession: { status: "open", openedAt: 1000, openingAmountCents: 10000, depositsCents: 0, withdrawalsCents: 0, expectedAmountCents: 15500 },
+      };
+
+      log("com stand-in de backend no ar: proxy devolve 200 com o corpo repassado tal e qual...");
+      standinBackend = await startStandinBackend(STANDIN_BACKEND_PORT, fakeBackendBody);
+      const consolidatedOk = await getJsonStatus(PORT_C, "/reports/cash-register/consolidated");
+      assert.equal(consolidatedOk.status, 200, "com credencial válida e backend no ar, o proxy precisa devolver 200");
+      assert.deepEqual(consolidatedOk.data, fakeBackendBody, "o proxy precisa repassar o corpo do backend TAL E QUAL, sem alterar nenhum campo");
+
+      log("com o stand-in de backend fora do ar: proxy devolve 502, mensagem DIFERENTE do 400 de 'não configurado'...");
+      await stopStandinBackend(standinBackend);
+      standinBackend = null;
+      const consolidatedUnreachable = await getJsonStatus(PORT_C, "/reports/cash-register/consolidated");
+      assert.equal(consolidatedUnreachable.status, 502, "com credencial válida mas backend fora do ar, o proxy precisa devolver 502, não travar nem devolver 200");
+      assert.equal(
+        consolidatedUnreachable.data.error,
+        "não foi possível conectar à nuvem agora",
+        "mensagem de nuvem inalcançável precisa ser diferente da de 'não configurado' (400)"
+      );
+    } finally {
+      await stopStandinBackend(standinBackend);
+      stopSidecar(sidecarC);
+      rmSync(dataDirC, { recursive: true, force: true });
+    }
+
+    log("CENÁRIO 9 OK — proxy do relatório consolidado repassa sucesso e distingue nuvem inalcançável, sem precisar de Postgres real.");
 
     // === Cenário 3 (PRD 7.1, NFR2): queda do "host" não trava o outro terminal. ===
     log("CENÁRIO 3: derrubando o terminal A — B precisa continuar funcionando sozinho...");

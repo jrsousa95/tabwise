@@ -9,7 +9,10 @@ import { savePlanCache, type PlanLimits } from "./plan-cache.js";
 import { saveRegistrationError, clearRegistrationError } from "./registration-status.js";
 
 const SYNC_INTERVAL_MS = 5000;
-const REQUEST_TIMEOUT_MS = 8000;
+// Achado no code review, 2026-09-30 (blind-hunter): exportado pra
+// `routes/reports.ts` (Story 3.1) reaproveitar em vez de duplicar o mesmo
+// valor numa constante própria, que podia divergir silenciosamente.
+export const REQUEST_TIMEOUT_MS = 8000;
 
 // Override só pra apontar pro backend certo (dev local vs. produção, quando existir).
 export const BACKEND_URL = process.env.PASSA_A_REGUA_BACKEND_URL ?? "http://localhost:4551";

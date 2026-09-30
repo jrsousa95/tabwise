@@ -12,6 +12,7 @@ import EstablishmentSettings from "./routes/establishment-settings";
 import Pairing from "./routes/pairing";
 import TableConflicts from "./routes/table-conflicts";
 import Reports from "./routes/reports";
+import ConsolidatedReport from "./routes/consolidated-report";
 
 /** M2/M3/M4 (implementation-plan.md): shell navegável com autenticação, permissões por papel e catálogo. */
 function App() {
@@ -32,6 +33,7 @@ function App() {
             <Route path="/settings" element={<EstablishmentSettings />} />
             <Route path="/table-conflicts" element={<TableConflicts />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/consolidated-report" element={<ConsolidatedReport />} />
           </Route>
         </Route>
       </Route>

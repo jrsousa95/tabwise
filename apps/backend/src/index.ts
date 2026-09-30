@@ -7,6 +7,7 @@ import {
   hashPin as hashSecret,
   verifyPin as verifySecret,
   computeCashRegisterSummary,
+  computeConsolidatedCashSessionSummary,
   localDateKey,
   type ProjectedState,
 } from "@passa-a-regua/sync-engine";
@@ -233,13 +234,32 @@ const server = http.createServer(async (req, res) => {
    * de `orders` muda: aqui é a projeção Postgres do estabelecimento inteiro
    * (todos os terminais já sincronizados), não a réplica SQLite de um único
    * terminal.
+   *
+   * Épico 3 (Story 3.1) — passa a incluir `cashSession`, o status ATUAL da
+   * sessão de caixa canônica (`computeConsolidatedCashSessionSummary`, ou
+   * `null` se nenhuma estiver aberta), ao lado dos campos de venda já
+   * existentes acima — sem alterar nenhum campo já devolvido. Descoberta de
+   * arquitetura, não migration nova: `projection.cashSessions` já é
+   * projetado e persistido (JSONB em `projections`) desde o Épico 1, só
+   * nunca tinha sido LIDO por nenhum endpoint (Design Notes de spec-3-1).
+   *
+   * Achado no code review, 2026-09-30 (blind-hunter): `cashSession` usa
+   * `Date.now()` SEMPRE, independente do `dateKey` (`date` opcional acima) —
+   * proposital, não um bug: "sessão de caixa" é um conceito de "agora", não
+   * histórico (Design Notes de spec-3-1 — o histórico de sessões encerradas
+   * já existe localmente desde a Story 1.4). Consultar um `date` no passado
+   * só afeta os campos de VENDA acima; `cashSession` continua sendo sempre o
+   * status atual, mesmo numa consulta histórica.
    */
   if (req.method === "GET" && url.pathname === "/reports/cash-register") {
     const auth = await authenticateTerminal(req, res);
     if (!auth) return;
     const dateKey = url.searchParams.get("date") ?? localDateKey(Date.now());
     const projection = (await getProjection(db, auth.establishmentId)) as ProjectedState | null;
-    sendJson(res, 200, computeCashRegisterSummary(projection?.orders ?? [], dateKey));
+    sendJson(res, 200, {
+      ...computeCashRegisterSummary(projection?.orders ?? [], dateKey),
+      cashSession: computeConsolidatedCashSessionSummary(projection?.cashSessions ?? [], projection?.orders ?? [], Date.now()),
+    });
     return;
   }
 

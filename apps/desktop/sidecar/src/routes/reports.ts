@@ -2,6 +2,8 @@ import type http from "node:http";
 import { computeCashRegisterSummaryForRange, computeProductRanking, countCanceledItemsByOperator } from "@passa-a-regua/sync-engine";
 import { sendJson } from "../http-helpers.js";
 import type { RequestContext } from "../context.js";
+import { loadCloudCredential } from "../cloud-credential.js";
+import { BACKEND_URL, REQUEST_TIMEOUT_MS as CLOUD_REQUEST_TIMEOUT_MS } from "../cloud-sync-client.js";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -205,6 +207,69 @@ export async function handleReportRoutes(req: http.IncomingMessage, res: http.Se
 
     const ranking = computeProductRanking(ctx.currentState().orders, from, to);
     sendJson(res, 200, ranking);
+    return true;
+  }
+
+  /**
+   * Épico 3 (Story 3.1) — proxy autenticado pro relatório consolidado
+   * multi-terminal (`GET /reports/cash-register` do backend), owner-only
+   * mesmo padrão de acesso das rotas acima. O frontend NUNCA fala com o
+   * backend diretamente nem vê a credencial de nuvem/URL do backend (ARCH
+   * §7) — só esta rota, que já roda no sidecar, conhece as duas coisas.
+   *
+   * `loadCloudCredential` ausente é um erro DIFERENTE (400, "não
+   * configurado") de falha de rede/backend fora do ar (502) — Matrix da
+   * spec-3-1 é literal sobre nunca confundir os dois num erro genérico.
+   */
+  if (req.method === "GET" && url.pathname === "/reports/cash-register/consolidated") {
+    const acting = ctx.requireSession(res);
+    if (!acting) return true;
+    if (acting.role !== "owner") {
+      sendJson(res, 403, { error: "acesso restrito ao dono" });
+      return true;
+    }
+
+    const credential = loadCloudCredential(ctx.dataDir);
+    if (!credential) {
+      sendJson(res, 400, { error: "configure a sincronização com a nuvem primeiro" });
+      return true;
+    }
+
+    try {
+      const backendRes = await fetch(`${BACKEND_URL}/reports/cash-register`, {
+        headers: { Authorization: `Bearer ${credential.credential}` },
+        signal: AbortSignal.timeout(CLOUD_REQUEST_TIMEOUT_MS),
+      });
+      // Achado no code review, 2026-09-30 (blind-hunter + edge-case-hunter):
+      // 401 do backend (credencial de terminal inválida/revogada) é um
+      // problema DIFERENTE de "nuvem inalcançável" — reconfigurar a
+      // sincronização resolve, esperar a nuvem voltar não resolve nada.
+      // Achatar os dois na mesma mensagem de rede confundiria o dono sobre
+      // o que fazer.
+      if (backendRes.status === 401) {
+        sendJson(res, 502, { error: "credencial de nuvem inválida — reconfigure a sincronização" });
+        return true;
+      }
+      if (!backendRes.ok) {
+        sendJson(res, 502, { error: "não foi possível conectar à nuvem agora" });
+        return true;
+      }
+      const body: unknown = await backendRes.json();
+      // Achado no code review, 2026-09-30 (edge-case-hunter): corpo repassado
+      // sem checagem nenhuma de forma — um backend desalinhado (skew de
+      // versão) devolveria `200` com algo que não é o `ConsolidatedCashRegisterReport`
+      // esperado, e o frontend quebraria tentando ler campos que não existem.
+      if (typeof body !== "object" || body === null) {
+        sendJson(res, 502, { error: "resposta inválida da nuvem" });
+        return true;
+      }
+      sendJson(res, 200, body);
+    } catch {
+      // Timeout, DNS/rede fora, ou backend derrubando a conexão — mesmo
+      // tratamento: nunca deixa a requisição pendurada, sempre um erro
+      // claro e DIFERENTE do "não configurado" acima.
+      sendJson(res, 502, { error: "não foi possível conectar à nuvem agora" });
+    }
     return true;
   }
 

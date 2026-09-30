@@ -112,3 +112,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-3-relatório-por-produto-curva-abc.md`
   summary: `docs/architecture.md` (§3.4/3.5/4.4) ainda chama este trabalho de "Epic B — Relatórios Avançados", nunca atualizado pra "Epic 2" quando `epics.md`/`sprint-status.yaml` foram renumerados de letras pra números (achado real de arquitetura, necessário pro parser de `sprint_plan.py`). Quem lê só `architecture.md` não encontra "Epic 2" em lugar nenhum.
   evidence: Achado real (`blind-hunter`, verificado) — drift de documentação pré-existente desde a renumeração original (antes até da Story 1.1 começar), não introduzido nem agravado especificamente por esta story. Corrigir é uma limpeza de doc que abrange todo o Épico 9 (§3.4/3.5/4.4 inteiras), não algo pontual da Story 2.3.
+
+## Deferred from: bmad-build review of spec-3-1-relatório-consolidado-multi-terminal (2026-09-30)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1-relatório-consolidado-multi-terminal.md`
+  summary: `ConsolidatedReport` (`apps/desktop/src/routes/consolidated-report.tsx`) não tem guarda de unmount — se o componente desmontar (navegação) antes do `fetch` de até 8s resolver, `setStatus`/`setError`/`setReport` disparam num componente já desmontado.
+  evidence: Achado real (`blind-hunter` + `edge-case-hunter`, achado duplicado) — mesma classe de risco assíncrono do React já adiada repetidamente nas Stories 2.1-2.3 (nenhum componente do app tem essa guarda hoje); corrigir de verdade é uma convenção nova pra todo componente assíncrono do app, não pontual desta story.

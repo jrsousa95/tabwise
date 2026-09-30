@@ -153,6 +153,15 @@ function Layout() {
               Relatórios
             </NavLink>
           )}
+          {/* Épico 3 (Story 3.1) — item novo, owner-only, mesmo padrão dos
+              outros itens condicionais acima. Tela SEPARADA de "Relatórios"
+              (Épico 2): depende de nuvem configurada, sem seletor de
+              intervalo de datas. */}
+          {operator?.role === "owner" && (
+            <NavLink to="/consolidated-report" className={navLinkClassName} onClick={() => setNavOpen(false)}>
+              Relatório Consolidado
+            </NavLink>
+          )}
           {operator?.role === "owner" && (
             <NavLink to="/operators/new" className={navLinkClassName} onClick={() => setNavOpen(false)}>
               Cadastrar operador

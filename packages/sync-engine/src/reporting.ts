@@ -246,3 +246,55 @@ export function computeExpectedCashSessionAmountCents(
 
   return session.openingAmountCents + cashFromOrders + deposits - withdrawals;
 }
+
+/** Épico 3 (Story 3.1) — status ATUAL (nunca histórico, ver `computeConsolidatedCashSessionSummary` abaixo) da sessão de caixa canônica do estabelecimento, consumido pelo relatório consolidado multi-terminal. */
+export interface ConsolidatedCashSessionSummary {
+  readonly status: "open";
+  readonly openedAt: number;
+  readonly openingAmountCents: number;
+  readonly depositsCents: number;
+  readonly withdrawalsCents: number;
+  readonly expectedAmountCents: number;
+}
+
+/**
+ * Epic 3 (Story 3.1) — resumo da sessão de caixa canônica do
+ * estabelecimento pra consumo do relatório consolidado multi-terminal
+ * (`GET /reports/cash-register` no backend). Descoberta de arquitetura, não
+ * evento/projeção nova: os 4 eventos de `cash_session` já são projetados e
+ * persistidos no backend desde o Épico 1 — esta função só LÊ o que já
+ * existe em `ProjectedState.cashSessions` (mesma projeção usada
+ * localmente pelo sidecar, `packages/sync-engine`).
+ *
+ * Só a sessão CANÔNICA conta (`mergedInto === undefined`) — uma sessão
+ * perdedora de um conflito de abertura concorrente (ARCH §4.4) nunca
+ * aparece nem é contada, mesmo mesclada. Se não houver canônica com
+ * `status === "open"`, devolve `null` — mesma semântica de "nenhuma sessão
+ * aberta" já usada localmente em `cash-register.tsx` (Épico 1). Não expõe
+ * histórico de sessões encerradas (já existe localmente desde a Story
+ * 1.4) — só o status ATUAL.
+ *
+ * `expectedAmountCents` reaproveita `computeExpectedCashSessionAmountCents`
+ * tal e qual (mesma função usada pelo preview de fechamento local) —
+ * `depositsCents`/`withdrawalsCents` aqui são só os totais brutos da
+ * sessão (exibição), não window-filtrados feito o helper reaproveitado,
+ * porque uma sessão ainda ABERTA nunca tem sangria/suprimento fora de
+ * `[openedAt, nowMs]` pra começo de conversa.
+ */
+export function computeConsolidatedCashSessionSummary(
+  cashSessions: readonly CashSessionState[],
+  orders: readonly OrderState[],
+  nowMs: number
+): ConsolidatedCashSessionSummary | null {
+  const canonicalOpenSession = cashSessions.find((s) => s.mergedInto === undefined && s.status === "open");
+  if (!canonicalOpenSession) return null;
+
+  return {
+    status: "open",
+    openedAt: canonicalOpenSession.openedAt,
+    openingAmountCents: canonicalOpenSession.openingAmountCents,
+    depositsCents: canonicalOpenSession.deposits.reduce((sum, d) => sum + d.amountCents, 0),
+    withdrawalsCents: canonicalOpenSession.withdrawals.reduce((sum, w) => sum + w.amountCents, 0),
+    expectedAmountCents: computeExpectedCashSessionAmountCents(canonicalOpenSession, orders, nowMs),
+  };
+}

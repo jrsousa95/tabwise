@@ -65,3 +65,32 @@ export function getCashRegisterSummaryByProduct(from: string, to: string) {
     `/reports/cash-register/by-product?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
   );
 }
+
+/** Épico 3 (Story 3.1) — status ATUAL (nunca histórico) da sessão de caixa canônica do estabelecimento inteiro, vindo do relatório consolidado. `status` é sempre `"open"` aqui — ausência de sessão aberta é `cashSession: null`. */
+export type ConsolidatedCashSessionSummary = {
+  status: "open";
+  openedAt: number;
+  openingAmountCents: number;
+  depositsCents: number;
+  withdrawalsCents: number;
+  expectedAmountCents: number;
+};
+
+export type ConsolidatedCashRegisterReport = CashRegisterSummary & {
+  cashSession: ConsolidatedCashSessionSummary | null;
+};
+
+/**
+ * Épico 3 (Story 3.1) — relatório consolidado multi-terminal, owner-only.
+ * Diferente das rotas acima (Épico 2, 100% locais), esta depende de nuvem
+ * configurada: o sidecar faz proxy autenticado pra `GET /reports/cash-register`
+ * do backend (`GET /reports/cash-register/consolidated` local) e devolve o
+ * mesmo formato do relatório do dia + `cashSession`. Sem seletor de
+ * intervalo — sempre o snapshot de "hoje" (Design Notes de spec-3-1).
+ * `getJson` já devolve a mensagem de erro clara do sidecar tal e qual
+ * ("configure a sincronização com a nuvem primeiro" vs. "não foi possível
+ * conectar à nuvem agora") — a tela só precisa exibir `error` direto.
+ */
+export function getConsolidatedCashRegisterReport() {
+  return getJson<ConsolidatedCashRegisterReport>("/reports/cash-register/consolidated");
+}

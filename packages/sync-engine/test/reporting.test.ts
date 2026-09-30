@@ -5,6 +5,7 @@ import { project, sortEvents } from "../src/reconciliation.js";
 import {
   computeCashRegisterSummary,
   computeCashRegisterSummaryForRange,
+  computeConsolidatedCashSessionSummary,
   computeExpectedCashSessionAmountCents,
   computeProductRanking,
   countCanceledItemsByOperator,
@@ -713,5 +714,96 @@ describe("computeExpectedCashSessionAmountCents (Épico 1, Story 1.4)", () => {
     // dela no momento do fechamento).
     expect(sessionAfter.closing?.countedAmountCents).toBe(6000);
     expect(sessionAfter.closing?.countedAmountCents! - expectedAfter).toBe(-800);
+  });
+});
+
+describe("computeConsolidatedCashSessionSummary (Épico 3, Story 3.1)", () => {
+  it("sessão canônica aberta devolve o resumo correto, com expectedAmountCents recalculado", () => {
+    const events: DomainEvent[] = [
+      cashSessionOpened("session-1", DAY_1, 5000),
+      orderOpened("order-1", "table-1", DAY_1 + 1000),
+      orderClosed("order-1", DAY_1 + 1000, { subtotalCents: 1000, serviceFeeCents: 0, totalCents: 1000 }),
+      paymentRecorded("order-1", DAY_1 + 1000, 1000, "cash"),
+      cashDepositRecorded("session-1", DAY_1 + 2000, 150),
+      cashWithdrawalRecorded("session-1", DAY_1 + 3000, 300),
+    ];
+
+    const state = project(sortEvents(events));
+    const summary = computeConsolidatedCashSessionSummary(state.cashSessions, state.orders, DAY_1 + 4000);
+
+    // 5000 (fundo) + 1000 (venda em dinheiro) + 150 (suprimento) - 300 (sangria) = 5850 — mesmo cálculo de `computeExpectedCashSessionAmountCents`.
+    expect(summary).toEqual({
+      status: "open",
+      openedAt: DAY_1,
+      openingAmountCents: 5000,
+      depositsCents: 150,
+      withdrawalsCents: 300,
+      expectedAmountCents: 5850,
+    });
+  });
+
+  it("nenhuma sessão canônica aberta devolve null", () => {
+    // Nenhum evento de sessão nenhuma — `cashSessions` vazio.
+    const state = project(sortEvents([]));
+    expect(computeConsolidatedCashSessionSummary(state.cashSessions, state.orders, DAY_1)).toBeNull();
+  });
+
+  it("sessão já fechada (sem nenhuma outra aberta) devolve null — só sessão ATUALMENTE aberta conta", () => {
+    const events: DomainEvent[] = [cashSessionOpened("session-1", DAY_1, 5000), cashSessionClosed("session-1", DAY_1 + 1000, 5000)];
+
+    const state = project(sortEvents(events));
+    expect(computeConsolidatedCashSessionSummary(state.cashSessions, state.orders, DAY_1 + 2000)).toBeNull();
+  });
+
+  it("sessão mesclada perdedora existe junto da canônica — o relatório usa só a canônica, o `openingAmountCents` da perdedora nunca aparece", () => {
+    const events: DomainEvent[] = [
+      // Duas aberturas concorrentes (nenhum fechamento entre elas) — a
+      // primeira por ordem de HLC vira a canônica (ARCH §4.4), a segunda
+      // fica com `mergedInto` setado. Um depósito registrado contra o id da
+      // perdedora (`resolveCanonicalCashSession`, `reconciliation.ts`) já é
+      // redirecionado pra canônica na PROJEÇÃO — não é este helper que faz
+      // essa reconciliação, só lê o resultado já correto.
+      cashSessionOpened("session-canonical", DAY_1, 5000),
+      cashSessionOpened("session-losing", DAY_1 + 500, 9999999),
+      cashDepositRecorded("session-losing", DAY_1 + 600, 123456),
+    ];
+
+    const state = project(sortEvents(events));
+    const canonical = state.cashSessions.find((s) => s.id === "session-canonical")!;
+    const losing = state.cashSessions.find((s) => s.id === "session-losing")!;
+    expect(canonical.mergedInto).toBeUndefined();
+    expect(losing.mergedInto).toBe("session-canonical");
+
+    const summary = computeConsolidatedCashSessionSummary(state.cashSessions, state.orders, DAY_1 + 1000);
+
+    // `openingAmountCents` é sempre o fundo de troco da CANÔNICA (5000) —
+    // o valor gigantesco de abertura da perdedora (`9999999`) nunca
+    // aparece, mesmo com o depósito já corretamente redirecionado pra ela.
+    expect(summary?.openingAmountCents).toBe(5000);
+    expect(summary?.depositsCents).toBe(123456);
+    expect(summary?.expectedAmountCents).toBe(5000 + 123456);
+  });
+
+  it("valor esperado reflete sangria/suprimento/vendas já registrados na sessão canônica", () => {
+    const events: DomainEvent[] = [
+      cashSessionOpened("session-1", DAY_1, 10000),
+      orderOpened("order-1", "table-1", DAY_1 + 1000),
+      orderClosed("order-1", DAY_1 + 1000, { subtotalCents: 2000, serviceFeeCents: 0, totalCents: 2000 }),
+      paymentRecorded("order-1", DAY_1 + 1000, 2000, "cash"),
+      // Pagamento não-dinheiro não deve entrar no valor esperado da gaveta.
+      orderOpened("order-2", "table-2", DAY_1 + 1500),
+      orderClosed("order-2", DAY_1 + 1500, { subtotalCents: 3000, serviceFeeCents: 0, totalCents: 3000 }),
+      paymentRecorded("order-2", DAY_1 + 1500, 3000, "card"),
+      cashDepositRecorded("session-1", DAY_1 + 2000, 500),
+      cashWithdrawalRecorded("session-1", DAY_1 + 2500, 1000),
+    ];
+
+    const state = project(sortEvents(events));
+    const summary = computeConsolidatedCashSessionSummary(state.cashSessions, state.orders, DAY_1 + 3000);
+
+    // 10000 (fundo) + 2000 (venda em dinheiro) + 500 (suprimento) - 1000 (sangria) = 11500 — venda em cartão fica de fora.
+    expect(summary?.expectedAmountCents).toBe(11500);
+    expect(summary?.depositsCents).toBe(500);
+    expect(summary?.withdrawalsCents).toBe(1000);
   });
 });
