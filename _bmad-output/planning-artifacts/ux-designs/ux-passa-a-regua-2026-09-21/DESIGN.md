@@ -2,7 +2,7 @@
 name: Passa a Régua
 description: Sistema de PDV desktop para bares e restaurantes — mesas, comandas, cardápio e fechamento de caixa. Visual robusto/industrial, pensado pra ser tocado com pressa, em pé, muitas vezes com uma mão só.
 status: final
-updated: 2026-09-23
+updated: 2026-10-01
 colors:
   # Claro
   surface: '#F6F6F6'
@@ -13,10 +13,10 @@ colors:
   on-surface-variant: '#4A4A4A'
   outline: 'rgba(0, 0, 0, 0.16)'
   outline-variant: 'rgba(0, 0, 0, 0.08)'
-  primary: '#9F1239'
+  primary: '#0B4F5E'
   on-primary: '#FFFFFF'
-  primary-container: '#FFE4E6'
-  on-primary-container: '#881337'
+  primary-container: '#D6EEF2'
+  on-primary-container: '#063138'
   success: '#1F7A46'
   on-success: '#FFFFFF'
   success-container: '#E1F3E8'
@@ -35,10 +35,10 @@ colors:
   on-surface-variant-dark: '#C7C7C7'
   outline-dark: 'rgba(255, 255, 255, 0.18)'
   outline-variant-dark: 'rgba(255, 255, 255, 0.09)'
-  primary-dark: '#FB7185'
-  on-primary-dark: '#4C0519'
-  primary-container-dark: '#881337'
-  on-primary-container-dark: '#FFE4E6'
+  primary-dark: '#7DD3D8'
+  on-primary-dark: '#003338'
+  primary-container-dark: '#063138'
+  on-primary-container-dark: '#D6EEF2'
   success-dark: '#6FCF97'
   on-success-dark: '#0C3B1F'
   warning-dark: '#F0B23D'
@@ -159,22 +159,22 @@ components:
 
 Passa a Régua é uma ferramenta de trabalho, não um produto de vitrine. Quem olha pra tela está de pé, com uma bandeja numa mão, num salão barulhento, numa sexta-feira lotada — não navegando com calma num sofá. A postura visual é **industrial e direta**: contraste alto, alvos de toque generosos (mínimo 48px, `{spacing.touch-target-min}`), hierarquia visual óbvia à distância de um braço, zero decoração que não carregue informação.
 
-A cor é usada como sinal, não como enfeite. Borgonha (`{colors.primary}`) significa "isto é uma ação" — nunca aparece decorativamente. Âmbar/vermelho seguem o vocabulário de semáforo que qualquer garçom já entende sem treinamento: mesa livre é neutra, mesa ocupada é a cor de marca, aviso é âmbar, erro é vermelho. Não há gradientes, sombras dramáticas ou tipografia decorativa — a única "personalidade" do produto é a confiança de que ele nunca engana o operador sobre o que está acontecendo.
+A cor é usada como sinal, não como enfeite. Azul petróleo (`{colors.primary}`) significa "isto é uma ação" — nunca aparece decorativamente. Âmbar/vermelho seguem o vocabulário de semáforo que qualquer garçom já entende sem treinamento: mesa livre é neutra, mesa ocupada é a cor de marca, aviso é âmbar, erro é vermelho. Não há gradientes, sombras dramáticas ou tipografia decorativa — a única "personalidade" do produto é a confiança de que ele nunca engana o operador sobre o que está acontecendo.
 
 ## Colors
 
-- **`{colors.primary}` (borgonha)** — a única cor de marca. Usada em botões primários, item de navegação ativo, e no preenchimento de `table-tile-occupied` (mesa com comanda aberta — o estado mais importante do mapa de mesas, precisa saltar aos olhos). Nunca usada decorativamente. **Trocada de laranja-queimado (`#C2410C`) pra borgonha (`#9F1239`) em 2026-09-22**, a pedido do dono após comparar 3 alternativas ao vivo no app — ver `apps/desktop/src/app.css` para a nota de derivação completa.
+- **`{colors.primary}` (azul petróleo)** — a única cor de marca. Usada em botões primários, item de navegação ativo, e no preenchimento de `table-tile-occupied` (mesa com comanda aberta — o estado mais importante do mapa de mesas, precisa saltar aos olhos). Nunca usada decorativamente. **Trocada de borgonha (`#9F1239`) pra azul petróleo (`#0B4F5E`) em 2026-10-01**, a pedido do dono — ver `apps/desktop/src/app.css` para a nota de derivação completa.
 - **`{colors.success}` / `{colors.warning}` / `{colors.danger}`** — vocabulário de status, reaproveitando as cores que já existiam no indicador "sidecar ok/offline" e no banner de merge antes deste sistema existir (continuidade deliberada, não reinvenção). Danger é reservado pra erro de verdade (`.form-error`, sidecar offline) — nunca usado pra cancelar item: essa ação já tem sua própria fricção (motivo obrigatório), não precisa também de vermelho.
 - **`{colors.surface}` / `{colors.surface-container-*}`** — três níveis de elevação (fundo da página, cartão, cartão realçado) em vez de sombra — o app já não usava sombra nenhuma, e "robusto" pede superfícies planas e bem demarcadas por cor/borda, não por blur.
-- **Modo escuro** — cada token de cor tem seu par `-dark`. Nenhum token é reaproveitado 1:1 entre os dois modos (nem mesmo `primary`): o borgonha do modo escuro é mais claro (`#FB7185`) pra manter contraste AA sobre o fundo escuro, não é o mesmo borgonha com opacidade reduzida. Essa é exatamente a armadilha que o bloco `@media (prefers-color-scheme: dark)` de antes deste sistema nunca resolveu — aqui cada token de cada modo é uma decisão própria, não uma variação automática da outra.
-- **Razões de contraste calculadas** (achado da validação 2026-09-23 — meta era só "AA mantido", sem número; borgonha claro→escuro não deriva automaticamente um do outro, vale registrar o valor real):
+- **Modo escuro** — cada token de cor tem seu par `-dark`. Nenhum token é reaproveitado 1:1 entre os dois modos (nem mesmo `primary`): o azul petróleo do modo escuro é mais claro (`#7DD3D8`) pra manter contraste AA sobre o fundo escuro, não é o mesmo azul petróleo com opacidade reduzida. Essa é exatamente a armadilha que o bloco `@media (prefers-color-scheme: dark)` de antes deste sistema nunca resolveu — aqui cada token de cada modo é uma decisão própria, não uma variação automática da outra.
+- **Razões de contraste calculadas** (achado da validação 2026-09-23 — meta era só "AA mantido", sem número; recalculado em 2026-10-01 pra azul petróleo, já que claro→escuro não deriva automaticamente um do outro):
 
   | Par | Modo | Razão |
   |---|---|---|
-  | `primary` / `on-primary` | Claro | 8.02:1 |
-  | `primary-container` / `on-primary-container` | Claro | 7.97:1 |
-  | `primary-dark` / `on-primary-dark` | Escuro | 5.81:1 |
-  | `primary-container-dark` / `on-primary-container-dark` | Escuro | 7.97:1 |
+  | `primary` / `on-primary` | Claro | 9.15:1 |
+  | `primary-container` / `on-primary-container` | Claro | 11.55:1 |
+  | `primary-dark` / `on-primary-dark` | Escuro | 7.96:1 |
+  | `primary-container-dark` / `on-primary-container-dark` | Escuro | 11.55:1 |
 
   Todos folgados acima do piso AA de 4.5:1 pra texto normal.
 
@@ -206,7 +206,7 @@ Cantos moderados (`{rounded.md}` = 10px na maioria dos componentes tocáveis, `{
 
 ## Components
 
-- **`button-primary`** — borgonha de marca, altura mínima 48px, usado uma vez por tela como a ação principal óbvia (ex: "Fechar comanda", "Adicionar", "Entrar").
+- **`button-primary`** — azul petróleo de marca, altura mínima 48px, usado uma vez por tela como a ação principal óbvia (ex: "Fechar comanda", "Adicionar", "Entrar").
 - **`button-secondary`** — contorno, sem preenchimento; ações secundárias/de cancelamento não-destrutivo.
 - **`pin-key`** — tecla do teclado numérico de login: 72×72px mínimo (bem acima do piso de toque — é literalmente a primeira interação de cada turno, não pode falhar), dígito grande em `{typography.display}`.
 - **`table-tile`** — substitui a lista/tabela atual de mesas por um grid de blocos tocáveis (ver Component Patterns no EXPERIENCE.md): `table-tile-free` (superfície neutra, borda fina) vs. `table-tile-occupied` (preenchido em `{colors.primary-container}`, borda `{colors.primary}`) — o estado "esta mesa tem comanda aberta" precisa ser reconhecível num relance do salão, não lido letra por letra.
@@ -219,7 +219,7 @@ Cantos moderados (`{rounded.md}` = 10px na maioria dos componentes tocáveis, `{
 
 | Do | Don't |
 |---|---|
-| Usar `{colors.primary}` só pra "ação principal" e "mesa ocupada" | Usar borgonha em chrome, ícone decorativo ou texto comum |
+| Usar `{colors.primary}` só pra "ação principal" e "mesa ocupada" | Usar azul petróleo em chrome, ícone decorativo ou texto comum |
 | Alvo de toque ≥ `{spacing.touch-target-min}` em toda superfície tocável | Botões/linhas de tabela com hitbox menor que 48px |
 | Hierarquia por cor de superfície + borda | Sombra (`box-shadow`) como recurso de hierarquia |
 | Tabular figures em toda coluna monetária | Números de valor em fonte proporcional numa tabela |

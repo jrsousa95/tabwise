@@ -41,16 +41,16 @@
   --color-outline: rgba(0, 0, 0, 0.16);
   --color-outline-variant: rgba(0, 0, 0, 0.08);
 
-  /* Borgonha (2026-09-22, pedido do dono) — era laranja/terracota
-     (#c2410c) antes deste commit. Mesmo padrão de derivação: primary =
+  /* Azul petróleo (2026-10-01, pedido do dono) — era borgonha (#9f1239)
+     antes deste commit. Mesmo padrão de derivação de sempre: primary =
      tom saturado escuro (texto branco em cima); primary-container = tom
      bem pálido do mesmo matiz (fundo, ex. table-tile ocupado);
      on-primary-container = tom bem escuro do mesmo matiz (texto sobre o
      container pálido). */
-  --color-primary: #9f1239;
+  --color-primary: #0b4f5e;
   --color-on-primary: #ffffff;
-  --color-primary-container: #ffe4e6;
-  --color-on-primary-container: #881337;
+  --color-primary-container: #d6eef2;
+  --color-on-primary-container: #063138;
 
   --color-success: #1f7a46;
   --color-on-success: #ffffff;
@@ -111,10 +111,10 @@
     --color-outline: rgba(255, 255, 255, 0.18);
     --color-outline-variant: rgba(255, 255, 255, 0.09);
 
-    --color-primary: #fb7185;
-    --color-on-primary: #4c0519;
-    --color-primary-container: #881337;
-    --color-on-primary-container: #ffe4e6;
+    --color-primary: #7dd3d8;
+    --color-on-primary: #003338;
+    --color-primary-container: #063138;
+    --color-on-primary-container: #d6eef2;
 
     --color-success: #6fcf97;
     --color-on-success: #0c3b1f;
