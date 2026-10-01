@@ -1,5 +1,6 @@
 import { SIDECAR_URL } from "./sidecar";
 import type { CashRegisterSummary } from "./cash-register";
+import { formatCentsToBRL } from "./money";
 
 type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -15,6 +16,36 @@ async function getJson<T>(path: string): Promise<ApiResult<T>> {
 }
 
 export type CashRegisterSummaryRange = { current: CashRegisterSummary; previous: CashRegisterSummary };
+
+export type SummaryDelta = { deltaCents: number; deltaLabel: string; deltaPercent: number | null };
+
+/**
+ * Épico 2 (Story 2.1, extraído na Story 2.4) — cálculo da variação do total
+ * vendido entre o período escolhido e o período anterior. Fonte única de
+ * verdade: reaproveitado tanto pela `ComparisonBlock` (tela) quanto pela
+ * exportação CSV, garantindo que os dois NUNCA divirjam no valor exibido.
+ * Sem percentual quando o período anterior não vendeu nada (divisão por
+ * zero não tem leitura útil) nem quando a variação é zero (redundante com o
+ * próprio rótulo "sem variação").
+ */
+export function computeSummaryDelta(current: CashRegisterSummary, previous: CashRegisterSummary): SummaryDelta {
+  const deltaCents = current.totalSoldCents - previous.totalSoldCents;
+  const deltaLabel = deltaCents === 0 ? "sem variação" : `${deltaCents > 0 ? "+" : "-"}${formatCentsToBRL(Math.abs(deltaCents))}`;
+  const deltaPercent = deltaCents !== 0 && previous.totalSoldCents > 0 ? (deltaCents / previous.totalSoldCents) * 100 : null;
+  return { deltaCents, deltaLabel, deltaPercent };
+}
+
+/**
+ * Combina `deltaLabel` + percentual entre parênteses (quando houver) no
+ * texto final de variação — ÚNICA fonte de verdade da string exibida,
+ * reaproveitada tanto pela `ComparisonBlock` (tela, `routes/reports.tsx`)
+ * quanto pela exportação CSV (`lib/csv.ts`), pra garantir que os dois NUNCA
+ * divirjam no texto exibido.
+ */
+export function formatDelta(deltaLabel: string, deltaPercent: number | null): string {
+  if (deltaPercent === null) return deltaLabel;
+  return `${deltaLabel} (${deltaPercent > 0 ? "+" : ""}${deltaPercent.toFixed(1)}%)`;
+}
 
 /**
  * Épico 2 (Story 2.1) — relatório por período, owner-only. Devolve num

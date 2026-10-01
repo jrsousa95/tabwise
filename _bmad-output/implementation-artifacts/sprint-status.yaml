@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-25-2026 17:12
-last_updated: 09-30-2026 12:00
+last_updated: 10-01-2026 11:00
 project: passa-a-regua
 project_key: NOKEY
 tracking_system: file-system
@@ -46,7 +46,7 @@ development_status:
   2-1-relatório-por-período: done
   2-2-relatório-por-operador: done
   2-3-relatório-por-produto-curva-abc: done
-  2-4-exportação-csv: backlog
+  2-4-exportação-csv: review
   epic-2-retrospective: optional
 
   epic-3: done

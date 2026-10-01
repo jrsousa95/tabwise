@@ -3,12 +3,15 @@ import {
   getCashRegisterSummaryRange,
   getCashRegisterSummaryByOperator,
   getCashRegisterSummaryByProduct,
+  computeSummaryDelta,
+  formatDelta,
   type CashRegisterSummaryRange,
   type CashRegisterSummaryByOperator,
   type CashRegisterSummaryByProduct,
 } from "../lib/reports";
 import { useTablesAndOrders } from "../lib/tables";
 import { formatCentsToBRL } from "../lib/money";
+import { buildCashRegisterSummaryCsv, downloadCsv } from "../lib/csv";
 import type { CashRegisterSummary } from "../lib/cash-register";
 
 /**
@@ -78,12 +81,12 @@ function SummaryBlock({ title, summary }: { title: string; summary: CashRegister
  * vendeu nada (divisão por zero não tem leitura útil pro dono).
  */
 function ComparisonBlock({ current, previous }: { current: CashRegisterSummary; previous: CashRegisterSummary }) {
-  const deltaCents = current.totalSoldCents - previous.totalSoldCents;
-  const deltaLabel = deltaCents === 0 ? "sem variação" : `${deltaCents > 0 ? "+" : "-"}${formatCentsToBRL(Math.abs(deltaCents))}`;
-  // Achado no code review, 2026-09-28 (blind-hunter): antes mostrava "sem
-  // variação (0.0%)" quando deltaCents === 0 — percentual redundante junto
-  // do próprio rótulo "sem variação". Suprimido nesse caso.
-  const deltaPercent = deltaCents !== 0 && previous.totalSoldCents > 0 ? (deltaCents / previous.totalSoldCents) * 100 : null;
+  // Story 2.4 — cálculo e texto final extraídos pra `computeSummaryDelta` /
+  // `formatDelta` (lib/reports.ts), reaproveitados também pela exportação
+  // CSV, pra garantir que os dois NUNCA divirjam no texto de variação
+  // exibido.
+  const { deltaLabel, deltaPercent } = computeSummaryDelta(current, previous);
+  const deltaText = formatDelta(deltaLabel, deltaPercent);
 
   return (
     <div className="table-map-section">
@@ -99,10 +102,7 @@ function ComparisonBlock({ current, previous }: { current: CashRegisterSummary; 
         </div>
         <div className="summary-row summary-row-total">
           <span className="type-label">Variação</span>
-          <span className="amount amount-display">
-            {deltaLabel}
-            {deltaPercent !== null && ` (${deltaPercent > 0 ? "+" : ""}${deltaPercent.toFixed(1)}%)`}
-          </span>
+          <span className="amount amount-display">{deltaText}</span>
         </div>
       </div>
     </div>
@@ -294,6 +294,16 @@ function Reports() {
 
       {result && status === "ready" && (
         <>
+          {/* Story 2.4 — só aparece depois que "Ver relatório" carregou um
+              resultado (nunca gera CSV vazio/com dado stale); gera o arquivo
+              100% no navegador, sem chamada nova ao sidecar/backend. */}
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => downloadCsv(`relatorio-periodo-${fromDate}-a-${toDate}.csv`, buildCashRegisterSummaryCsv(fromDate, toDate, result))}
+          >
+            Exportar CSV
+          </button>
           <ComparisonBlock current={result.current} previous={result.previous} />
           <SummaryBlock title={`Período escolhido (${fromDate} a ${toDate})`} summary={result.current} />
           <SummaryBlock title="Período anterior" summary={result.previous} />
