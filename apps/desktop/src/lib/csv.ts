@@ -13,7 +13,7 @@ const LINE_BREAK = "\r\n";
 const FORMULA_PREFIX_CHARS = ["+", "-", "=", "@"];
 
 function escapeFormulaInjection(value: string): string {
-  return FORMULA_PREFIX_CHARS.includes(value[0]) ? `'${value}` : value;
+  return FORMULA_PREFIX_CHARS.includes(value.trimStart()[0]) ? `'${value}` : value;
 }
 
 function row(cells: Array<string | number>): string {
@@ -61,8 +61,8 @@ export function buildCashRegisterSummaryCsv(fromDate: string, toDate: string, ra
     row(["Relatório por período", `${fromDate} a ${toDate}`]),
     "",
     row(["Comparativo com o período anterior"]),
-    row(["Total vendido - período escolhido", formatCentsToBRL(current.totalSoldCents)]),
-    row(["Total vendido - período anterior", formatCentsToBRL(previous.totalSoldCents)]),
+    row(["Total vendido — período escolhido", formatCentsToBRL(current.totalSoldCents)]),
+    row(["Total vendido — período anterior", formatCentsToBRL(previous.totalSoldCents)]),
     row(["Variação", formatDelta(deltaLabel, deltaPercent)]),
     "",
     row([`Período escolhido (${fromDate} a ${toDate})`]),
@@ -93,8 +93,11 @@ export function downloadCsv(filename: string, content: string): void {
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  try {
+    document.body.appendChild(link);
+    link.click();
+  } finally {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 }

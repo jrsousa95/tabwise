@@ -295,11 +295,16 @@ function Reports() {
       {result && status === "ready" && (
         <>
           {/* Story 2.4 — só aparece depois que "Ver relatório" carregou um
-              resultado (nunca gera CSV vazio/com dado stale); gera o arquivo
-              100% no navegador, sem chamada nova ao sidecar/backend. */}
+              resultado (nunca gera CSV vazio); gera o arquivo 100% no
+              navegador, sem chamada nova ao sidecar/backend. Limitação
+              conhecida e pré-existente desde a Story 2.1 (ver
+              deferred-work.md): se o dono mudar fromDate/toDate sem clicar
+              "Ver relatório" de novo, o nome do arquivo/cabeçalho usa as
+              datas novas mas o corpo ainda reflete o último fetch. */}
           <button
             type="button"
             className="button-secondary"
+            // fromDate/toDate vêm de <input type="date">, sempre "YYYY-MM-DD" — seguro interpolar direto no nome do arquivo.
             onClick={() => downloadCsv(`relatorio-periodo-${fromDate}-a-${toDate}.csv`, buildCashRegisterSummaryCsv(fromDate, toDate, result))}
           >
             Exportar CSV

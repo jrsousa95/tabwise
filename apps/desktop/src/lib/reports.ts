@@ -17,7 +17,7 @@ async function getJson<T>(path: string): Promise<ApiResult<T>> {
 
 export type CashRegisterSummaryRange = { current: CashRegisterSummary; previous: CashRegisterSummary };
 
-export type SummaryDelta = { deltaCents: number; deltaLabel: string; deltaPercent: number | null };
+export type SummaryDelta = { deltaLabel: string; deltaPercent: number | null };
 
 /**
  * Épico 2 (Story 2.1, extraído na Story 2.4) — cálculo da variação do total
@@ -32,7 +32,7 @@ export function computeSummaryDelta(current: CashRegisterSummary, previous: Cash
   const deltaCents = current.totalSoldCents - previous.totalSoldCents;
   const deltaLabel = deltaCents === 0 ? "sem variação" : `${deltaCents > 0 ? "+" : "-"}${formatCentsToBRL(Math.abs(deltaCents))}`;
   const deltaPercent = deltaCents !== 0 && previous.totalSoldCents > 0 ? (deltaCents / previous.totalSoldCents) * 100 : null;
-  return { deltaCents, deltaLabel, deltaPercent };
+  return { deltaLabel, deltaPercent };
 }
 
 /**
