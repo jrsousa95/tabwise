@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useEstablishment, updateEstablishmentSettings } from "../lib/closing";
+import { MULTI_TERMINAL_UI_ENABLED } from "../lib/feature-flags";
 
 /**
  * Configurações gerais do estabelecimento (dono). Antes vivia dentro de
@@ -82,14 +83,17 @@ function EstablishmentSettings() {
           própria e fora do shell autenticado (não muda): é o único fluxo
           que também atende terminal novo, sem nenhum operador
           cadastrado ainda, então não pode depender de login pra ser
-          alcançado. */}
-      <div className="table-map-section">
-        <h2 className="section-heading">Pareamento de terminais</h2>
-        <p>Conecte este terminal a outro já configurado na mesma rede pra sincronizar mesas, cardápio e operadores.</p>
-        <Link to="/pairing" className="button-secondary">
-          Configurar pareamento →
-        </Link>
-      </div>
+          alcançado. Escondido enquanto MULTI_TERMINAL_UI_ENABLED for false
+          (feature-flags.ts) — ver ali o motivo. */}
+      {MULTI_TERMINAL_UI_ENABLED && (
+        <div className="table-map-section">
+          <h2 className="section-heading">Pareamento de terminais</h2>
+          <p>Conecte este terminal a outro já configurado na mesma rede pra sincronizar mesas, cardápio e operadores.</p>
+          <Link to="/pairing" className="button-secondary">
+            Configurar pareamento →
+          </Link>
+        </div>
+      )}
     </section>
   );
 }

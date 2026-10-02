@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useOperators } from "../lib/operators";
 import { useSession } from "../lib/session";
+import { MULTI_TERMINAL_UI_ENABLED } from "../lib/feature-flags";
 
 const PIN_DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9, "⌫", 0, "OK"] as const;
 
@@ -58,10 +59,14 @@ function Login() {
         <Link to="/operators/new">Cadastrar o primeiro operador →</Link>
         {/* M9 (ARCH §7) — terminal novo pode virar réplica de um já existente
             em vez de bootstrar operadores do zero: adota o token do terminal
-            1, sincroniza e recebe os operadores dele. */}
-        <p>
-          <Link to="/pairing">Ou parear com um terminal já configurado →</Link>
-        </p>
+            1, sincroniza e recebe os operadores dele. Escondido enquanto
+            MULTI_TERMINAL_UI_ENABLED for false (feature-flags.ts) — pareamento
+            é a feature que vira gancho de upgrade pago, que ainda não existe. */}
+        {MULTI_TERMINAL_UI_ENABLED && (
+          <p>
+            <Link to="/pairing">Ou parear com um terminal já configurado →</Link>
+          </p>
+        )}
       </main>
     );
   }

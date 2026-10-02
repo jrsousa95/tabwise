@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useSidecarHealth } from "./lib/sidecar";
 import { useSession } from "./lib/session";
 import { useMergeWarnings } from "./lib/merge-warnings";
+import { MULTI_TERMINAL_UI_ENABLED } from "./lib/feature-flags";
 
 const navLinkClassName = ({ isActive }: { isActive: boolean }) => (isActive ? "nav-link nav-link-active" : "nav-link");
 
@@ -143,7 +144,9 @@ function Layout() {
               Configurações
             </NavLink>
           )}
-          {operator?.role === "owner" && (
+          {/* Só tem conteúdo quando existe um 2º terminal pra conflitar —
+              escondido junto do pareamento (feature-flags.ts). */}
+          {MULTI_TERMINAL_UI_ENABLED && operator?.role === "owner" && (
             <NavLink to="/table-conflicts" className={navLinkClassName} onClick={() => setNavOpen(false)}>
               Conflitos de Sincronização
             </NavLink>
@@ -156,8 +159,9 @@ function Layout() {
           {/* Épico 3 (Story 3.1) — item novo, owner-only, mesmo padrão dos
               outros itens condicionais acima. Tela SEPARADA de "Relatórios"
               (Épico 2): depende de nuvem configurada, sem seletor de
-              intervalo de datas. */}
-          {operator?.role === "owner" && (
+              intervalo de datas. Depende de pareamento pra ter qualquer
+              utilidade — escondido junto (feature-flags.ts). */}
+          {MULTI_TERMINAL_UI_ENABLED && operator?.role === "owner" && (
             <NavLink to="/consolidated-report" className={navLinkClassName} onClick={() => setNavOpen(false)}>
               Relatório Consolidado
             </NavLink>

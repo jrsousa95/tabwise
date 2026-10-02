@@ -13,6 +13,7 @@ import Pairing from "./routes/pairing";
 import TableConflicts from "./routes/table-conflicts";
 import Reports from "./routes/reports";
 import ConsolidatedReport from "./routes/consolidated-report";
+import { MULTI_TERMINAL_UI_ENABLED } from "./lib/feature-flags";
 
 /** M2/M3/M4 (implementation-plan.md): shell navegável com autenticação, permissões por papel e catálogo. */
 function App() {
@@ -20,7 +21,10 @@ function App() {
     <Routes>
       <Route path="/" element={<Login />} />
       <Route path="/operators/new" element={<OperatorRegistration />} />
-      <Route path="/pairing" element={<Pairing />} />
+      {/* Pareamento/multi-terminal escondido enquanto MULTI_TERMINAL_UI_ENABLED
+          for false (feature-flags.ts) — a rota some de verdade (não só o link),
+          pra não dar pra chegar nela digitando a URL direto. */}
+      <Route path="/pairing" element={MULTI_TERMINAL_UI_ENABLED ? <Pairing /> : <Navigate to="/" replace />} />
       <Route element={<RequireSession />}>
         <Route element={<Layout />}>
           <Route path="/tables" element={<TableMap />} />
@@ -31,9 +35,15 @@ function App() {
           <Route element={<RequireRole allowed={["owner"]} />}>
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/settings" element={<EstablishmentSettings />} />
-            <Route path="/table-conflicts" element={<TableConflicts />} />
+            <Route
+              path="/table-conflicts"
+              element={MULTI_TERMINAL_UI_ENABLED ? <TableConflicts /> : <Navigate to="/tables" replace />}
+            />
             <Route path="/reports" element={<Reports />} />
-            <Route path="/consolidated-report" element={<ConsolidatedReport />} />
+            <Route
+              path="/consolidated-report"
+              element={MULTI_TERMINAL_UI_ENABLED ? <ConsolidatedReport /> : <Navigate to="/tables" replace />}
+            />
           </Route>
         </Route>
       </Route>
