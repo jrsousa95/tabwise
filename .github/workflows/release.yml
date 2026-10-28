@@ -1,0 +1,108 @@
+name: Release
+
+# Gera os instaladores (Windows + macOS Apple Silicon) e publica num GitHub
+# Release — é de onde a página de download (site/) baixa os arquivos.
+# Dispara ao subir uma tag `v*` (ex: `git tag v0.1.0 && git push origin v0.1.0`)
+# ou manualmente (Actions > Release > Run workflow, informando a tag).
+#
+# Os assets são renomeados pra nomes SEM versão (Tabwise-windows-x64-setup.exe
+# etc.): assim o link `releases/latest/download/<nome>` da página continua
+# válido a cada versão nova, sem precisar editar o site.
+#
+# Instaladores não são assinados (certificado de code signing é pago) — o
+# Windows SmartScreen e o Gatekeeper do macOS mostram aviso na primeira
+# abertura; a página de download explica como liberar.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag do release (ex: v0.1.0) — criada se não existir"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows-x64
+          - os: macos-latest
+            label: macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Instala dependências do monorepo
+        run: npm install
+
+      # Mesmo achado do m12-windows-packaging.yml: shared-types/sync-engine
+      # não buildam sozinhos no install, e o sidecar depende dos .js deles.
+      - name: Builda os pacotes compartilhados (shared-types, sync-engine)
+        run: |
+          npm run build --workspace=@tabwise/shared-types
+          npm run build --workspace=@tabwise/sync-engine
+
+      # `prebuild:tauri` builda o binário SEA do sidecar nativo do runner
+      # antes do `tauri build`.
+      - name: Builda o app (sidecar + Tauri)
+        working-directory: apps/desktop
+        run: npm run build:tauri
+
+      - name: Junta os instaladores com nomes estáveis
+        shell: bash
+        run: |
+          mkdir -p out
+          bundle=apps/desktop/src-tauri/target/release/bundle
+          if [ "${{ matrix.label }}" = "windows-x64" ]; then
+            cp "$bundle"/nsis/*-setup.exe out/Tabwise-windows-x64-setup.exe
+            cp "$bundle"/msi/*.msi out/Tabwise-windows-x64.msi
+          else
+            cp "$bundle"/dmg/*.dmg out/Tabwise-macos-arm64.dmg
+          fi
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.label }}
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          merge-multiple: true
+          path: out
+
+      - name: Publica o GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: Tabwise ${{ github.event.inputs.tag || github.ref_name }}
+          make_latest: "true"
+          body: |
+            Instaladores do Tabwise — PDV offline-first para bares e restaurantes.
+
+            - **Windows (x64):** `Tabwise-windows-x64-setup.exe` (recomendado) ou `.msi`
+            - **macOS (Apple Silicon M1+):** `Tabwise-macos-arm64.dmg`
+
+            Instaladores não assinados: no Windows, clique em "Mais informações → Executar assim mesmo";
+            no macOS, clique com o botão direito no app → Abrir (ou Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim).
+
+            Página de download: https://jrsousa95.github.io/tabwise/
+          files: out/*

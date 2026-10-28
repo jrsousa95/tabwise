@@ -1,12 +1,16 @@
 <div align="center">
 
-<img src="apps/desktop/public/passa-a-regua.svg" width="72" height="72" alt="Passa a Régua" />
+<img src="apps/desktop/public/tabwise.svg" width="72" height="72" alt="Tabwise" />
 
-# Passa a Régua
+# Tabwise
 
 **PDV desktop offline-first para bares e restaurantes** — mesas, comandas, cardápio, caixa e sincronização multi-terminal sem depender de internet estável.
 
-[![CI](https://github.com/jrsousa95/passa-a-regua/actions/workflows/ci.yml/badge.svg)](https://github.com/jrsousa95/passa-a-regua/actions/workflows/ci.yml)
+**[⬇️ Baixar o app (Windows / macOS)](https://jrsousa95.github.io/tabwise/)** · Interface em português e inglês
+
+<sub>Antes chamado *Passa a Régua*.</sub>
+
+[![CI](https://github.com/jrsousa95/tabwise/actions/workflows/ci.yml/badge.svg)](https://github.com/jrsousa95/tabwise/actions/workflows/ci.yml)
 ![Status](https://img.shields.io/badge/status-MVP%20completo-blue)
 ![Licença](https://img.shields.io/badge/licença-todos%20os%20direitos%20reservados-lightgrey)
 
@@ -18,12 +22,12 @@
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/login.jpg" alt="Login por PIN" /><br/><sub>Login por PIN, 100% offline</sub></td>
-<td width="50%"><img src="docs/screenshots/table-map.jpg" alt="Mapa de Mesas" /><br/><sub>Mapa de Mesas — livre/ocupada</sub></td>
+<td width="50%"><img src="site/screenshots/table-map-en.png" alt="Table map" /><br/><sub>Mapa de Mesas (UI em inglês)</sub></td>
+<td width="50%"><img src="site/screenshots/order-pt.png" alt="Comanda" /><br/><sub>Comanda — busca de produto, itens, subtotal</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/screenshots/order.jpg" alt="Comanda" /><br/><sub>Comanda — busca de produto, itens, subtotal</sub></td>
-<td width="50%"><img src="docs/screenshots/cash-register.jpg" alt="Resumo de Caixa" /><br/><sub>Resumo de Caixa — por forma de pagamento</sub></td>
+<td width="50%"><img src="site/screenshots/closing-en.png" alt="Closing" /><br/><sub>Fechamento — taxa de serviço, split, pagamento</sub></td>
+<td width="50%"><img src="site/screenshots/login-pt.png" alt="Login por PIN" /><br/><sub>Login por PIN, 100% offline, seletor PT/EN</sub></td>
 </tr>
 </table>
 
@@ -87,6 +91,7 @@ Detalhes completos em [`docs/architecture.md`](docs/architecture.md) (modelo de 
 - **Sessão de caixa** — abertura com fundo de troco, sangria/suprimento, fechamento com conferência (contado × esperado)
 - **Relatórios** — por período (com comparativo), por operador, por produto (curva ABC), exportação CSV
 - **Cardápio** — categorias e produtos, ativo/inativo
+- **Bilíngue** — interface em português e inglês, troca na hora (inclusive na tela de login)
 - **Multi-terminal** — sincronização LAN + nuvem, resolução de conflito, relatório consolidado (ver nota abaixo)
 - **Gestão de plano** — limite de terminais/comandas simultâneas, aplicado no backend, configurável sem redeploy
 
@@ -96,9 +101,11 @@ Detalhes completos em [`docs/architecture.md`](docs/architecture.md) (modelo de 
 
 MVP **funcionalmente completo e validado** — todos os épicos planejados (autenticação, mesas/comandas, cardápio, pedidos, fechamento, caixa, sync multi-terminal, gestão de plano, evolução de fluxo de caixa) estão implementados, testados e documentados.
 
-**Não é um produto em produção.** Faltam, deliberadamente fora do escopo até aqui: infraestrutura de deploy do backend (roda só local/dev hoje), gateway de pagamento/cobrança real, assinatura de código do instalador (Windows/macOS), mecanismo de auto-update, e conformidade legal (LGPD, termos de uso). Este repositório é uma demonstração de engenharia ponta a ponta, não um produto pronto pra baixar e vender.
+**Não é um produto em produção.** Faltam, deliberadamente fora do escopo até aqui: infraestrutura de deploy do backend (roda só local/dev hoje), gateway de pagamento/cobrança real, assinatura de código do instalador (Windows/macOS), mecanismo de auto-update, e conformidade legal (LGPD, termos de uso). Este repositório é uma demonstração de engenharia ponta a ponta, não um produto comercial — os instaladores (não assinados) da [página de download](https://jrsousa95.github.io/tabwise/) servem pra experimentar o app sem precisar compilar nada.
 
 ## Rodando localmente
+
+> Só quer usar o app? Baixe o instalador pronto na [página de download](https://jrsousa95.github.io/tabwise/) — não precisa clonar nada.
 
 Pré-requisitos: Node 24+, Docker (pro Postgres local), [toolchain do Tauri](https://tauri.app/start/prerequisites/) (Rust + dependências da plataforma).
 
@@ -107,23 +114,23 @@ Pré-requisitos: Node 24+, Docker (pro Postgres local), [toolchain do Tauri](htt
 npm install
 
 # builda os pacotes compartilhados (sync-engine, shared-types)
-npm run build --workspace=@passa-a-regua/shared-types
-npm run build --workspace=@passa-a-regua/sync-engine
+npm run build --workspace=@tabwise/shared-types
+npm run build --workspace=@tabwise/sync-engine
 
 # app desktop (Tauri) — abre a janela nativa com o sidecar embutido
 npm run dev:tauri
 
 # backend (opcional, só necessário pra testar sync multi-terminal/nuvem)
 docker compose up -d postgres
-npm run dev --workspace=@passa-a-regua/backend
+npm run dev --workspace=@tabwise/backend
 ```
 
 ### Testes
 
 ```bash
-npm test --workspace=@passa-a-regua/sync-engine      # unidade: HLC, reconciliação, relatórios
-npm test --workspace=@passa-a-regua/shared-types      # unidade: schemas de evento
-npm run test:concurrency --workspace=@passa-a-regua/sidecar  # multi-terminal real via LAN
+npm test --workspace=@tabwise/sync-engine      # unidade: HLC, reconciliação, relatórios
+npm test --workspace=@tabwise/shared-types      # unidade: schemas de evento
+npm run test:concurrency --workspace=@tabwise/sidecar  # multi-terminal real via LAN
 ```
 
 ## Estrutura do monorepo

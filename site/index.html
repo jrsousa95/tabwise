@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tabwise — Offline-first POS for bars &amp; restaurants</title>
+    <meta
+      name="description"
+      content="Tabwise is a free, offline-first point of sale for bars and restaurants: tables, tabs, menu, cash register and reports — no internet required."
+    />
+    <link rel="icon" type="image/svg+xml" href="logo.svg" />
+    <meta property="og:title" content="Tabwise — Offline-first POS for bars & restaurants" />
+    <meta property="og:description" content="Tables, tabs, menu, cash register and reports — all working without internet. Free download for Windows and macOS." />
+    <meta property="og:image" content="https://jrsousa95.github.io/tabwise/screenshots/table-map-en.png" />
+    <meta property="og:url" content="https://jrsousa95.github.io/tabwise/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Pacifico&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --brand: #0b4f5e;
+        --brand-strong: #083b46;
+        --brand-soft: #e3eff1;
+        --bg: #f7f9fa;
+        --surface: #ffffff;
+        --text: #12232a;
+        --muted: #52656d;
+        --border: #dbe4e7;
+        --radius: 14px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --brand: #5fb3c4;
+          --brand-strong: #8fcfdc;
+          --brand-soft: #14313a;
+          --bg: #0d1518;
+          --surface: #142026;
+          --text: #e6eef0;
+          --muted: #9db0b6;
+          --border: #24363d;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+      }
+      a { color: var(--brand); }
+      .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+      header.top {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 20px 0;
+      }
+      .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--brand); }
+      .brand img { width: 36px; height: 36px; }
+      .brand span { font-family: Pacifico, cursive; font-size: 26px; line-height: 1; }
+      .top-actions { display: flex; gap: 10px; align-items: center; }
+      .lang {
+        border: 1px solid var(--border); background: var(--surface); color: var(--text);
+        border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+      }
+      .gh { font-size: 14px; font-weight: 600; text-decoration: none; }
+      .hero { text-align: center; padding: 48px 0 32px; }
+      .hero h1 { font-size: clamp(32px, 5vw, 52px); line-height: 1.1; margin: 0 0 16px; letter-spacing: -0.02em; }
+      .hero p.lead { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); max-width: 680px; margin: 0 auto 32px; }
+      .downloads { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+      .btn {
+        display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+        min-width: 230px; padding: 14px 22px; border-radius: var(--radius);
+        text-decoration: none; font-weight: 600; font-size: 17px;
+        border: 1px solid var(--brand); color: var(--brand); background: var(--surface);
+      }
+      .btn small { font-weight: 500; font-size: 13px; opacity: 0.8; }
+      .btn.primary { background: var(--brand); color: #fff; }
+      @media (prefers-color-scheme: dark) { .btn.primary { color: #0d1518; } }
+      .btn:hover { filter: brightness(1.08); }
+      .alt { margin-top: 14px; font-size: 14px; color: var(--muted); }
+      .shot {
+        margin: 40px auto 0; border-radius: var(--radius); overflow: hidden;
+        border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(8, 59, 70, 0.18);
+        max-width: 1000px;
+      }
+      .shot img { display: block; width: 100%; height: auto; }
+      section { padding: 56px 0; }
+      section h2 { font-size: 30px; margin: 0 0 24px; text-align: center; letter-spacing: -0.01em; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+      .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+      .card h3 { margin: 0 0 6px; font-size: 17px; }
+      .card p { margin: 0; color: var(--muted); font-size: 15px; }
+      .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+      .gallery figure { margin: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+      .gallery img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; border-bottom: 1px solid var(--border); }
+      .gallery figcaption { padding: 10px 14px; font-size: 14px; color: var(--muted); }
+      .steps { max-width: 760px; margin: 0 auto; }
+      .steps details { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 12px; }
+      .steps summary { font-weight: 600; cursor: pointer; }
+      .steps ol { margin: 10px 0 0; padding-left: 20px; color: var(--muted); }
+      .tech { background: var(--brand-soft); }
+      .tech p { max-width: 760px; margin: 0 auto 12px; text-align: center; color: var(--muted); }
+      .tags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
+      .tags span { background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600; }
+      footer { padding: 32px 0 48px; text-align: center; color: var(--muted); font-size: 14px; }
+      [data-lang="pt"] [lang="en"], [data-lang="en"] [lang="pt"] { display: none !important; }
+    </style>
+  </head>
+  <body data-lang="en">
+    <div class="wrap">
+      <header class="top">
+        <a class="brand" href="./"><img src="logo.svg" alt="" /><span>Tabwise</span></a>
+        <div class="top-actions">
+          <a class="gh" href="https://github.com/jrsousa95/tabwise">GitHub</a>
+          <button class="lang" type="button" id="lang-toggle">PT</button>
+        </div>
+      </header>
+
+      <div class="hero">
+        <h1>
+          <span lang="en">The point of sale that keeps working when the Wi-Fi doesn't.</span>
+          <span lang="pt">O PDV que continua funcionando quando o Wi-Fi cai.</span>
+        </h1>
+        <p class="lead">
+          <span lang="en">Tables, tabs, menu, cash register and reports for small bars and restaurants — offline-first, free to download, available in English and Portuguese.</span>
+          <span lang="pt">Mesas, comandas, cardápio, caixa e relatórios para bares e restaurantes pequenos — offline-first, download gratuito, em português e inglês.</span>
+        </p>
+        <div class="downloads">
+          <a class="btn" id="dl-windows" href="https://github.com/jrsousa95/tabwise/releases/latest/download/Tabwise-windows-x64-setup.exe">
+            <span lang="en">Download for Windows</span><span lang="pt">Baixar para Windows</span>
+            <small>Windows 10/11 · x64</small>
+          </a>
+          <a class="btn" id="dl-mac" href="https://github.com/jrsousa95/tabwise/releases/latest/download/Tabwise-macos-arm64.dmg">
+            <span lang="en">Download for macOS</span><span lang="pt">Baixar para macOS</span>
+            <small>Apple Silicon (M1+)</small>
+          </a>
+        </div>
+        <p class="alt">
+          <span lang="en">Also available: <a href="https://github.com/jrsousa95/tabwise/releases/latest/download/Tabwise-windows-x64.msi">Windows .msi</a> · <a href="https://github.com/jrsousa95/tabwise/releases/latest">all releases</a></span>
+          <span lang="pt">Também disponível: <a href="https://github.com/jrsousa95/tabwise/releases/latest/download/Tabwise-windows-x64.msi">Windows .msi</a> · <a href="https://github.com/jrsousa95/tabwise/releases/latest">todas as versões</a></span>
+        </p>
+        <div class="shot">
+          <img lang="en" src="screenshots/table-map-en.png" alt="Tabwise table map" />
+          <img lang="pt" src="screenshots/table-map-pt.png" alt="Mapa de mesas do Tabwise" />
+        </div>
+      </div>
+    </div>
+
+    <section>
+      <div class="wrap">
+        <h2><span lang="en">Everything a small venue needs</span><span lang="pt">Tudo que um estabelecimento pequeno precisa</span></h2>
+        <div class="grid">
+          <div class="card">
+            <h3><span lang="en">Tables &amp; tabs</span><span lang="pt">Mesas e comandas</span></h3>
+            <p><span lang="en">Open, transfer and close tabs from a live table map. Walk-in tabs for counter sales.</span><span lang="pt">Abra, transfira e feche comandas a partir do mapa de mesas. Comanda avulsa pro balcão.</span></p>
+          </div>
+          <div class="card">
+            <h3><span lang="en">Closing &amp; split bill</span><span lang="pt">Fechamento e divisão</span></h3>
+            <p><span lang="en">Service charge, split bill, change and multiple payment methods.</span><span lang="pt">Taxa de serviço, divisão de conta, troco e várias formas de pagamento.</span></p>
+          </div>
+          <div class="card">
+            <h3><span lang="en">Cash register</span><span lang="pt">Caixa</span></h3>
+            <p><span lang="en">Opening float, pay-ins and pay-outs, end-of-shift count (counted vs. expected).</span><span lang="pt">Fundo de troco, sangria e suprimento, conferência no fechamento (contado × esperado).</span></p>
+          </div>
+          <div class="card">
+            <h3><span lang="en">Reports</span><span lang="pt">Relatórios</span></h3>
+            <p><span lang="en">Sales by period, by staff member and by product (ABC analysis), with CSV export.</span><span lang="pt">Vendas por período, por operador e por produto (curva ABC), com exportação CSV.</span></p>
+          </div>
+          <div class="card">
+            <h3><span lang="en">PIN login &amp; roles</span><span lang="pt">Login por PIN e papéis</span></h3>
+            <p><span lang="en">Owner, cashier and server roles with different permissions. Fast PIN login.</span><span lang="pt">Papéis de dono, caixa e garçom com permissões diferentes. Login rápido por PIN.</span></p>
+          </div>
+          <div class="card">
+            <h3><span lang="en">Truly offline</span><span lang="pt">Offline de verdade</span></h3>
+            <p><span lang="en">Your data lives on your machine (SQLite). Nothing waits on a server.</span><span lang="pt">Seus dados ficam na sua máquina (SQLite). Nada fica esperando servidor.</span></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2><span lang="en">Screenshots</span><span lang="pt">Telas</span></h2>
+        <div class="gallery" id="gallery"></div>
+      </div>
+    </section>
+
+    <section class="tech">
+      <div class="wrap">
+        <h2><span lang="en">Under the hood</span><span lang="pt">Por dentro</span></h2>
+        <p>
+          <span lang="en">Each terminal keeps an append-only event log. Syncing — between terminals on the LAN or with the cloud — means exchanging and merging logs, ordered by a Hybrid Logical Clock, with deterministic conflict resolution. The same sync engine runs on the desktop and on the server.</span>
+          <span lang="pt">Cada terminal mantém um log de eventos append-only. Sincronizar — entre terminais na LAN ou com a nuvem — é trocar e mesclar logs, ordenados por um Hybrid Logical Clock, com resolução de conflito determinística. O mesmo motor de sync roda no desktop e no servidor.</span>
+        </p>
+        <div class="tags">
+          <span>Tauri 2</span><span>Rust</span><span>React 19</span><span>TypeScript</span><span>Node.js</span><span>SQLite</span><span>PostgreSQL</span><span>Event sourcing</span><span>HLC</span><span>GitHub Actions</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap steps">
+        <h2><span lang="en">Installing</span><span lang="pt">Instalação</span></h2>
+        <details open>
+          <summary>Windows</summary>
+          <ol>
+            <li lang="en">Download and run <code>Tabwise-windows-x64-setup.exe</code>.</li>
+            <li lang="pt">Baixe e execute <code>Tabwise-windows-x64-setup.exe</code>.</li>
+            <li lang="en">The installer isn't code-signed yet, so SmartScreen may warn you: click <strong>More info → Run anyway</strong>.</li>
+            <li lang="pt">O instalador ainda não é assinado, então o SmartScreen pode avisar: clique em <strong>Mais informações → Executar assim mesmo</strong>.</li>
+            <li lang="en">Open Tabwise and create the first (owner) staff member.</li>
+            <li lang="pt">Abra o Tabwise e cadastre o primeiro operador (dono).</li>
+          </ol>
+        </details>
+        <details>
+          <summary>macOS</summary>
+          <ol>
+            <li lang="en">Open <code>Tabwise-macos-arm64.dmg</code> and drag Tabwise to Applications.</li>
+            <li lang="pt">Abra <code>Tabwise-macos-arm64.dmg</code> e arraste o Tabwise para Aplicativos.</li>
+            <li lang="en">The app isn't notarized by Apple yet. On first launch, if macOS blocks it, go to <strong>System Settings → Privacy &amp; Security → Open Anyway</strong>.</li>
+            <li lang="pt">O app ainda não é notarizado pela Apple. Na primeira abertura, se o macOS bloquear, vá em <strong>Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim</strong>.</li>
+            <li lang="en">If it says the app "is damaged", run <code>xattr -cr /Applications/Tabwise.app</code> in Terminal and open it again.</li>
+            <li lang="pt">Se aparecer que o app "está danificado", rode <code>xattr -cr /Applications/Tabwise.app</code> no Terminal e abra de novo.</li>
+          </ol>
+        </details>
+      </div>
+    </section>
+
+    <footer>
+      <div class="wrap">
+        <span lang="en">Built by</span><span lang="pt">Feito por</span>
+        <a href="https://github.com/jrsousa95">Eudes Junior</a> ·
+        <a href="https://github.com/jrsousa95/tabwise"><span lang="en">Source code</span><span lang="pt">Código-fonte</span></a>
+      </div>
+    </footer>
+
+    <script>
+      (function () {
+        var shots = [
+          { file: "login", en: "PIN login, fully offline", pt: "Login por PIN, 100% offline" },
+          { file: "order", en: "Tab — product search, items, subtotal", pt: "Comanda — busca de produto, itens, subtotal" },
+          { file: "closing", en: "Closing — service charge, split bill, payment", pt: "Fechamento — taxa de serviço, divisão, pagamento" },
+          { file: "cash-register", en: "Cash register — totals by payment method", pt: "Caixa — totais por forma de pagamento" },
+          { file: "reports", en: "Reports — period, staff, ABC analysis", pt: "Relatórios — período, operador, curva ABC" },
+          { file: "catalog", en: "Menu management", pt: "Gestão do cardápio" }
+        ];
+        var gallery = document.getElementById("gallery");
+        shots.forEach(function (s) {
+          ["en", "pt"].forEach(function (lang) {
+            var fig = document.createElement("figure");
+            fig.setAttribute("lang", lang);
+            var img = document.createElement("img");
+            img.src = "screenshots/" + s.file + "-" + lang + ".png";
+            img.alt = s[lang];
+            img.loading = "lazy";
+            var cap = document.createElement("figcaption");
+            cap.textContent = s[lang];
+            var link = document.createElement("a");
+            link.href = img.src;
+            link.target = "_blank";
+            link.rel = "noopener";
+            link.appendChild(img);
+            fig.appendChild(link);
+            fig.appendChild(cap);
+            gallery.appendChild(fig);
+          });
+        });
+
+        var stored = null;
+        try { stored = localStorage.getItem("tabwise-site-lang"); } catch (e) {}
+        var lang = stored || ((navigator.language || "").toLowerCase().indexOf("pt") === 0 ? "pt" : "en");
+        var toggle = document.getElementById("lang-toggle");
+        function apply(next) {
+          lang = next;
+          document.body.setAttribute("data-lang", lang);
+          document.documentElement.lang = lang === "pt" ? "pt-BR" : "en";
+          toggle.textContent = lang === "pt" ? "EN" : "PT";
+          try { localStorage.setItem("tabwise-site-lang", lang); } catch (e) {}
+        }
+        toggle.addEventListener("click", function () { apply(lang === "pt" ? "en" : "pt"); });
+        apply(lang);
+
+        // Destaca o botão do sistema operacional de quem está visitando.
+        var ua = navigator.userAgent;
+        var primary = /Mac/.test(ua) ? "dl-mac" : "dl-windows";
+        document.getElementById(primary).classList.add("primary");
+      })();
+    </script>
+  </body>
+</html>

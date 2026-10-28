@@ -1,0 +1,38 @@
+name: Pages
+
+# Publica a página de download (pasta site/) no GitHub Pages:
+# https://jrsousa95.github.io/tabwise/ — hospedagem e domínio gratuitos.
+# Os botões de download apontam pros assets do último GitHub Release
+# (ver release.yml), então o site não precisa mudar a cada versão.
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
