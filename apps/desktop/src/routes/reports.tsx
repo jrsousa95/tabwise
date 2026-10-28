@@ -13,12 +13,100 @@ import { useTablesAndOrders } from "../lib/tables";
 import { formatCentsToBRL } from "../lib/money";
 import { buildCashRegisterSummaryCsv, downloadCsv } from "../lib/csv";
 import type { CashRegisterSummary } from "../lib/cash-register";
+import { defineMessages, formatNumber, useMessages } from "../lib/i18n";
+
+const messages = defineMessages({
+  pt: {
+    closedOrders: (count: number) => `Comandas fechadas: ${count}`,
+    subtotal: "Subtotal",
+    serviceCharge: "Taxa de serviço",
+    totalSold: "Total vendido",
+    byPaymentMethod: "Por forma de pagamento",
+    cash: "Dinheiro",
+    card: "Cartão",
+    pix: "Pix",
+    comparisonHeading: "Comparativo com o período anterior",
+    totalSoldSelected: "Total vendido — período escolhido",
+    totalSoldPrevious: "Total vendido — período anterior",
+    variance: "Variação",
+    byOperatorHeading: "Por operador",
+    noOperators: "Nenhum operador cadastrado.",
+    operator: "Operador",
+    closedOrdersColumn: "Comandas fechadas",
+    itemsCanceled: "Itens cancelados",
+    byProductHeading: "Por produto",
+    noProductsSold: "Nenhum produto vendido no período.",
+    product: "Produto",
+    quantitySold: "Quantidade vendida",
+    tableOrder: (table: string) => `Comanda ${table}`,
+    standaloneOrder: (number: string) => `Comanda avulsa #${number}`,
+    title: "Relatório por período",
+    intro:
+      "Escolha um intervalo de datas (bounds inclusivos nas duas pontas) pra ver o resumo agregado e comparar com o período equivalente imediatamente anterior.",
+    from: "De",
+    fromLabel: "Data inicial do período",
+    to: "Até",
+    toLabel: "Data final do período",
+    viewReport: "Ver relatório",
+    loading: "Carregando...",
+    csvFilename: (fromDate: string, toDate: string) => `relatorio-periodo-${fromDate}-a-${toDate}.csv`,
+    exportCsv: "Exportar CSV",
+    selectedPeriod: (fromDate: string, toDate: string) => `Período escolhido (${fromDate} a ${toDate})`,
+    previousPeriod: "Período anterior",
+    pendingOrdersHeading: (count: number) => `Comandas pendentes (${count})`,
+    pendingNotice: "Comandas ainda abertas agora — não entram em nenhum dos dois totais acima.",
+    pending: "pendente",
+    noPendingOrders: "Nenhuma comanda pendente.",
+  },
+  en: {
+    closedOrders: (count: number) => `Closed tabs: ${count}`,
+    subtotal: "Subtotal",
+    serviceCharge: "Service charge",
+    totalSold: "Total sales",
+    byPaymentMethod: "By payment method",
+    cash: "Cash",
+    card: "Card",
+    pix: "Pix",
+    comparisonHeading: "Comparison with previous period",
+    totalSoldSelected: "Total sales — selected period",
+    totalSoldPrevious: "Total sales — previous period",
+    variance: "Change",
+    byOperatorHeading: "By staff member",
+    noOperators: "No staff members added.",
+    operator: "Staff member",
+    closedOrdersColumn: "Closed tabs",
+    itemsCanceled: "Voided items",
+    byProductHeading: "By product",
+    noProductsSold: "No products sold in this period.",
+    product: "Product",
+    quantitySold: "Qty sold",
+    tableOrder: (table: string) => `${table} tab`,
+    standaloneOrder: (number: string) => `Walk-in tab #${number}`,
+    title: "Period report",
+    intro:
+      "Pick a date range (both ends inclusive) to see the combined summary and compare it with the same-length period right before it.",
+    from: "From",
+    fromLabel: "Period start date",
+    to: "To",
+    toLabel: "Period end date",
+    viewReport: "View report",
+    loading: "Loading...",
+    csvFilename: (fromDate: string, toDate: string) => `period-report-${fromDate}-to-${toDate}.csv`,
+    exportCsv: "Export CSV",
+    selectedPeriod: (fromDate: string, toDate: string) => `Selected period (${fromDate} to ${toDate})`,
+    previousPeriod: "Previous period",
+    pendingOrdersHeading: (count: number) => `Pending tabs (${count})`,
+    pendingNotice: "Tabs open right now — not included in either total above.",
+    pending: "pending",
+    noPendingOrders: "No pending tabs.",
+  },
+});
 
 /**
  * "YYYY-MM-DD" pro `<input type="date">` — sempre no fuso local de quem
  * está usando o app (mesmo racional de `localDateKey` no sync-engine).
  * Duplica a lógica em vez de importar `localDateKey` porque o frontend não
- * depende de `@passa-a-regua/sync-engine` — só conversa com o sidecar via
+ * depende de `@tabwise/sync-engine` — só conversa com o sidecar via
  * HTTP (mesmo racional de `localDateKeyForTest` em
  * `apps/desktop/sidecar/test/concurrency-scenario.mjs`).
  */
@@ -36,37 +124,38 @@ function todayDateKey(): string {
  * quanto pro período anterior — só o título muda.
  */
 function SummaryBlock({ title, summary }: { title: string; summary: CashRegisterSummary }) {
+  const m = useMessages(messages);
   return (
     <div className="table-map-section">
       <h2 className="section-heading">{title}</h2>
-      <p>Comandas fechadas: {summary.closedOrdersCount}</p>
+      <p>{m.closedOrders(summary.closedOrdersCount)}</p>
       <div className="summary">
         <div className="summary-row">
-          <span className="type-label">Subtotal</span>
+          <span className="type-label">{m.subtotal}</span>
           <span className="amount">{formatCentsToBRL(summary.subtotalCents)}</span>
         </div>
         <div className="summary-row">
-          <span className="type-label">Taxa de serviço</span>
+          <span className="type-label">{m.serviceCharge}</span>
           <span className="amount">{formatCentsToBRL(summary.serviceFeeCents)}</span>
         </div>
         <div className="summary-row summary-row-total">
-          <span className="type-label">Total vendido</span>
+          <span className="type-label">{m.totalSold}</span>
           <span className="amount amount-display">{formatCentsToBRL(summary.totalSoldCents)}</span>
         </div>
       </div>
 
-      <h3 className="subsection-heading">Por forma de pagamento</h3>
+      <h3 className="subsection-heading">{m.byPaymentMethod}</h3>
       <div className="summary">
         <div className="summary-row">
-          <span className="type-label">Dinheiro</span>
+          <span className="type-label">{m.cash}</span>
           <span className="amount">{formatCentsToBRL(summary.totalByPaymentMethod.cash)}</span>
         </div>
         <div className="summary-row">
-          <span className="type-label">Cartão</span>
+          <span className="type-label">{m.card}</span>
           <span className="amount">{formatCentsToBRL(summary.totalByPaymentMethod.card)}</span>
         </div>
         <div className="summary-row">
-          <span className="type-label">Pix</span>
+          <span className="type-label">{m.pix}</span>
           <span className="amount">{formatCentsToBRL(summary.totalByPaymentMethod.pix)}</span>
         </div>
       </div>
@@ -81,6 +170,7 @@ function SummaryBlock({ title, summary }: { title: string; summary: CashRegister
  * vendeu nada (divisão por zero não tem leitura útil pro dono).
  */
 function ComparisonBlock({ current, previous }: { current: CashRegisterSummary; previous: CashRegisterSummary }) {
+  const m = useMessages(messages);
   // Story 2.4 — cálculo e texto final extraídos pra `computeSummaryDelta` /
   // `formatDelta` (lib/reports.ts), reaproveitados também pela exportação
   // CSV, pra garantir que os dois NUNCA divirjam no texto de variação
@@ -90,18 +180,18 @@ function ComparisonBlock({ current, previous }: { current: CashRegisterSummary; 
 
   return (
     <div className="table-map-section">
-      <h2 className="section-heading">Comparativo com o período anterior</h2>
+      <h2 className="section-heading">{m.comparisonHeading}</h2>
       <div className="summary">
         <div className="summary-row">
-          <span className="type-label">Total vendido — período escolhido</span>
+          <span className="type-label">{m.totalSoldSelected}</span>
           <span className="amount">{formatCentsToBRL(current.totalSoldCents)}</span>
         </div>
         <div className="summary-row">
-          <span className="type-label">Total vendido — período anterior</span>
+          <span className="type-label">{m.totalSoldPrevious}</span>
           <span className="amount">{formatCentsToBRL(previous.totalSoldCents)}</span>
         </div>
         <div className="summary-row summary-row-total">
-          <span className="type-label">Variação</span>
+          <span className="type-label">{m.variance}</span>
           <span className="amount amount-display">{deltaText}</span>
         </div>
       </div>
@@ -117,19 +207,20 @@ function ComparisonBlock({ current, previous }: { current: CashRegisterSummary; 
  * por total vendido desc (mesma ordem devolvida pela rota).
  */
 function ByOperatorBlock({ byOperator }: { byOperator: CashRegisterSummaryByOperator[] }) {
+  const m = useMessages(messages);
   return (
     <div className="table-map-section">
-      <h2 className="section-heading">Por operador</h2>
+      <h2 className="section-heading">{m.byOperatorHeading}</h2>
       {byOperator.length === 0 ? (
-        <p className="catalog-empty">Nenhum operador cadastrado.</p>
+        <p className="catalog-empty">{m.noOperators}</p>
       ) : (
         <table className="catalog-table">
           <thead>
             <tr>
-              <th>Operador</th>
-              <th>Total vendido</th>
-              <th>Comandas fechadas</th>
-              <th>Itens cancelados</th>
+              <th>{m.operator}</th>
+              <th>{m.totalSold}</th>
+              <th>{m.closedOrdersColumn}</th>
+              <th>{m.itemsCanceled}</th>
             </tr>
           </thead>
           <tbody>
@@ -157,18 +248,19 @@ function ByOperatorBlock({ byOperator }: { byOperator: CashRegisterSummaryByOper
  * pela rota — curva ABC: contribuição de receita, não quantidade).
  */
 function ByProductBlock({ byProduct }: { byProduct: CashRegisterSummaryByProduct[] }) {
+  const m = useMessages(messages);
   return (
     <div className="table-map-section">
-      <h2 className="section-heading">Por produto</h2>
+      <h2 className="section-heading">{m.byProductHeading}</h2>
       {byProduct.length === 0 ? (
-        <p className="catalog-empty">Nenhum produto vendido no período.</p>
+        <p className="catalog-empty">{m.noProductsSold}</p>
       ) : (
         <table className="catalog-table">
           <thead>
             <tr>
-              <th>Produto</th>
-              <th>Quantidade vendida</th>
-              <th>Total vendido</th>
+              <th>{m.product}</th>
+              <th>{m.quantitySold}</th>
+              <th>{m.totalSold}</th>
             </tr>
           </thead>
           <tbody>
@@ -178,7 +270,7 @@ function ByProductBlock({ byProduct }: { byProduct: CashRegisterSummaryByProduct
                 {/* Achado no code review, 2026-09-29 (blind-hunter): quantidade sem
                     formatação de milhar enquanto o valor ao lado já usa
                     formatCentsToBRL — inconsistente na mesma linha. */}
-                <td>{row.quantitySold.toLocaleString("pt-BR")}</td>
+                <td>{formatNumber(row.quantitySold)}</td>
                 <td className="amount">{formatCentsToBRL(row.totalSoldCents)}</td>
               </tr>
             ))}
@@ -198,6 +290,7 @@ function ByProductBlock({ byProduct }: { byProduct: CashRegisterSummaryByProduct
  * calendário — `computeCashRegisterSummaryForRange`, `reporting.ts`).
  */
 function Reports() {
+  const m = useMessages(messages);
   const [fromDate, setFromDate] = useState(todayDateKey());
   const [toDate, setToDate] = useState(todayDateKey());
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -246,27 +339,27 @@ function Reports() {
   // ausente numa comanda avulsa.
   const orderLabel = (order: { origin: { source: "table" | "standalone"; number?: number }; currentTableId?: string }) =>
     order.origin.source === "table"
-      ? `Comanda ${tables.find((t) => t.id === order.currentTableId)?.identifier ?? "?"}`
-      : `Comanda avulsa #${order.origin.number ?? "?"}`;
+      ? m.tableOrder(tables.find((t) => t.id === order.currentTableId)?.identifier ?? "?")
+      : m.standaloneOrder(String(order.origin.number ?? "?"));
 
   return (
     <section>
-      <h1>Relatório por período</h1>
-      <p>Escolha um intervalo de datas (bounds inclusivos nas duas pontas) pra ver o resumo agregado e comparar com o período equivalente imediatamente anterior.</p>
+      <h1>{m.title}</h1>
+      <p>{m.intro}</p>
 
       <form onSubmit={handleSubmit} className="inline-form">
         <label>
-          De
+          {m.from}
           <input
             type="date"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
-            aria-label="Data inicial do período"
+            aria-label={m.fromLabel}
             required
           />
         </label>
         <label>
-          Até
+          {m.to}
           <input
             type="date"
             value={toDate}
@@ -276,12 +369,12 @@ function Reports() {
             // servidor — o próprio seletor nativo já bloqueia escolher uma
             // data "Até" anterior à "De".
             min={fromDate}
-            aria-label="Data final do período"
+            aria-label={m.toLabel}
             required
           />
         </label>
         <button type="submit" className="button-primary" disabled={status === "loading"}>
-          Ver relatório
+          {m.viewReport}
         </button>
       </form>
       {error && (
@@ -290,7 +383,7 @@ function Reports() {
         </p>
       )}
 
-      {status === "loading" && <p>Carregando...</p>}
+      {status === "loading" && <p>{m.loading}</p>}
 
       {result && status === "ready" && (
         <>
@@ -305,13 +398,13 @@ function Reports() {
             type="button"
             className="button-secondary"
             // fromDate/toDate vêm de <input type="date">, sempre "YYYY-MM-DD" — seguro interpolar direto no nome do arquivo.
-            onClick={() => downloadCsv(`relatorio-periodo-${fromDate}-a-${toDate}.csv`, buildCashRegisterSummaryCsv(fromDate, toDate, result))}
+            onClick={() => downloadCsv(m.csvFilename(fromDate, toDate), buildCashRegisterSummaryCsv(fromDate, toDate, result))}
           >
-            Exportar CSV
+            {m.exportCsv}
           </button>
           <ComparisonBlock current={result.current} previous={result.previous} />
-          <SummaryBlock title={`Período escolhido (${fromDate} a ${toDate})`} summary={result.current} />
-          <SummaryBlock title="Período anterior" summary={result.previous} />
+          <SummaryBlock title={m.selectedPeriod(fromDate, toDate)} summary={result.current} />
+          <SummaryBlock title={m.previousPeriod} summary={result.previous} />
           {byOperator && <ByOperatorBlock byOperator={byOperator} />}
           {byProduct && <ByProductBlock byProduct={byProduct} />}
 
@@ -320,16 +413,16 @@ function Reports() {
               Caixa, Épico 6); mostrado uma única vez (idêntico em `current` e
               `previous`, mesmo cálculo). */}
           <div className="table-map-section">
-            <h2 className="section-heading">Comandas pendentes ({result.current.pendingOrders.length})</h2>
-            <p>Comandas ainda abertas agora — não entram em nenhum dos dois totais acima.</p>
+            <h2 className="section-heading">{m.pendingOrdersHeading(result.current.pendingOrders.length)}</h2>
+            <p>{m.pendingNotice}</p>
             <ul className="catalog-list">
               {result.current.pendingOrders.map((o) => (
                 <li key={o.id}>
                   <a href={`#/orders/${o.id}`}>{orderLabel(o)}</a>
-                  <span className="status-badge status-badge-warning">pendente</span>
+                  <span className="status-badge status-badge-warning">{m.pending}</span>
                 </li>
               ))}
-              {result.current.pendingOrders.length === 0 && <li className="catalog-empty">Nenhuma comanda pendente.</li>}
+              {result.current.pendingOrders.length === 0 && <li className="catalog-empty">{m.noPendingOrders}</li>}
             </ul>
           </div>
         </>

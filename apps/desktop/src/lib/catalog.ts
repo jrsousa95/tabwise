@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { SIDECAR_URL } from "./sidecar";
+import { localizeError } from "./server-errors";
 
 export type Category = { id: string; name: string };
 export type Product = { id: string; name: string; priceCents: number; categoryId: string; active: boolean };
@@ -43,7 +44,7 @@ export async function createCategory(name: string): Promise<{ ok: true } | { ok:
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    return { ok: false, error: body?.error ?? "não foi possível cadastrar a categoria" };
+    return { ok: false, error: localizeError(body?.error ?? "não foi possível cadastrar a categoria") };
   }
   return { ok: true };
 }
@@ -61,7 +62,7 @@ export async function createProduct(input: {
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    return { ok: false, error: body?.error ?? "não foi possível cadastrar o produto" };
+    return { ok: false, error: localizeError(body?.error ?? "não foi possível cadastrar o produto") };
   }
   return { ok: true };
 }
@@ -74,7 +75,7 @@ export async function setProductActive(productId: string, active: boolean): Prom
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    return { ok: false, error: body?.error ?? "não foi possível atualizar o produto" };
+    return { ok: false, error: localizeError(body?.error ?? "não foi possível atualizar o produto") };
   }
   return { ok: true };
 }
@@ -88,7 +89,7 @@ export async function renameCategory(categoryId: string, name: string): Promise<
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    return { ok: false, error: body?.error ?? "não foi possível renomear a categoria" };
+    return { ok: false, error: localizeError(body?.error ?? "não foi possível renomear a categoria") };
   }
   return { ok: true };
 }
@@ -98,7 +99,7 @@ export async function removeCategory(categoryId: string): Promise<{ ok: true } |
   const res = await fetch(`${SIDECAR_URL}/categories/${categoryId}`, { method: "DELETE" });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    return { ok: false, error: body?.error ?? "não foi possível remover a categoria" };
+    return { ok: false, error: localizeError(body?.error ?? "não foi possível remover a categoria") };
   }
   return { ok: true };
 }
@@ -112,7 +113,7 @@ export async function renameProduct(productId: string, name: string): Promise<{ 
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    return { ok: false, error: body?.error ?? "não foi possível renomear o produto" };
+    return { ok: false, error: localizeError(body?.error ?? "não foi possível renomear o produto") };
   }
   return { ok: true };
 }
@@ -122,7 +123,7 @@ export async function removeProduct(productId: string): Promise<{ ok: true } | {
   const res = await fetch(`${SIDECAR_URL}/products/${productId}`, { method: "DELETE" });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    return { ok: false, error: body?.error ?? "não foi possível remover o produto" };
+    return { ok: false, error: localizeError(body?.error ?? "não foi possível remover o produto") };
   }
   return { ok: true };
 }

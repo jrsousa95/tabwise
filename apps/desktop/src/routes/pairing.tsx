@@ -3,6 +3,76 @@ import { Link } from "react-router-dom";
 import { useOperators } from "../lib/operators";
 import { useSession } from "../lib/session";
 import { useLanToken, adoptLanToken, useManualHost, saveManualHost, clearManualHost, useCloudStatus } from "../lib/pairing";
+import { defineMessages, useMessages } from "../lib/i18n";
+
+const messages = defineMessages({
+  pt: {
+    loading: "Carregando...",
+    loginRequired: "Faça login antes de acessar o pareamento.",
+    ownerOnly: "Só o dono pode configurar o pareamento entre terminais.",
+    backToSettings: "← Voltar às configurações",
+    title: "Pareamento de terminais",
+    blocked: "bloqueado",
+    connectedBadge: "conectado",
+    connectingBadge: "conectando...",
+    cloudConnected: "Conectado à nuvem.",
+    cloudConnecting: "Ainda não conectado à nuvem — tentando...",
+    bootstrapHint:
+      "Este terminal ainda não tem nenhum operador. Digite abaixo o código de pareamento de um terminal já configurado pra sincronizar (mesas, cardápio, operadores) em vez de cadastrar tudo de novo.",
+    adoptHeading: "Adotar código de outro terminal",
+    adoptPlaceholder: "Código do outro terminal",
+    adoptAriaLabel: "Código de pareamento",
+    adopt: "Adotar",
+    adoptSuccess: "Código adotado — a sincronização com o outro terminal começa no próximo ciclo (a cada 5s).",
+    thisTerminalCode: "Código deste terminal",
+    thisTerminalCodeHint:
+      "Leia este código em um terminal novo pra pareá-lo com este (ele vai adotar todos os dados já cadastrados aqui).",
+    copied: "Copiado!",
+    copy: "Copiar",
+    manualHostHeading: "Host manual (fallback)",
+    manualHostHint:
+      "Os terminais se acham sozinhos na rede automaticamente (mDNS). Se isso falhar (rede corporativa que bloqueia multicast, por exemplo), configure aqui o IP e a porta do outro terminal manualmente.",
+    configured: "Configurado:",
+    remove: "Remover",
+    ipPlaceholder: "IP (ex: 192.168.1.10)",
+    portPlaceholder: "Porta (ex: 4550)",
+    save: "Salvar",
+    back: "← Voltar",
+  },
+  en: {
+    loading: "Loading...",
+    loginRequired: "Log in before accessing pairing.",
+    ownerOnly: "Only the owner can set up terminal pairing.",
+    backToSettings: "← Back to settings",
+    title: "Terminal pairing",
+    blocked: "blocked",
+    connectedBadge: "connected",
+    connectingBadge: "connecting...",
+    cloudConnected: "Connected to the cloud.",
+    cloudConnecting: "Not connected to the cloud yet — retrying...",
+    bootstrapHint:
+      "This terminal doesn't have any staff members yet. Enter the pairing code from a terminal that's already set up below to sync its data (tables, menu, staff) instead of registering everything again.",
+    adoptHeading: "Use another terminal's code",
+    adoptPlaceholder: "Other terminal's code",
+    adoptAriaLabel: "Pairing code",
+    adopt: "Pair",
+    adoptSuccess: "Code accepted — sync with the other terminal starts on the next cycle (every 5s).",
+    thisTerminalCode: "This terminal's code",
+    thisTerminalCodeHint:
+      "Enter this code on a new terminal to pair it with this one (it will take over all the data already registered here).",
+    copied: "Copied!",
+    copy: "Copy",
+    manualHostHeading: "Manual host (fallback)",
+    manualHostHint:
+      "Terminals find each other on the network automatically (mDNS). If that fails (e.g. a corporate network that blocks multicast), enter the other terminal's IP and port here manually.",
+    configured: "Configured:",
+    remove: "Remove",
+    ipPlaceholder: "IP (e.g. 192.168.1.10)",
+    portPlaceholder: "Port (e.g. 4550)",
+    save: "Save",
+    back: "← Back",
+  },
+});
 
 /**
  * M9 (ARCH §2, §7) — tela de Pareamento. Mesmo padrão de dois modos de
@@ -12,6 +82,7 @@ import { useLanToken, adoptLanToken, useManualHost, saveManualHost, clearManualH
  * configura o fallback manual de IP/porta).
  */
 function Pairing() {
+  const m = useMessages(messages);
   const { operators, status: operatorsStatus } = useOperators();
   const { operator: currentOperator, status: sessionStatus } = useSession();
   const isBootstrap = operatorsStatus === "ready" && operators.length === 0;
@@ -90,7 +161,7 @@ function Pairing() {
   if (loading) {
     return (
       <main className="container">
-        <p>Carregando...</p>
+        <p>{m.loading}</p>
       </main>
     );
   }
@@ -98,7 +169,7 @@ function Pairing() {
   if (!isBootstrap && !currentOperator) {
     return (
       <main className="container">
-        <p>Faça login antes de acessar o pareamento.</p>
+        <p>{m.loginRequired}</p>
       </main>
     );
   }
@@ -106,7 +177,7 @@ function Pairing() {
   if (!isBootstrap && currentOperator?.role !== "owner") {
     return (
       <main className="container">
-        <p>Só o dono pode configurar o pareamento entre terminais.</p>
+        <p>{m.ownerOnly}</p>
       </main>
     );
   }
@@ -122,64 +193,61 @@ function Pairing() {
       {!isBootstrap && (
         <div className="operator-form-actions">
           <Link to="/settings" className="button-secondary">
-            ← Voltar às configurações
+            {m.backToSettings}
           </Link>
         </div>
       )}
-      <h1>Pareamento de terminais</h1>
+      <h1>{m.title}</h1>
 
       {/* M10 (PRD 8.1) — mensagem clara de upgrade quando o plano bloqueou
           este terminal na nuvem; sem isso o bloqueio ficaria silencioso
           (o terminal continua funcionando localmente, só não sincroniza). */}
       {cloudStatus?.blockedReason && (
         <p className="status-line" role="status">
-          <span className="status-badge status-badge-danger">bloqueado</span>
+          <span className="status-badge status-badge-danger">{m.blocked}</span>
           {cloudStatus.blockedReason}
         </p>
       )}
       {cloudStatus && !cloudStatus.blockedReason && (
         <p className="status-line" role="status">
           <span className={`status-badge ${cloudStatus.connected ? "status-badge-success" : "status-badge-neutral"}`}>
-            {cloudStatus.connected ? "conectado" : "conectando..."}
+            {cloudStatus.connected ? m.connectedBadge : m.connectingBadge}
           </span>
-          {cloudStatus.connected ? "Conectado à nuvem." : "Ainda não conectado à nuvem — tentando..."}
+          {cloudStatus.connected ? m.cloudConnected : m.cloudConnecting}
         </p>
       )}
 
       {isBootstrap && (
-        <p>
-          Este terminal ainda não tem nenhum operador. Digite abaixo o código de pareamento de um terminal já
-          configurado pra sincronizar (mesas, cardápio, operadores) em vez de cadastrar tudo de novo.
-        </p>
+        <p>{m.bootstrapHint}</p>
       )}
 
       <div className="table-map-section">
-        <h2>Adotar código de outro terminal</h2>
+        <h2>{m.adoptHeading}</h2>
         <form onSubmit={handleAdopt} className="inline-form">
           <input
             value={adoptInput}
             onChange={(e) => setAdoptInput(e.target.value)}
-            placeholder="Código do outro terminal"
-            aria-label="Código de pareamento"
+            placeholder={m.adoptPlaceholder}
+            aria-label={m.adoptAriaLabel}
           />
           <button type="submit" className="button-primary" disabled={!adoptInput.trim() || adoptSubmitting}>
-            Adotar
+            {m.adopt}
           </button>
         </form>
         {adoptError && <p className="form-error" role="alert">{adoptError}</p>}
-        {adoptSuccess && <p>Código adotado — a sincronização com o outro terminal começa no próximo ciclo (a cada 5s).</p>}
+        {adoptSuccess && <p>{m.adoptSuccess}</p>}
       </div>
 
       {!isBootstrap && (
         <div className="table-map-section">
-          <h2>Código deste terminal</h2>
-          <p>Leia este código em um terminal novo pra pareá-lo com este (ele vai adotar todos os dados já cadastrados aqui).</p>
-          {tokenStatus === "loading" && <p>Carregando...</p>}
+          <h2>{m.thisTerminalCode}</h2>
+          <p>{m.thisTerminalCodeHint}</p>
+          {tokenStatus === "loading" && <p>{m.loading}</p>}
           {token && (
             <div className="status-line pairing-token">
               <code>{token}</code>
               <button type="button" className="button-secondary" onClick={handleCopyToken}>
-                {copied ? "Copiado!" : "Copiar"}
+                {copied ? m.copied : m.copy}
               </button>
             </div>
           )}
@@ -187,30 +255,27 @@ function Pairing() {
       )}
 
       <div className="table-map-section">
-        <h2>Host manual (fallback)</h2>
-        <p>
-          Os terminais se acham sozinhos na rede automaticamente (mDNS). Se isso falhar (rede corporativa que bloqueia
-          multicast, por exemplo), configure aqui o IP e a porta do outro terminal manualmente.
-        </p>
+        <h2>{m.manualHostHeading}</h2>
+        <p>{m.manualHostHint}</p>
         {manualHostStatus === "ready" && manualHost && (
           <div className="status-line pairing-token">
-            <span>Configurado:</span>
+            <span>{m.configured}</span>
             <code>{manualHost.host}:{manualHost.port}</code>
             <button type="button" className="button-secondary" onClick={handleClearManualHost} disabled={manualHostSubmitting}>
-              Remover
+              {m.remove}
             </button>
           </div>
         )}
         <form onSubmit={handleSaveManualHost} className="inline-form">
-          <input value={manualHostInput} onChange={(e) => setManualHostInput(e.target.value)} placeholder="IP (ex: 192.168.1.10)" />
+          <input value={manualHostInput} onChange={(e) => setManualHostInput(e.target.value)} placeholder={m.ipPlaceholder} />
           <input
             value={manualPortInput}
             onChange={(e) => setManualPortInput(e.target.value.replace(/\D/g, ""))}
-            placeholder="Porta (ex: 4550)"
+            placeholder={m.portPlaceholder}
             inputMode="numeric"
           />
           <button type="submit" className="button-primary" disabled={!manualHostInput.trim() || !manualPortInput || manualHostSubmitting}>
-            Salvar
+            {m.save}
           </button>
         </form>
         {manualHostError && <p className="form-error" role="alert">{manualHostError}</p>}
@@ -219,7 +284,7 @@ function Pairing() {
       {isBootstrap && (
         <div className="operator-form-actions">
           <Link to="/" className="button-secondary">
-            ← Voltar
+            {m.back}
           </Link>
         </div>
       )}

@@ -12,6 +12,150 @@ import {
   type CashSessionState,
 } from "../lib/cash-sessions";
 import { formatCentsToBRL, parseReaisToCents } from "../lib/money";
+import { defineMessages, formatDateTime, useMessages } from "../lib/i18n";
+
+const messages = defineMessages({
+  pt: {
+    noDifference: "sem diferença",
+    surplus: (amount: string) => `sobra de ${amount}`,
+    shortage: (amount: string) => `falta de ${amount}`,
+    withdrawalInvalidAmount: "valor da sangria inválido",
+    withdrawalReasonRequired: "motivo da sangria é obrigatório",
+    withdrawalHeading: "Sangria",
+    withdrawalAmountPlaceholder: "Ex: 20,00",
+    withdrawalAmountLabel: "Valor da sangria",
+    withdrawalReasonPlaceholder: "Motivo (ex: reforço de troco pro cofre)",
+    withdrawalReasonLabel: "Motivo da sangria",
+    recordWithdrawal: "Registrar sangria",
+    noWithdrawals: "Nenhuma sangria registrada nesta sessão.",
+    depositInvalidAmount: "valor do suprimento inválido",
+    depositReasonRequired: "motivo do suprimento é obrigatório",
+    depositHeading: "Suprimento",
+    depositAmountPlaceholder: "Ex: 50,00",
+    depositAmountLabel: "Valor do suprimento",
+    depositReasonPlaceholder: "Motivo (ex: reposição de troco)",
+    depositReasonLabel: "Motivo do suprimento",
+    recordDeposit: "Registrar suprimento",
+    noDeposits: "Nenhum suprimento registrado nesta sessão.",
+    countedInvalidAmount: "valor contado inválido",
+    closeSession: "Fechar sessão",
+    closeSessionCountHeading: "Fechar sessão — conferência",
+    calculatingExpected: "Calculando valor esperado...",
+    expectedInDrawer: "Valor esperado na gaveta: ",
+    countInstructions: ". Conte o dinheiro físico e informe o valor abaixo.",
+    countedAmountPlaceholder: "Ex: 0,00",
+    countedAmountLabel: "Valor contado fisicamente na gaveta",
+    confirmClose: "Confirmar fechamento",
+    cancel: "Cancelar",
+    openingInvalidAmount: "valor de abertura inválido",
+    cashSessionHeading: "Sessão de Caixa",
+    loading: "Carregando...",
+    sessionOpenSince: (openedAt: string, openingAmount: string) =>
+      `Sessão aberta desde ${openedAt} — fundo de troco inicial de ${openingAmount}.`,
+    closingHeading: "Fechamento",
+    sessionClosedSummary: (counted: string, expected: string) => `Sessão fechada — contado ${counted}, esperado ${expected} — `,
+    noOpenSession: "Nenhuma sessão de caixa aberta. Informe o valor inicial da gaveta (fundo de troco) pra abrir uma.",
+    openingAmountPlaceholder: "Ex: 100,00",
+    openingAmountLabel: "Valor de abertura (fundo de troco)",
+    openSession: "Abrir sessão",
+    genericError: "não foi possível completar a ação",
+    closedSessionDates: (closedAt: string, openedAt: string, openingAmount: string) =>
+      `Fechada em ${closedAt} — aberta em ${openedAt}, fundo de troco de ${openingAmount}.`,
+    countedVsExpected: (counted: string) => `Contado: ${counted} — Esperado (recalculado agora): `,
+    loadingLower: "carregando...",
+    expectedMayHaveChanged: "o valor esperado pode ter mudado desde o fechamento",
+    closedSessionsHeading: "Sessões encerradas",
+    noClosedSessions: "Nenhuma sessão de caixa encerrada ainda.",
+    tableOrder: (table: string) => `Comanda ${table}`,
+    standaloneOrder: (number: string) => `Comanda avulsa #${number}`,
+    pageTitle: (date: string) => `Resumo de Caixa — ${date}`,
+    liveNotice: "Atualiza a cada consulta, em tempo real — não existe uma ação de fechar o caixa.",
+    daySummaryHeading: "Resumo do dia",
+    closedOrders: (count: number) => `Comandas fechadas: ${count}`,
+    subtotal: "Subtotal",
+    serviceCharge: "Taxa de serviço",
+    totalSold: "Total vendido",
+    byPaymentMethod: "Por forma de pagamento",
+    cash: "Dinheiro",
+    card: "Cartão",
+    pix: "Pix",
+    pendingOrdersHeading: (count: number) => `Comandas pendentes (${count})`,
+    pendingNotice: "Comandas ainda abertas não entram no total fechado acima.",
+    pending: "pendente",
+    noPendingOrders: "Nenhuma comanda pendente.",
+  },
+  en: {
+    noDifference: "no variance",
+    surplus: (amount: string) => `over by ${amount}`,
+    shortage: (amount: string) => `short by ${amount}`,
+    withdrawalInvalidAmount: "invalid pay-out amount",
+    withdrawalReasonRequired: "pay-out reason is required",
+    withdrawalHeading: "Pay-out",
+    withdrawalAmountPlaceholder: "e.g. 20.00",
+    withdrawalAmountLabel: "Pay-out amount",
+    withdrawalReasonPlaceholder: "Reason (e.g. moving excess cash to the safe)",
+    withdrawalReasonLabel: "Pay-out reason",
+    recordWithdrawal: "Record pay-out",
+    noWithdrawals: "No pay-outs recorded in this session.",
+    depositInvalidAmount: "invalid pay-in amount",
+    depositReasonRequired: "pay-in reason is required",
+    depositHeading: "Pay-in",
+    depositAmountPlaceholder: "e.g. 50.00",
+    depositAmountLabel: "Pay-in amount",
+    depositReasonPlaceholder: "Reason (e.g. topping up change)",
+    depositReasonLabel: "Pay-in reason",
+    recordDeposit: "Record pay-in",
+    noDeposits: "No pay-ins recorded in this session.",
+    countedInvalidAmount: "invalid counted amount",
+    closeSession: "Close register",
+    closeSessionCountHeading: "Close register — count",
+    calculatingExpected: "Calculating expected amount...",
+    expectedInDrawer: "Expected in drawer: ",
+    countInstructions: ". Count the cash in the drawer and enter the amount below.",
+    countedAmountPlaceholder: "e.g. 0.00",
+    countedAmountLabel: "Cash counted in the drawer",
+    confirmClose: "Confirm close",
+    cancel: "Cancel",
+    openingInvalidAmount: "invalid opening amount",
+    cashSessionHeading: "Cash Session",
+    loading: "Loading...",
+    sessionOpenSince: (openedAt: string, openingAmount: string) =>
+      `Register open since ${openedAt} — opening float of ${openingAmount}.`,
+    closingHeading: "Closing",
+    sessionClosedSummary: (counted: string, expected: string) => `Register closed — counted ${counted}, expected ${expected} — `,
+    noOpenSession: "No cash session open. Enter the starting drawer amount (opening float) to open one.",
+    openingAmountPlaceholder: "e.g. 100.00",
+    openingAmountLabel: "Opening amount (opening float)",
+    openSession: "Open register",
+    genericError: "couldn't complete the action",
+    closedSessionDates: (closedAt: string, openedAt: string, openingAmount: string) =>
+      `Closed ${closedAt} — opened ${openedAt}, opening float of ${openingAmount}.`,
+    countedVsExpected: (counted: string) => `Counted: ${counted} — Expected (recalculated now): `,
+    loadingLower: "loading...",
+    expectedMayHaveChanged: "the expected amount may have changed since closing",
+    closedSessionsHeading: "Closed sessions",
+    noClosedSessions: "No closed cash sessions yet.",
+    tableOrder: (table: string) => `${table} tab`,
+    standaloneOrder: (number: string) => `Walk-in tab #${number}`,
+    pageTitle: (date: string) => `Cash Register Summary — ${date}`,
+    liveNotice: "Updates live on every refresh — there's no close-register action here.",
+    daySummaryHeading: "Today's summary",
+    closedOrders: (count: number) => `Closed tabs: ${count}`,
+    subtotal: "Subtotal",
+    serviceCharge: "Service charge",
+    totalSold: "Total sales",
+    byPaymentMethod: "By payment method",
+    cash: "Cash",
+    card: "Card",
+    pix: "Pix",
+    pendingOrdersHeading: (count: number) => `Pending tabs (${count})`,
+    pendingNotice: "Tabs that are still open aren't included in the closed total above.",
+    pending: "pending",
+    noPendingOrders: "No pending tabs.",
+  },
+});
+
+type CashRegisterMessages = (typeof messages)["pt"];
 
 /**
  * Épico 1 (Sessão de Caixa), Story 1.4 — achado no code review, 2026-09-27:
@@ -19,10 +163,10 @@ import { formatCentsToBRL, parseReaisToCents } from "../lib/money";
  * "nunca uma confirmação cega" em ação financeira sensível — o operador
  * precisa ler "sobra"/"falta" na hora, não inferir o sinal do número.
  */
-function formatDifference(cents: number): string {
-  if (cents === 0) return "sem diferença";
-  const label = cents > 0 ? "sobra" : "falta";
-  return `${label} de ${formatCentsToBRL(Math.abs(cents))}`;
+function formatDifference(cents: number, m: CashRegisterMessages): string {
+  if (cents === 0) return m.noDifference;
+  const amount = formatCentsToBRL(Math.abs(cents));
+  return cents > 0 ? m.surplus(amount) : m.shortage(amount);
 }
 
 /**
@@ -32,6 +176,7 @@ function formatDifference(cents: number): string {
  * registradas nesta sessão logo abaixo, mais recente primeiro.
  */
 function WithdrawalForm({ withdrawals, onRecorded }: { withdrawals: CashMovementRecord[]; onRecorded: () => void }) {
+  const m = useMessages(messages);
   const [amountText, setAmountText] = useState("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -42,11 +187,11 @@ function WithdrawalForm({ withdrawals, onRecorded }: { withdrawals: CashMovement
     if (submitting) return;
     const cents = parseReaisToCents(amountText);
     if (cents === null || cents <= 0) {
-      setError("valor da sangria inválido");
+      setError(m.withdrawalInvalidAmount);
       return;
     }
     if (reason.trim().length === 0) {
-      setError("motivo da sangria é obrigatório");
+      setError(m.withdrawalReasonRequired);
       return;
     }
     setSubmitting(true);
@@ -69,7 +214,7 @@ function WithdrawalForm({ withdrawals, onRecorded }: { withdrawals: CashMovement
 
   return (
     <div className="table-map-section">
-      <h3 className="subsection-heading">Sangria</h3>
+      <h3 className="subsection-heading">{m.withdrawalHeading}</h3>
       <form onSubmit={handleSubmit} className="inline-form">
         <input
           value={amountText}
@@ -79,8 +224,8 @@ function WithdrawalForm({ withdrawals, onRecorded }: { withdrawals: CashMovement
           }}
           disabled={submitting}
           inputMode="decimal"
-          placeholder="Ex: 20,00"
-          aria-label="Valor da sangria"
+          placeholder={m.withdrawalAmountPlaceholder}
+          aria-label={m.withdrawalAmountLabel}
         />
         <input
           value={reason}
@@ -89,11 +234,11 @@ function WithdrawalForm({ withdrawals, onRecorded }: { withdrawals: CashMovement
             setError(null);
           }}
           disabled={submitting}
-          placeholder="Motivo (ex: reforço de troco pro cofre)"
-          aria-label="Motivo da sangria"
+          placeholder={m.withdrawalReasonPlaceholder}
+          aria-label={m.withdrawalReasonLabel}
         />
         <button type="submit" className="button-primary" disabled={submitting}>
-          Registrar sangria
+          {m.recordWithdrawal}
         </button>
       </form>
       {error && <p className="form-error" role="alert">{error}</p>}
@@ -103,10 +248,10 @@ function WithdrawalForm({ withdrawals, onRecorded }: { withdrawals: CashMovement
           .sort((a, b) => b.recordedAt - a.recordedAt)
           .map((w) => (
             <li key={w.id}>
-              {formatCentsToBRL(w.amountCents)} — {w.reason} ({new Date(w.recordedAt).toLocaleString("pt-BR")})
+              {formatCentsToBRL(w.amountCents)} — {w.reason} ({formatDateTime(w.recordedAt)})
             </li>
           ))}
-        {withdrawals.length === 0 && <li className="catalog-empty">Nenhuma sangria registrada nesta sessão.</li>}
+        {withdrawals.length === 0 && <li className="catalog-empty">{m.noWithdrawals}</li>}
       </ul>
     </div>
   );
@@ -119,6 +264,7 @@ function WithdrawalForm({ withdrawals, onRecorded }: { withdrawals: CashMovement
  * erro). Lista `deposits` já registrados nesta sessão, mais recente primeiro.
  */
 function DepositForm({ deposits, onRecorded }: { deposits: CashMovementRecord[]; onRecorded: () => void }) {
+  const m = useMessages(messages);
   const [amountText, setAmountText] = useState("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -129,11 +275,11 @@ function DepositForm({ deposits, onRecorded }: { deposits: CashMovementRecord[];
     if (submitting) return;
     const cents = parseReaisToCents(amountText);
     if (cents === null || cents <= 0) {
-      setError("valor do suprimento inválido");
+      setError(m.depositInvalidAmount);
       return;
     }
     if (reason.trim().length === 0) {
-      setError("motivo do suprimento é obrigatório");
+      setError(m.depositReasonRequired);
       return;
     }
     setSubmitting(true);
@@ -154,7 +300,7 @@ function DepositForm({ deposits, onRecorded }: { deposits: CashMovementRecord[];
 
   return (
     <div className="table-map-section">
-      <h3 className="subsection-heading">Suprimento</h3>
+      <h3 className="subsection-heading">{m.depositHeading}</h3>
       <form onSubmit={handleSubmit} className="inline-form">
         <input
           value={amountText}
@@ -164,8 +310,8 @@ function DepositForm({ deposits, onRecorded }: { deposits: CashMovementRecord[];
           }}
           disabled={submitting}
           inputMode="decimal"
-          placeholder="Ex: 50,00"
-          aria-label="Valor do suprimento"
+          placeholder={m.depositAmountPlaceholder}
+          aria-label={m.depositAmountLabel}
         />
         <input
           value={reason}
@@ -174,11 +320,11 @@ function DepositForm({ deposits, onRecorded }: { deposits: CashMovementRecord[];
             setError(null);
           }}
           disabled={submitting}
-          placeholder="Motivo (ex: reposição de troco)"
-          aria-label="Motivo do suprimento"
+          placeholder={m.depositReasonPlaceholder}
+          aria-label={m.depositReasonLabel}
         />
         <button type="submit" className="button-primary" disabled={submitting}>
-          Registrar suprimento
+          {m.recordDeposit}
         </button>
       </form>
       {error && <p className="form-error" role="alert">{error}</p>}
@@ -188,10 +334,10 @@ function DepositForm({ deposits, onRecorded }: { deposits: CashMovementRecord[];
           .sort((a, b) => b.recordedAt - a.recordedAt)
           .map((d) => (
             <li key={d.id}>
-              {formatCentsToBRL(d.amountCents)} — {d.reason} ({new Date(d.recordedAt).toLocaleString("pt-BR")})
+              {formatCentsToBRL(d.amountCents)} — {d.reason} ({formatDateTime(d.recordedAt)})
             </li>
           ))}
-        {deposits.length === 0 && <li className="catalog-empty">Nenhum suprimento registrado nesta sessão.</li>}
+        {deposits.length === 0 && <li className="catalog-empty">{m.noDeposits}</li>}
       </ul>
     </div>
   );
@@ -206,6 +352,7 @@ function DepositForm({ deposits, onRecorded }: { deposits: CashMovementRecord[];
  * confirmação cega em ação financeira sensível).
  */
 function CloseSessionFlow({ onClosed }: { onClosed: (result: { countedAmountCents: number; expectedAmountCents: number; differenceCents: number }) => void }) {
+  const m = useMessages(messages);
   const [step, setStep] = useState<"idle" | "confirming">("idle");
   const [expectedAmountCents, setExpectedAmountCents] = useState<number | null>(null);
   const [countedText, setCountedText] = useState("");
@@ -250,7 +397,7 @@ function CloseSessionFlow({ onClosed }: { onClosed: (result: { countedAmountCent
     // Diferente de abertura/sangria/suprimento (que exigem > 0): zero é um
     // valor contado válido (gaveta vazia é raro mas acontece).
     if (cents === null || cents < 0) {
-      setError("valor contado inválido");
+      setError(m.countedInvalidAmount);
       return;
     }
     setSubmitting(true);
@@ -269,20 +416,21 @@ function CloseSessionFlow({ onClosed }: { onClosed: (result: { countedAmountCent
   if (step === "idle") {
     return (
       <button type="button" className="button-secondary" onClick={handleStart}>
-        Fechar sessão
+        {m.closeSession}
       </button>
     );
   }
 
   return (
     <div className="table-map-section">
-      <h3 className="subsection-heading">Fechar sessão — conferência</h3>
+      <h3 className="subsection-heading">{m.closeSessionCountHeading}</h3>
       {loadingPreview ? (
-        <p>Calculando valor esperado...</p>
+        <p>{m.calculatingExpected}</p>
       ) : expectedAmountCents !== null ? (
         <p>
-          Valor esperado na gaveta: <strong>{formatCentsToBRL(expectedAmountCents)}</strong>. Conte o dinheiro
-          físico e informe o valor abaixo.
+          {m.expectedInDrawer}
+          <strong>{formatCentsToBRL(expectedAmountCents)}</strong>
+          {m.countInstructions}
         </p>
       ) : null}
       <form onSubmit={handleConfirm} className="inline-form">
@@ -294,14 +442,14 @@ function CloseSessionFlow({ onClosed }: { onClosed: (result: { countedAmountCent
           }}
           disabled={submitting || loadingPreview}
           inputMode="decimal"
-          placeholder="Ex: 0,00"
-          aria-label="Valor contado fisicamente na gaveta"
+          placeholder={m.countedAmountPlaceholder}
+          aria-label={m.countedAmountLabel}
         />
         <button type="submit" className="button-primary" disabled={submitting || loadingPreview}>
-          Confirmar fechamento
+          {m.confirmClose}
         </button>
         <button type="button" className="button-secondary" onClick={handleCancel} disabled={submitting}>
-          Cancelar
+          {m.cancel}
         </button>
       </form>
       {error && <p className="form-error" role="alert">{error}</p>}
@@ -337,6 +485,7 @@ function CashSessionSection({
   openSession: CashSessionState | undefined;
   refresh: () => void;
 }) {
+  const m = useMessages(messages);
   const [amountText, setAmountText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -347,7 +496,7 @@ function CashSessionSection({
     if (submitting) return;
     const cents = parseReaisToCents(amountText);
     if (cents === null || cents <= 0) {
-      setError("valor de abertura inválido");
+      setError(m.openingInvalidAmount);
       return;
     }
     setSubmitting(true);
@@ -375,16 +524,12 @@ function CashSessionSection({
 
   return (
     <div className="table-map-section">
-      <h2 className="section-heading">Sessão de Caixa</h2>
+      <h2 className="section-heading">{m.cashSessionHeading}</h2>
       {status === "loading" ? (
-        <p>Carregando...</p>
+        <p>{m.loading}</p>
       ) : openSession ? (
         <>
-          <p>
-            Sessão aberta desde{" "}
-            {new Date(openSession.openedAt).toLocaleString("pt-BR")} — fundo de
-            troco inicial de {formatCentsToBRL(openSession.openingAmountCents)}.
-          </p>
+          <p>{m.sessionOpenSince(formatDateTime(openSession.openedAt), formatCentsToBRL(openSession.openingAmountCents))}</p>
           {/* Achado no code review, 2026-09-26: `?? []` defende contra um
               sidecar rodando ainda de uma versão anterior a esta story (não
               reinicia sozinho — mesmo racional já documentado em
@@ -393,7 +538,7 @@ function CashSessionSection({
           <WithdrawalForm withdrawals={openSession.withdrawals ?? []} onRecorded={refresh} />
           <DepositForm deposits={openSession.deposits ?? []} onRecorded={refresh} />
           <div className="table-map-section">
-            <h3 className="subsection-heading">Fechamento</h3>
+            <h3 className="subsection-heading">{m.closingHeading}</h3>
             <CloseSessionFlow onClosed={handleClosed} />
           </div>
         </>
@@ -401,12 +546,11 @@ function CashSessionSection({
         <>
           {closeResult && (
             <p>
-              Sessão fechada — contado {formatCentsToBRL(closeResult.countedAmountCents)}, esperado{" "}
-              {formatCentsToBRL(closeResult.expectedAmountCents)} —{" "}
-              <strong>{formatDifference(closeResult.differenceCents)}</strong>.
+              {m.sessionClosedSummary(formatCentsToBRL(closeResult.countedAmountCents), formatCentsToBRL(closeResult.expectedAmountCents))}
+              <strong>{formatDifference(closeResult.differenceCents, m)}</strong>.
             </p>
           )}
-          <p>Nenhuma sessão de caixa aberta. Informe o valor inicial da gaveta (fundo de troco) pra abrir uma.</p>
+          <p>{m.noOpenSession}</p>
           <form onSubmit={handleOpen} className="inline-form">
             <input
               value={amountText}
@@ -416,11 +560,11 @@ function CashSessionSection({
               }}
               disabled={submitting}
               inputMode="decimal"
-              placeholder="Ex: 100,00"
-              aria-label="Valor de abertura (fundo de troco)"
+              placeholder={m.openingAmountPlaceholder}
+              aria-label={m.openingAmountLabel}
             />
             <button type="submit" className="button-primary" disabled={submitting}>
-              Abrir sessão
+              {m.openSession}
             </button>
           </form>
           {error && <p className="form-error" role="alert">{error}</p>}
@@ -440,6 +584,7 @@ function CashSessionSection({
  * estático).
  */
 function ClosedSessionCard({ session }: { session: CashSessionState }) {
+  const m = useMessages(messages);
   const [expectedAmountCents, setExpectedAmountCents] = useState<number | null>(null);
   // Achado no code review (blind-hunter + edge-case-hunter, 2026-09-27): o
   // `.then` original só tratava `result.ok === true` — um erro de resposta
@@ -461,7 +606,7 @@ function ClosedSessionCard({ session }: { session: CashSessionState }) {
         }
       })
       .catch(() => {
-        if (!cancelled) setError("não foi possível completar a ação");
+        if (!cancelled) setError(m.genericError);
       });
     return () => {
       cancelled = true;
@@ -475,17 +620,15 @@ function ClosedSessionCard({ session }: { session: CashSessionState }) {
   return (
     <li>
       <p>
-        Fechada em {new Date(closing.closedAt).toLocaleString("pt-BR")} — aberta em{" "}
-        {new Date(session.openedAt).toLocaleString("pt-BR")}, fundo de troco de{" "}
-        {formatCentsToBRL(session.openingAmountCents)}.
+        {m.closedSessionDates(formatDateTime(closing.closedAt), formatDateTime(session.openedAt), formatCentsToBRL(session.openingAmountCents))}
       </p>
       <p>
-        Contado: {formatCentsToBRL(closing.countedAmountCents)} — Esperado (recalculado agora):{" "}
-        {expectedAmountCents === null ? (error ?? "carregando...") : formatCentsToBRL(expectedAmountCents)}
-        {differenceCents !== null && <> — {formatDifference(differenceCents)}</>}
+        {m.countedVsExpected(formatCentsToBRL(closing.countedAmountCents))}
+        {expectedAmountCents === null ? (error ?? m.loadingLower) : formatCentsToBRL(expectedAmountCents)}
+        {differenceCents !== null && <> — {formatDifference(differenceCents, m)}</>}
       </p>
       <span className="status-badge status-badge-warning">
-        o valor esperado pode ter mudado desde o fechamento
+        {m.expectedMayHaveChanged}
       </span>
     </li>
   );
@@ -493,18 +636,19 @@ function ClosedSessionCard({ session }: { session: CashSessionState }) {
 
 /** Épico 1 (Sessão de Caixa), Story 1.4 — histórico de sessões já fechadas. */
 function ClosedSessionsSection({ cashSessions }: { cashSessions: CashSessionState[] }) {
+  const m = useMessages(messages);
   const closedSessions = [...cashSessions]
     .filter((s) => s.mergedInto === undefined && s.status === "closed" && s.closing)
     .sort((a, b) => (b.closing?.closedAt ?? 0) - (a.closing?.closedAt ?? 0));
 
   return (
     <div className="table-map-section">
-      <h2 className="section-heading">Sessões encerradas</h2>
+      <h2 className="section-heading">{m.closedSessionsHeading}</h2>
       <ul className="catalog-list">
         {closedSessions.map((s) => (
           <ClosedSessionCard key={s.id} session={s} />
         ))}
-        {closedSessions.length === 0 && <li className="catalog-empty">Nenhuma sessão de caixa encerrada ainda.</li>}
+        {closedSessions.length === 0 && <li className="catalog-empty">{m.noClosedSessions}</li>}
       </ul>
     </div>
   );
@@ -512,6 +656,7 @@ function ClosedSessionsSection({ cashSessions }: { cashSessions: CashSessionStat
 
 /** PRD Épico 6.1 (M8) — resumo do dia, calculado só da réplica local. Renomeado de "Fechamento de Caixa" (emenda 2026-09-22): é um relatório ao vivo, nunca houve ação de fechamento. */
 function CashRegister() {
+  const m = useMessages(messages);
   const { status, summary } = useCashRegisterSummary();
   const { tables } = useTablesAndOrders();
   const { status: cashSessionStatus, openSession, cashSessions, refresh: refreshCashSessions } = useCashSessionState();
@@ -519,7 +664,7 @@ function CashRegister() {
   if (status === "loading" || !summary) {
     return (
       <section>
-        <p>Carregando...</p>
+        <p>{m.loading}</p>
       </section>
     );
   }
@@ -529,12 +674,12 @@ function CashRegister() {
     currentTableId?: string;
   }) =>
     order.origin.source === "table"
-      ? `Comanda ${tables.find((t) => t.id === order.currentTableId)?.identifier ?? "?"}`
-      : `Comanda avulsa #${order.origin.number}`;
+      ? m.tableOrder(tables.find((t) => t.id === order.currentTableId)?.identifier ?? "?")
+      : m.standaloneOrder(String(order.origin.number));
 
   return (
     <section>
-      <h1>Resumo de Caixa — {summary.date}</h1>
+      <h1>{m.pageTitle(summary.date)}</h1>
 
       <CashSessionSection status={cashSessionStatus} openSession={openSession} refresh={refreshCashSessions} />
 
@@ -543,53 +688,48 @@ function CashRegister() {
       {/* Achado na validação de UX, 2026-09-23: .type-label (rótulo 13px)
           usado em parágrafo explicativo em vez de texto corrido — mais
           difícil de ler rápido, justo onde o dono precisa disso. */}
-      <p>
-        Atualiza a cada consulta, em tempo real — não existe uma ação de fechar
-        o caixa.
-      </p>
+      <p>{m.liveNotice}</p>
 
       <div className="table-map-section">
-        <h2 className="section-heading">Resumo do dia</h2>
-        <p>
-          Comandas fechadas: {summary.closedOrdersCount}
-        </p>
+        <h2 className="section-heading">{m.daySummaryHeading}</h2>
+        <p>{m.closedOrders(summary.closedOrdersCount)}</p>
         <div className="summary">
           <div className="summary-row">
-            <span className="type-label">Subtotal</span>
+            <span className="type-label">{m.subtotal}</span>
             <span className="amount">
               {formatCentsToBRL(summary.subtotalCents)}
             </span>
           </div>
           <div className="summary-row">
-            <span className="type-label">Taxa de serviço</span>
+            <span className="type-label">{m.serviceCharge}</span>
             <span className="amount">
               {formatCentsToBRL(summary.serviceFeeCents)}
             </span>
           </div>
           <div className="summary-row summary-row-total">
-            <span className="type-label">Total vendido</span>
+            <span className="type-label">{m.totalSold}</span>
             <span className="amount amount-display">
               {formatCentsToBRL(summary.totalSoldCents)}
             </span>
           </div>
         </div>
 
-        <h3 className="subsection-heading">Por forma de pagamento</h3>
+        <h3 className="subsection-heading">{m.byPaymentMethod}</h3>
         <div className="summary">
           <div className="summary-row">
-            <span className="type-label">Dinheiro</span>
+            <span className="type-label">{m.cash}</span>
             <span className="amount">
               {formatCentsToBRL(summary.totalByPaymentMethod.cash)}
             </span>
           </div>
           <div className="summary-row">
-            <span className="type-label">Cartão</span>
+            <span className="type-label">{m.card}</span>
             <span className="amount">
               {formatCentsToBRL(summary.totalByPaymentMethod.card)}
             </span>
           </div>
           <div className="summary-row">
-            <span className="type-label">Pix</span>
+            <span className="type-label">{m.pix}</span>
             <span className="amount">
               {formatCentsToBRL(summary.totalByPaymentMethod.pix)}
             </span>
@@ -598,21 +738,19 @@ function CashRegister() {
       </div>
 
       <div className="table-map-section">
-        <h2 className="section-heading">Comandas pendentes ({summary.pendingOrders.length})</h2>
-        <p>
-          Comandas ainda abertas não entram no total fechado acima.
-        </p>
+        <h2 className="section-heading">{m.pendingOrdersHeading(summary.pendingOrders.length)}</h2>
+        <p>{m.pendingNotice}</p>
         <ul className="catalog-list">
           {summary.pendingOrders.map((o) => (
             <li key={o.id}>
               <a href={`#/orders/${o.id}`}>{orderLabel(o)}</a>
               <span className="status-badge status-badge-warning">
-                pendente
+                {m.pending}
               </span>
             </li>
           ))}
           {summary.pendingOrders.length === 0 && (
-            <li className="catalog-empty">Nenhuma comanda pendente.</li>
+            <li className="catalog-empty">{m.noPendingOrders}</li>
           )}
         </ul>
       </div>

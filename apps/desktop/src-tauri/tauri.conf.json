@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Passa a Régua",
+  "productName": "Tabwise",
   "version": "0.1.0",
-  "identifier": "dev.eudesjr.passaaregua",
+  "identifier": "dev.eudesjr.tabwise",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "Passa a Régua",
-        "width": 800,
-        "height": 600
+        "title": "Tabwise",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600
       }
     ],
     "security": {
@@ -31,6 +33,18 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["sidecar/passa-a-regua-sidecar"]
+    "externalBin": [
+      "sidecar/tabwise-sidecar"
+    ],
+    "publisher": "Eudes Junior",
+    "copyright": "© 2026 Eudes Junior",
+    "category": "Business",
+    "shortDescription": "Offline-first point of sale for bars and restaurants",
+    "longDescription": "Tabwise is an offline-first point of sale for bars and restaurants: tables, tabs, menu, cash register and reports, all working without internet.",
+    "macOS": {
+      "signingIdentity": "-",
+      "minimumSystemVersion": "11.0",
+      "entitlements": "./Entitlements.plist"
+    }
   }
 }

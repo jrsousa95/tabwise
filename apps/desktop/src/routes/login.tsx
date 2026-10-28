@@ -3,12 +3,36 @@ import { useNavigate, Link } from "react-router-dom";
 import { useOperators } from "../lib/operators";
 import { useSession } from "../lib/session";
 import { MULTI_TERMINAL_UI_ENABLED } from "../lib/feature-flags";
+import { defineMessages, useMessages } from "../lib/i18n";
+import LanguageToggle from "../language-toggle";
 
 const PIN_DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9, "⌫", 0, "OK"] as const;
+
+const messages = defineMessages({
+  pt: {
+    loading: "Carregando...",
+    noOperators: "Nenhum operador cadastrado neste terminal ainda.",
+    registerFirstOperator: "Cadastrar o primeiro operador →",
+    pairWithTerminal: "Ou parear com um terminal já configurado →",
+    enterPin: "Digite seu PIN",
+    backspace: "Apagar",
+    confirm: "Confirmar",
+  },
+  en: {
+    loading: "Loading...",
+    noOperators: "No staff members registered on this terminal yet.",
+    registerFirstOperator: "Add the first staff member →",
+    pairWithTerminal: "Or pair with a terminal that's already set up →",
+    enterPin: "Enter your PIN",
+    backspace: "Delete",
+    confirm: "Confirm",
+  },
+});
 
 /** PRD 1.2 — login por PIN, 100% offline (validado contra a réplica local no sidecar). */
 function Login() {
   const navigate = useNavigate();
+  const m = useMessages(messages);
   const { operators, status: operatorsStatus } = useOperators();
   const { login } = useSession();
   const [pin, setPin] = useState("");
@@ -46,7 +70,8 @@ function Login() {
   if (operatorsStatus === "loading") {
     return (
       <main className="container container-center">
-        <p>Carregando...</p>
+        <LanguageToggle floating />
+        <p>{m.loading}</p>
       </main>
     );
   }
@@ -54,9 +79,10 @@ function Login() {
   if (operators.length === 0) {
     return (
       <main className="container container-center">
-        <h1 className="brand-wordmark brand-wordmark-lg">Passa a Régua</h1>
-        <p>Nenhum operador cadastrado neste terminal ainda.</p>
-        <Link to="/operators/new">Cadastrar o primeiro operador →</Link>
+        <LanguageToggle floating />
+        <h1 className="brand-wordmark brand-wordmark-lg">Tabwise</h1>
+        <p>{m.noOperators}</p>
+        <Link to="/operators/new">{m.registerFirstOperator}</Link>
         {/* M9 (ARCH §7) — terminal novo pode virar réplica de um já existente
             em vez de bootstrar operadores do zero: adota o token do terminal
             1, sincroniza e recebe os operadores dele. Escondido enquanto
@@ -64,7 +90,7 @@ function Login() {
             é a feature que vira gancho de upgrade pago, que ainda não existe. */}
         {MULTI_TERMINAL_UI_ENABLED && (
           <p>
-            <Link to="/pairing">Ou parear com um terminal já configurado →</Link>
+            <Link to="/pairing">{m.pairWithTerminal}</Link>
           </p>
         )}
       </main>
@@ -99,8 +125,9 @@ function Login() {
 
   return (
     <main className="container container-center">
-      <h1 className="brand-wordmark brand-wordmark-lg">Passa a Régua</h1>
-      <p>Digite seu PIN</p>
+      <LanguageToggle floating />
+      <h1 className="brand-wordmark brand-wordmark-lg">Tabwise</h1>
+      <p>{m.enterPin}</p>
       <div className="pin-display" aria-live="polite">
         {"•".repeat(pin.length) || " "}
       </div>
@@ -118,7 +145,7 @@ function Login() {
             // garantia de leitura consistente entre leitores de tela —
             // no componente que é "a primeira interação de cada turno,
             // não pode falhar" (EXPERIENCE.md).
-            aria-label={key === "⌫" ? "Apagar" : key === "OK" ? "Confirmar" : undefined}
+            aria-label={key === "⌫" ? m.backspace : key === "OK" ? m.confirm : undefined}
           >
             {key}
           </button>

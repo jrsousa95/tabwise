@@ -1,9 +1,56 @@
 import { computeSummaryDelta, formatDelta, type CashRegisterSummaryRange } from "./reports";
 import { formatCentsToBRL } from "./money";
 import type { CashRegisterSummary } from "./cash-register";
+import { defineMessages, getLanguage } from "./i18n";
 
-const DELIMITER = ";";
 const LINE_BREAK = "\r\n";
+
+// Delimitador segue o idioma: `;` em PT (`,` já é separador decimal no Excel
+// pt-BR); `,` em EN, onde o decimal é `.` e `,` é o padrão de planilha.
+// Valores em EN podem conter `,` de milhar (ex.: "R$1,234.56") — por isso a
+// célula vai entre aspas quando contém o delimitador (ver `quoteCell`).
+function delimiter(): string {
+  return getLanguage() === "pt" ? ";" : ",";
+}
+
+const messages = defineMessages({
+  pt: {
+    closedOrders: "Comandas fechadas",
+    subtotal: "Subtotal",
+    serviceCharge: "Taxa de serviço",
+    totalSold: "Total vendido",
+    cash: "Dinheiro",
+    card: "Cartão",
+    pix: "Pix",
+    pendingOrders: "Comandas pendentes",
+    periodReport: "Relatório por período",
+    dateRange: (fromDate: string, toDate: string) => `${fromDate} a ${toDate}`,
+    comparisonHeading: "Comparativo com o período anterior",
+    totalSoldSelected: "Total vendido — período escolhido",
+    totalSoldPrevious: "Total vendido — período anterior",
+    variance: "Variação",
+    selectedPeriod: (fromDate: string, toDate: string) => `Período escolhido (${fromDate} a ${toDate})`,
+    previousPeriod: "Período anterior",
+  },
+  en: {
+    closedOrders: "Closed tabs",
+    subtotal: "Subtotal",
+    serviceCharge: "Service charge",
+    totalSold: "Total sales",
+    cash: "Cash",
+    card: "Card",
+    pix: "Pix",
+    pendingOrders: "Pending tabs",
+    periodReport: "Period report",
+    dateRange: (fromDate: string, toDate: string) => `${fromDate} to ${toDate}`,
+    comparisonHeading: "Comparison with previous period",
+    totalSoldSelected: "Total sales — selected period",
+    totalSoldPrevious: "Total sales — previous period",
+    variance: "Change",
+    selectedPeriod: (fromDate: string, toDate: string) => `Selected period (${fromDate} to ${toDate})`,
+    previousPeriod: "Previous period",
+  },
+});
 
 // Caracteres que fazem alguns programas de planilha interpretar a célula
 // como o início de uma fórmula em vez de texto literal — relevante aqui
@@ -16,8 +63,13 @@ function escapeFormulaInjection(value: string): string {
   return FORMULA_PREFIX_CHARS.includes(value.trimStart()[0]) ? `'${value}` : value;
 }
 
+function quoteCell(value: string, separator: string): string {
+  return value.includes(separator) || value.includes('"') || /[\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
 function row(cells: Array<string | number>): string {
-  return cells.map((cell) => escapeFormulaInjection(String(cell))).join(DELIMITER);
+  const separator = delimiter();
+  return cells.map((cell) => quoteCell(escapeFormulaInjection(String(cell)), separator)).join(separator);
 }
 
 /**
@@ -30,17 +82,18 @@ function row(cells: Array<string | number>): string {
  * período anterior (mesma semântica da tela, `reports.tsx`).
  */
 function summaryRows(summary: CashRegisterSummary, { includePending }: { includePending: boolean }): string[] {
+  const m = messages[getLanguage()];
   const rows = [
-    row(["Comandas fechadas", summary.closedOrdersCount]),
-    row(["Subtotal", formatCentsToBRL(summary.subtotalCents)]),
-    row(["Taxa de serviço", formatCentsToBRL(summary.serviceFeeCents)]),
-    row(["Total vendido", formatCentsToBRL(summary.totalSoldCents)]),
-    row(["Dinheiro", formatCentsToBRL(summary.totalByPaymentMethod.cash)]),
-    row(["Cartão", formatCentsToBRL(summary.totalByPaymentMethod.card)]),
-    row(["Pix", formatCentsToBRL(summary.totalByPaymentMethod.pix)]),
+    row([m.closedOrders, summary.closedOrdersCount]),
+    row([m.subtotal, formatCentsToBRL(summary.subtotalCents)]),
+    row([m.serviceCharge, formatCentsToBRL(summary.serviceFeeCents)]),
+    row([m.totalSold, formatCentsToBRL(summary.totalSoldCents)]),
+    row([m.cash, formatCentsToBRL(summary.totalByPaymentMethod.cash)]),
+    row([m.card, formatCentsToBRL(summary.totalByPaymentMethod.card)]),
+    row([m.pix, formatCentsToBRL(summary.totalByPaymentMethod.pix)]),
   ];
   if (includePending) {
-    rows.push(row(["Comandas pendentes", summary.pendingOrders.length]));
+    rows.push(row([m.pendingOrders, summary.pendingOrders.length]));
   }
   return rows;
 }
@@ -56,19 +109,20 @@ function summaryRows(summary: CashRegisterSummary, { includePending }: { include
 export function buildCashRegisterSummaryCsv(fromDate: string, toDate: string, range: CashRegisterSummaryRange): string {
   const { current, previous } = range;
   const { deltaLabel, deltaPercent } = computeSummaryDelta(current, previous);
+  const m = messages[getLanguage()];
 
   const lines: string[] = [
-    row(["Relatório por período", `${fromDate} a ${toDate}`]),
+    row([m.periodReport, m.dateRange(fromDate, toDate)]),
     "",
-    row(["Comparativo com o período anterior"]),
-    row(["Total vendido — período escolhido", formatCentsToBRL(current.totalSoldCents)]),
-    row(["Total vendido — período anterior", formatCentsToBRL(previous.totalSoldCents)]),
-    row(["Variação", formatDelta(deltaLabel, deltaPercent)]),
+    row([m.comparisonHeading]),
+    row([m.totalSoldSelected, formatCentsToBRL(current.totalSoldCents)]),
+    row([m.totalSoldPrevious, formatCentsToBRL(previous.totalSoldCents)]),
+    row([m.variance, formatDelta(deltaLabel, deltaPercent)]),
     "",
-    row([`Período escolhido (${fromDate} a ${toDate})`]),
+    row([m.selectedPeriod(fromDate, toDate)]),
     ...summaryRows(current, { includePending: true }),
     "",
-    row(["Período anterior"]),
+    row([m.previousPeriod]),
     ...summaryRows(previous, { includePending: false }),
   ];
 

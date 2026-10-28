@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { SIDECAR_URL } from "./sidecar";
+import { getLanguage } from "./i18n";
 
 export type MergeWarning = { losingOrder: string; canonicalOrder: string; tableId: string; createdAt: number; resolvedAt?: number };
 type TableRef = { id: string; identifier: string };
 
 /** Achado em uso real (2026-09-22): sem um corte de tempo, um merge continuava aparecendo pra sempre neste terminal, sem forma de dispensar. */
 const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000;
-const FIRST_SEEN_STORAGE_KEY = "passa-a-regua:merge-warnings-first-seen";
+const FIRST_SEEN_STORAGE_KEY = "tabwise:merge-warnings-first-seen";
 /** Achado em uso real (2026-09-22): esperar até 24h pra sumir sozinho não bastava — o operador precisa de um jeito explícito de dizer "já vi, pode sumir". */
-const DISMISSED_STORAGE_KEY = "passa-a-regua:merge-warnings-dismissed";
+const DISMISSED_STORAGE_KEY = "tabwise:merge-warnings-dismissed";
 
 /**
  * Data (`Date.now()`) em que ESTE terminal viu cada merge pela primeira
@@ -123,7 +124,7 @@ export function useMergeWarnings(intervalMs = 4000) {
   // vínculo com a mesa é só histórico nesse caso, não "mesa ainda existe e
   // não achamos o nome" (achado em uso real, 2026-09-22: sem isso o rótulo
   // caía pro id cru, ilegível).
-  const tableLabel = (tableId: string) => tables.find((t) => t.id === tableId)?.identifier ?? "mesa removida";
+  const tableLabel = (tableId: string) => tables.find((t) => t.id === tableId)?.identifier ?? (getLanguage() === "pt" ? "mesa removida" : "removed table");
 
   const warnings = allRecentWarnings.filter((w) => !dismissed.has(w.losingOrder));
 

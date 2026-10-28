@@ -1,8 +1,60 @@
 import { useCallback, useEffect, useState } from "react";
 import { getConsolidatedCashRegisterReport, type ConsolidatedCashRegisterReport } from "../lib/reports";
 import { formatCentsToBRL } from "../lib/money";
+import { defineMessages, useMessages, formatDateTime } from "../lib/i18n";
 
 type Status = "loading" | "ready" | "error";
+
+const messages = defineMessages({
+  pt: {
+    title: "Relatório Consolidado (todos os terminais)",
+    intro:
+      'Snapshot de agora, agregando vendas e sessão de caixa de todos os terminais do estabelecimento já sincronizados com a nuvem — sem seletor de datas, sempre "hoje".',
+    refresh: "Atualizar",
+    loading: "Carregando...",
+    cashSessionHeading: "Sessão de caixa",
+    sessionOpenSince: (openedAt: string, openingAmount: string) =>
+      `Sessão aberta desde ${openedAt} — fundo de troco inicial de ${openingAmount}.`,
+    deposits: "Suprimentos",
+    withdrawals: "Sangrias",
+    expectedInDrawer: "Valor esperado na gaveta (agora)",
+    noOpenCashSession: "Nenhuma sessão de caixa aberta no momento.",
+    salesHeading: (date: string) => `Vendas — ${date}`,
+    closedOrders: (count: number) => `Comandas fechadas: ${count}`,
+    subtotal: "Subtotal",
+    serviceFee: "Taxa de serviço",
+    totalSold: "Total vendido",
+    byPaymentMethod: "Por forma de pagamento",
+    cash: "Dinheiro",
+    card: "Cartão",
+    pix: "Pix",
+    pendingOrders: (count: number) => `Comandas pendentes agora (todos os terminais): ${count}`,
+  },
+  en: {
+    title: "Consolidated Report (all terminals)",
+    intro:
+      'A snapshot of right now, combining sales and cash sessions from every venue terminal already synced to the cloud — no date picker, always "today".',
+    refresh: "Refresh",
+    loading: "Loading...",
+    cashSessionHeading: "Cash session",
+    sessionOpenSince: (openedAt: string, openingAmount: string) =>
+      `Session open since ${openedAt} — opening float of ${openingAmount}.`,
+    deposits: "Pay-ins",
+    withdrawals: "Pay-outs",
+    expectedInDrawer: "Expected in drawer (now)",
+    noOpenCashSession: "No cash session open right now.",
+    salesHeading: (date: string) => `Sales — ${date}`,
+    closedOrders: (count: number) => `Closed tabs: ${count}`,
+    subtotal: "Subtotal",
+    serviceFee: "Service charge",
+    totalSold: "Total sales",
+    byPaymentMethod: "By payment method",
+    cash: "Cash",
+    card: "Card",
+    pix: "Pix",
+    pendingOrders: (count: number) => `Open tabs right now (all terminals): ${count}`,
+  },
+});
 
 /**
  * Épico 3 (Story 3.1) — relatório consolidado multi-terminal, tela NOVA e
@@ -18,6 +70,7 @@ type Status = "loading" | "ready" | "error";
  * pro dono escolher, ao contrário de `reports.tsx`.
  */
 function ConsolidatedReport() {
+  const m = useMessages(messages);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<ConsolidatedCashRegisterReport | null>(null);
@@ -45,17 +98,14 @@ function ConsolidatedReport() {
 
   return (
     <section>
-      <h1>Relatório Consolidado (todos os terminais)</h1>
-      <p>
-        Snapshot de agora, agregando vendas e sessão de caixa de todos os terminais do estabelecimento já
-        sincronizados com a nuvem — sem seletor de datas, sempre "hoje".
-      </p>
+      <h1>{m.title}</h1>
+      <p>{m.intro}</p>
 
       <button type="button" className="button-secondary" onClick={refresh} disabled={status === "loading"}>
-        Atualizar
+        {m.refresh}
       </button>
 
-      {status === "loading" && <p>Carregando...</p>}
+      {status === "loading" && <p>{m.loading}</p>}
 
       {status === "error" && (
         <p className="form-error" role="alert">
@@ -66,63 +116,65 @@ function ConsolidatedReport() {
       {status === "ready" && report && (
         <>
           <div className="table-map-section">
-            <h2 className="section-heading">Sessão de caixa</h2>
+            <h2 className="section-heading">{m.cashSessionHeading}</h2>
             {report.cashSession ? (
               <>
                 <p>
-                  Sessão aberta desde {new Date(report.cashSession.openedAt).toLocaleString("pt-BR")} — fundo de
-                  troco inicial de {formatCentsToBRL(report.cashSession.openingAmountCents)}.
+                  {m.sessionOpenSince(
+                    formatDateTime(report.cashSession.openedAt),
+                    formatCentsToBRL(report.cashSession.openingAmountCents),
+                  )}
                 </p>
                 <div className="summary">
                   <div className="summary-row">
-                    <span className="type-label">Suprimentos</span>
+                    <span className="type-label">{m.deposits}</span>
                     <span className="amount">{formatCentsToBRL(report.cashSession.depositsCents)}</span>
                   </div>
                   <div className="summary-row">
-                    <span className="type-label">Sangrias</span>
+                    <span className="type-label">{m.withdrawals}</span>
                     <span className="amount">{formatCentsToBRL(report.cashSession.withdrawalsCents)}</span>
                   </div>
                   <div className="summary-row summary-row-total">
-                    <span className="type-label">Valor esperado na gaveta (agora)</span>
+                    <span className="type-label">{m.expectedInDrawer}</span>
                     <span className="amount amount-display">{formatCentsToBRL(report.cashSession.expectedAmountCents)}</span>
                   </div>
                 </div>
               </>
             ) : (
-              <p className="catalog-empty">Nenhuma sessão de caixa aberta no momento.</p>
+              <p className="catalog-empty">{m.noOpenCashSession}</p>
             )}
           </div>
 
           <div className="table-map-section">
-            <h2 className="section-heading">Vendas — {report.date}</h2>
-            <p>Comandas fechadas: {report.closedOrdersCount}</p>
+            <h2 className="section-heading">{m.salesHeading(report.date)}</h2>
+            <p>{m.closedOrders(report.closedOrdersCount)}</p>
             <div className="summary">
               <div className="summary-row">
-                <span className="type-label">Subtotal</span>
+                <span className="type-label">{m.subtotal}</span>
                 <span className="amount">{formatCentsToBRL(report.subtotalCents)}</span>
               </div>
               <div className="summary-row">
-                <span className="type-label">Taxa de serviço</span>
+                <span className="type-label">{m.serviceFee}</span>
                 <span className="amount">{formatCentsToBRL(report.serviceFeeCents)}</span>
               </div>
               <div className="summary-row summary-row-total">
-                <span className="type-label">Total vendido</span>
+                <span className="type-label">{m.totalSold}</span>
                 <span className="amount amount-display">{formatCentsToBRL(report.totalSoldCents)}</span>
               </div>
             </div>
 
-            <h3 className="subsection-heading">Por forma de pagamento</h3>
+            <h3 className="subsection-heading">{m.byPaymentMethod}</h3>
             <div className="summary">
               <div className="summary-row">
-                <span className="type-label">Dinheiro</span>
+                <span className="type-label">{m.cash}</span>
                 <span className="amount">{formatCentsToBRL(report.totalByPaymentMethod.cash)}</span>
               </div>
               <div className="summary-row">
-                <span className="type-label">Cartão</span>
+                <span className="type-label">{m.card}</span>
                 <span className="amount">{formatCentsToBRL(report.totalByPaymentMethod.card)}</span>
               </div>
               <div className="summary-row">
-                <span className="type-label">Pix</span>
+                <span className="type-label">{m.pix}</span>
                 <span className="amount">{formatCentsToBRL(report.totalByPaymentMethod.pix)}</span>
               </div>
             </div>
@@ -131,7 +183,7 @@ function ConsolidatedReport() {
                 `pendingOrders` já usada em `cash-register.tsx`/`reports.tsx`,
                 sem navegação pra comanda (esta tela não tem acesso à lista
                 local de mesas de outros terminais). */}
-            <p>Comandas pendentes agora (todos os terminais): {report.pendingOrders.length}</p>
+            <p>{m.pendingOrders(report.pendingOrders.length)}</p>
           </div>
         </>
       )}

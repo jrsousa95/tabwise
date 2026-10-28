@@ -1,6 +1,8 @@
 import { SIDECAR_URL } from "./sidecar";
 import type { CashRegisterSummary } from "./cash-register";
 import { formatCentsToBRL } from "./money";
+import { getLanguage } from "./i18n";
+import { localizeError } from "./server-errors";
 
 type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -10,7 +12,7 @@ async function getJson<T>(path: string): Promise<ApiResult<T>> {
   const res = await fetch(`${SIDECAR_URL}${path}`);
   const responseBody = await res.json().catch(() => null);
   if (!res.ok) {
-    return { ok: false, error: (responseBody as { error?: string } | null)?.error ?? "não foi possível completar a ação" };
+    return { ok: false, error: localizeError((responseBody as { error?: string } | null)?.error ?? "não foi possível completar a ação") };
   }
   return { ok: true, data: responseBody as T };
 }
@@ -30,7 +32,7 @@ export type SummaryDelta = { deltaLabel: string; deltaPercent: number | null };
  */
 export function computeSummaryDelta(current: CashRegisterSummary, previous: CashRegisterSummary): SummaryDelta {
   const deltaCents = current.totalSoldCents - previous.totalSoldCents;
-  const deltaLabel = deltaCents === 0 ? "sem variação" : `${deltaCents > 0 ? "+" : "-"}${formatCentsToBRL(Math.abs(deltaCents))}`;
+  const deltaLabel = deltaCents === 0 ? (getLanguage() === "pt" ? "sem variação" : "no change") : `${deltaCents > 0 ? "+" : "-"}${formatCentsToBRL(Math.abs(deltaCents))}`;
   const deltaPercent = deltaCents !== 0 && previous.totalSoldCents > 0 ? (deltaCents / previous.totalSoldCents) * 100 : null;
   return { deltaLabel, deltaPercent };
 }

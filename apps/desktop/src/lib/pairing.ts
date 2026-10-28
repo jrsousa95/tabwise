@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { SIDECAR_URL } from "./sidecar";
+import { localizeError } from "./server-errors";
 
 type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
 async function getJson<T>(path: string): Promise<ApiResult<T>> {
   const res = await fetch(`${SIDECAR_URL}${path}`);
   const body = await res.json().catch(() => null);
-  if (!res.ok) return { ok: false, error: (body as { error?: string } | null)?.error ?? "não foi possível carregar" };
+  if (!res.ok) return { ok: false, error: localizeError((body as { error?: string } | null)?.error ?? "não foi possível carregar") };
   return { ok: true, data: body as T };
 }
 
@@ -18,7 +19,7 @@ async function postJson<T>(path: string, body: unknown): Promise<ApiResult<T>> {
   });
   const responseBody = await res.json().catch(() => null);
   if (!res.ok) {
-    return { ok: false, error: (responseBody as { error?: string } | null)?.error ?? "não foi possível completar a ação" };
+    return { ok: false, error: localizeError((responseBody as { error?: string } | null)?.error ?? "não foi possível completar a ação") };
   }
   return { ok: true, data: responseBody as T };
 }
@@ -71,7 +72,7 @@ export function saveManualHost(host: string, port: number) {
 
 export async function clearManualHost(): Promise<{ ok: true } | { ok: false; error: string }> {
   const res = await fetch(`${SIDECAR_URL}/pairing/manual-host`, { method: "DELETE" });
-  if (!res.ok) return { ok: false, error: "não foi possível remover o host manual" };
+  if (!res.ok) return { ok: false, error: localizeError("não foi possível remover o host manual") };
   return { ok: true };
 }
 
@@ -83,7 +84,9 @@ export function useCloudStatus(intervalMs = 5000) {
 
   const refresh = useCallback(async () => {
     const result = await getJson<CloudStatus>("/pairing/cloud-status");
-    setCloudStatus(result.ok ? result.data : null);
+    setCloudStatus(
+      result.ok ? { ...result.data, blockedReason: result.data.blockedReason && localizeError(result.data.blockedReason) } : null
+    );
   }, []);
 
   useEffect(() => {

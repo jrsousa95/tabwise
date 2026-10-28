@@ -10,6 +10,70 @@ import {
   removeProduct,
 } from "../lib/catalog";
 import { formatCentsToBRL, parseReaisToCents } from "../lib/money";
+import { defineMessages, useMessages } from "../lib/i18n";
+
+const messages = defineMessages({
+  pt: {
+    loading: "Carregando...",
+    title: "Cardápio",
+    categories: "Categorias",
+    categoryPlaceholder: "Ex: Bebidas",
+    categoryNameLabel: "Nome da categoria",
+    add: "Adicionar",
+    newCategoryNameLabel: "Novo nome da categoria",
+    save: "Salvar",
+    cancel: "Cancelar",
+    rename: "Renomear",
+    remove: "Remover",
+    noCategories: "Nenhuma categoria ainda.",
+    products: "Produtos",
+    name: "Nome",
+    productPlaceholder: "Ex: Cerveja",
+    priceLabel: "Preço (R$)",
+    pricePlaceholder: "Ex: 12,50",
+    category: "Categoria",
+    selectPlaceholder: "Selecione...",
+    categoryRequired: "Cadastre uma categoria antes de adicionar produtos.",
+    price: "Preço",
+    status: "Status",
+    newProductNameLabel: "Novo nome do produto",
+    active: "Ativo",
+    inactive: "Inativo",
+    deactivate: "Desativar",
+    activate: "Ativar",
+    noProducts: "Nenhum produto ainda.",
+  },
+  en: {
+    loading: "Loading...",
+    title: "Menu",
+    categories: "Categories",
+    categoryPlaceholder: "e.g. Drinks",
+    categoryNameLabel: "Category name",
+    add: "Add",
+    newCategoryNameLabel: "New category name",
+    save: "Save",
+    cancel: "Cancel",
+    rename: "Rename",
+    remove: "Remove",
+    noCategories: "No categories yet.",
+    products: "Products",
+    name: "Name",
+    productPlaceholder: "e.g. Beer",
+    priceLabel: "Price (R$)",
+    pricePlaceholder: "e.g. 12.50",
+    category: "Category",
+    selectPlaceholder: "Select...",
+    categoryRequired: "Add a category before adding products.",
+    price: "Price",
+    status: "Status",
+    newProductNameLabel: "New product name",
+    active: "Active",
+    inactive: "Inactive",
+    deactivate: "Deactivate",
+    activate: "Activate",
+    noProducts: "No products yet.",
+  },
+});
 
 /* Ícones inline (SVG, stroke=currentColor, sem preenchimento, 20×20) pra
    ações de linha compactas — sem lib de ícone nova (auditoria visual
@@ -47,6 +111,7 @@ function PowerIcon() {
 
 /** PRD Épico 3/M4 — cadastro de categorias e produtos (dono). */
 function Catalog() {
+  const m = useMessages(messages);
   const { status, categories, products, refresh } = useCatalog();
 
   const [categoryName, setCategoryName] = useState("");
@@ -183,7 +248,7 @@ function Catalog() {
   if (status === "loading") {
     return (
       <section>
-        <p>Carregando...</p>
+        <p>{m.loading}</p>
       </section>
     );
   }
@@ -192,19 +257,19 @@ function Catalog() {
 
   return (
     <section>
-      <h1>Cardápio</h1>
+      <h1>{m.title}</h1>
       <div className="catalog">
         <div className="catalog-column">
-        <h2 className="section-heading">Categorias</h2>
+        <h2 className="section-heading">{m.categories}</h2>
         <form onSubmit={handleAddCategory} className="inline-form">
           <input
             value={categoryName}
             onChange={(e) => setCategoryName(e.target.value)}
-            placeholder="Ex: Bebidas"
-            aria-label="Nome da categoria"
+            placeholder={m.categoryPlaceholder}
+            aria-label={m.categoryNameLabel}
           />
           <button type="submit" className="button-primary" disabled={!categoryName.trim() || categorySubmitting}>
-            Adicionar
+            {m.add}
           </button>
         </form>
         {categoryError && <p className="form-error" role="alert">{categoryError}</p>}
@@ -216,13 +281,13 @@ function Catalog() {
                   <input
                     value={renameCategoryName}
                     onChange={(e) => setRenameCategoryName(e.target.value)}
-                    aria-label="Novo nome da categoria"
+                    aria-label={m.newCategoryNameLabel}
                   />
                   <button type="submit" className="button-primary" disabled={!renameCategoryName.trim() || categoryActionSubmitting}>
-                    Salvar
+                    {m.save}
                   </button>
                   <button type="button" className="button-secondary" onClick={() => setRenamingCategoryId(null)}>
-                    Cancelar
+                    {m.cancel}
                   </button>
                 </form>
               </li>
@@ -235,8 +300,8 @@ function Catalog() {
                     className="button-secondary row-action-button"
                     onClick={() => handleStartRenameCategory(c.id, c.name)}
                     disabled={categoryActionSubmitting}
-                    aria-label="Renomear"
-                    title="Renomear"
+                    aria-label={m.rename}
+                    title={m.rename}
                   >
                     <PencilIcon />
                   </button>
@@ -245,8 +310,8 @@ function Catalog() {
                     className="button-secondary row-action-button"
                     onClick={() => handleRemoveCategory(c.id)}
                     disabled={categoryActionSubmitting}
-                    aria-label="Remover"
-                    title="Remover"
+                    aria-label={m.remove}
+                    title={m.remove}
                   >
                     <TrashIcon />
                   </button>
@@ -254,26 +319,26 @@ function Catalog() {
               </li>
             )
           )}
-          {categories.length === 0 && <li className="catalog-empty">Nenhuma categoria ainda.</li>}
+          {categories.length === 0 && <li className="catalog-empty">{m.noCategories}</li>}
         </ul>
         {categoryActionError && <p className="form-error" role="alert">{categoryActionError}</p>}
       </div>
 
       <div className="catalog-column">
-        <h2 className="section-heading">Produtos</h2>
+        <h2 className="section-heading">{m.products}</h2>
         <form onSubmit={handleAddProduct} className="operator-form">
           <label>
-            Nome
-            <input value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="Ex: Cerveja" />
+            {m.name}
+            <input value={productName} onChange={(e) => setProductName(e.target.value)} placeholder={m.productPlaceholder} />
           </label>
           <label>
-            Preço (R$)
-            <input value={productPrice} onChange={(e) => setProductPrice(e.target.value)} placeholder="Ex: 12,50" inputMode="decimal" />
+            {m.priceLabel}
+            <input value={productPrice} onChange={(e) => setProductPrice(e.target.value)} placeholder={m.pricePlaceholder} inputMode="decimal" />
           </label>
           <label>
-            Categoria
+            {m.category}
             <select value={productCategoryId} onChange={(e) => setProductCategoryId(e.target.value)} disabled={categories.length === 0}>
-              <option value="">Selecione...</option>
+              <option value="">{m.selectPlaceholder}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -281,24 +346,24 @@ function Catalog() {
               ))}
             </select>
           </label>
-          {categories.length === 0 && <p className="form-error" role="alert">Cadastre uma categoria antes de adicionar produtos.</p>}
+          {categories.length === 0 && <p className="form-error" role="alert">{m.categoryRequired}</p>}
           {productError && <p className="form-error" role="alert">{productError}</p>}
           <button
             type="submit"
             className="button-primary"
             disabled={!productName.trim() || parseReaisToCents(productPrice) === null || !productCategoryId || productSubmitting}
           >
-            Adicionar
+            {m.add}
           </button>
         </form>
 
         <table className="catalog-table">
           <thead>
             <tr>
-              <th>Nome</th>
-              <th>Categoria</th>
-              <th>Preço</th>
-              <th>Status</th>
+              <th>{m.name}</th>
+              <th>{m.category}</th>
+              <th>{m.price}</th>
+              <th>{m.status}</th>
               <th></th>
             </tr>
           </thead>
@@ -311,13 +376,13 @@ function Catalog() {
                       <input
                         value={renameProductName}
                         onChange={(e) => setRenameProductName(e.target.value)}
-                        aria-label="Novo nome do produto"
+                        aria-label={m.newProductNameLabel}
                       />
                       <button type="submit" className="button-primary" disabled={!renameProductName.trim() || productActionSubmitting}>
-                        Salvar
+                        {m.save}
                       </button>
                       <button type="button" className="button-secondary" onClick={() => setRenamingProductId(null)}>
-                        Cancelar
+                        {m.cancel}
                       </button>
                     </form>
                   </td>
@@ -329,7 +394,7 @@ function Catalog() {
                   <td className="amount">{formatCentsToBRL(p.priceCents)}</td>
                   <td>
                     <span className={`status-badge ${p.active ? "status-badge-success" : "status-badge-neutral"}`}>
-                      {p.active ? "Ativo" : "Inativo"}
+                      {p.active ? m.active : m.inactive}
                     </span>
                   </td>
                   <td>
@@ -338,8 +403,8 @@ function Catalog() {
                         type="button"
                         className="button-secondary row-action-button"
                         onClick={() => handleToggleActive(p.id, !p.active)}
-                        aria-label={p.active ? "Desativar" : "Ativar"}
-                        title={p.active ? "Desativar" : "Ativar"}
+                        aria-label={p.active ? m.deactivate : m.activate}
+                        title={p.active ? m.deactivate : m.activate}
                       >
                         <PowerIcon />
                       </button>
@@ -348,8 +413,8 @@ function Catalog() {
                         className="button-secondary row-action-button"
                         onClick={() => handleStartRenameProduct(p.id, p.name)}
                         disabled={productActionSubmitting}
-                        aria-label="Renomear"
-                        title="Renomear"
+                        aria-label={m.rename}
+                        title={m.rename}
                       >
                         <PencilIcon />
                       </button>
@@ -358,8 +423,8 @@ function Catalog() {
                         className="button-secondary row-action-button"
                         onClick={() => handleRemoveProduct(p.id)}
                         disabled={productActionSubmitting}
-                        aria-label="Remover"
-                        title="Remover"
+                        aria-label={m.remove}
+                        title={m.remove}
                       >
                         <TrashIcon />
                       </button>
@@ -371,7 +436,7 @@ function Catalog() {
             {products.length === 0 && (
               <tr>
                 <td colSpan={5} className="catalog-empty">
-                  Nenhum produto ainda.
+                  {m.noProducts}
                 </td>
               </tr>
             )}

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Assinatura (mesmo ad-hoc) liga o hardened runtime do macOS, que bloqueia a
+  memória executável que o V8 do sidecar Node (SEA) precisa pro JIT — sem
+  isso o sidecar morre no boot com "Failed to reserve virtual memory for
+  CodeRange" e o app abre sem backend local.
+-->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+</dict>
+</plist>

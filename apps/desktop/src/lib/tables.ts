@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { SIDECAR_URL } from "./sidecar";
+import { localizeError } from "./server-errors";
 
 export type Table = { id: string; identifier: string; capacity?: number };
 export type TableGroup = { id: string; tableIds: string[] };
@@ -33,7 +34,10 @@ export function useTablesAndOrders() {
       const data = (await res.json()) as Partial<{ tables: Table[]; orders: Order[]; tableGroups: TableGroup[] }>;
       // Fallback pra [] se o sidecar rodando for de uma versão anterior ao M5
       // (não reinicia sozinho com HMR do frontend — achado em teste manual).
-      setTables(data.tables ?? []);
+      // Projeção devolve as mesas na ordem do id (UUID), ou seja, aleatória
+      // pro operador — ordena pelo nome com comparação numérica ("Mesa 2"
+      // antes de "Mesa 10").
+      setTables([...(data.tables ?? [])].sort((a, b) => a.identifier.localeCompare(b.identifier, undefined, { numeric: true })));
       setOrders(data.orders ?? []);
       setTableGroups(data.tableGroups ?? []);
     } catch {
@@ -62,7 +66,7 @@ async function postJson<T>(path: string, body: unknown): Promise<ApiResult<T>> {
   });
   const responseBody = await res.json().catch(() => null);
   if (!res.ok) {
-    return { ok: false, error: (responseBody as { error?: string } | null)?.error ?? "não foi possível completar a ação" };
+    return { ok: false, error: localizeError((responseBody as { error?: string } | null)?.error ?? "não foi possível completar a ação") };
   }
   return { ok: true, data: responseBody as T };
 }
@@ -93,7 +97,7 @@ export async function removeTable(id: string): Promise<ApiResult<void>> {
   const res = await fetch(`${SIDECAR_URL}/tables/${id}`, { method: "DELETE" });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    return { ok: false, error: body?.error ?? "não foi possível remover a mesa" };
+    return { ok: false, error: localizeError(body?.error ?? "não foi possível remover a mesa") };
   }
   return { ok: true, data: undefined };
 }

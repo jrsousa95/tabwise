@@ -1,5 +1,43 @@
 import { useTableConflicts } from "../lib/table-conflicts";
 import { formatCentsToBRL } from "../lib/money";
+import { defineMessages, useMessages, formatDate, formatDateTime } from "../lib/i18n";
+
+const messages = defineMessages({
+  pt: {
+    loading: "Carregando...",
+    title: "Conflitos de Sincronização",
+    intro:
+      "Quando dois terminais fazem a mesma ação offline ao mesmo tempo sem se enxergar (abrir comanda na mesma mesa, ou abrir sessão de caixa), o sistema mescla automaticamente: o registro mais antigo fica valendo, e o outro é marcado como conflito — nunca trava o operador. Marcar como resolvido só registra que você já revisou o caso; não desfaz a mesclagem nem apaga o histórico.",
+    tableConflictsHeading: "Conflitos de mesa",
+    viewOpenOrder: "Ver comanda que ficou aberta",
+    resolvedOn: (date: string) => `Resolvido em ${date}`,
+    markResolved: "Marcar como resolvido",
+    noTableConflicts: "Nenhum conflito de mesa registrado ainda.",
+    cashSessionConflictsHeading: "Conflitos de sessão de caixa",
+    cashSession: "Sessão de caixa",
+    openingFloat: (amount: string) => ` (fundo de ${amount})`,
+    mergedIntoAmount: (amount: string) => `mesclada na sessão de ${amount}`,
+    mergedIntoCanonical: "mesclada na sessão canônica",
+    noCashSessionConflicts: "Nenhum conflito de sessão de caixa registrado ainda.",
+  },
+  en: {
+    loading: "Loading...",
+    title: "Sync Conflicts",
+    intro:
+      "When two terminals do the same thing offline at the same time without seeing each other (opening a tab on the same table, or opening a cash session), the system merges them automatically: the older record wins and the other one is flagged as a conflict — staff are never blocked. Marking a conflict as resolved only records that you've reviewed it; it doesn't undo the merge or erase the history.",
+    tableConflictsHeading: "Table conflicts",
+    viewOpenOrder: "View the tab that stayed open",
+    resolvedOn: (date: string) => `Resolved on ${date}`,
+    markResolved: "Mark as resolved",
+    noTableConflicts: "No table conflicts recorded yet.",
+    cashSessionConflictsHeading: "Cash session conflicts",
+    cashSession: "Cash session",
+    openingFloat: (amount: string) => ` (opening float ${amount})`,
+    mergedIntoAmount: (amount: string) => `merged into the ${amount} session`,
+    mergedIntoCanonical: "merged into the canonical session",
+    noCashSessionConflicts: "No cash session conflicts recorded yet.",
+  },
+});
 
 /**
  * ARCH §4.2/§4.4, UX-DR4 (decidido com o dono, 2026-09-25) — histórico
@@ -13,12 +51,13 @@ import { formatCentsToBRL } from "../lib/money";
  * tela é o registro permanente "visível ao dono".
  */
 function TableConflicts() {
+  const m = useMessages(messages);
   const { status, conflicts, cashSessionConflicts, tableLabel, cashSessionAmount, resolve, resolveError } = useTableConflicts();
 
   if (status === "loading") {
     return (
       <section>
-        <p>Carregando...</p>
+        <p>{m.loading}</p>
       </section>
     );
   }
@@ -36,50 +75,43 @@ function TableConflicts() {
 
   return (
     <section>
-      <h1>Conflitos de Sincronização</h1>
+      <h1>{m.title}</h1>
       {/* Achado na validação de UX, 2026-09-23: .type-label (rótulo 13px)
           usado num parágrafo de 4 frases — texto corrido lê mais rápido. */}
-      <p>
-        Quando dois terminais fazem a mesma ação offline ao mesmo tempo sem se
-        enxergar (abrir comanda na mesma mesa, ou abrir sessão de caixa), o
-        sistema mescla automaticamente: o registro mais antigo fica
-        valendo, e o outro é marcado como conflito — nunca trava o operador.
-        Marcar como resolvido só registra que você já revisou o caso; não
-        desfaz a mesclagem nem apaga o histórico.
-      </p>
+      <p>{m.intro}</p>
 
-      <h2 className="section-heading">Conflitos de mesa</h2>
+      <h2 className="section-heading">{m.tableConflictsHeading}</h2>
       <ul className="catalog-list">
         {sorted.map((conflict) => (
           <li key={conflict.losingOrder}>
             <div>
               <strong>{tableLabel(conflict.tableId)}</strong>
-              <div className="type-label">{new Date(conflict.createdAt).toLocaleString("pt-BR")}</div>
+              <div className="type-label">{formatDateTime(conflict.createdAt)}</div>
             </div>
             <span className="catalog-list-actions">
               <a href={`#/orders/${conflict.canonicalOrder}`} className="button-secondary">
-                Ver comanda que ficou aberta
+                {m.viewOpenOrder}
               </a>
               {conflict.resolvedAt ? (
                 <span className="status-badge status-badge-success">
-                  Resolvido em {new Date(conflict.resolvedAt).toLocaleDateString("pt-BR")}
+                  {m.resolvedOn(formatDate(conflict.resolvedAt))}
                 </span>
               ) : (
                 <button type="button" className="button-primary" onClick={() => resolve(conflict.losingOrder)}>
-                  Marcar como resolvido
+                  {m.markResolved}
                 </button>
               )}
             </span>
           </li>
         ))}
-        {sorted.length === 0 && <li className="catalog-empty">Nenhum conflito de mesa registrado ainda.</li>}
+        {sorted.length === 0 && <li className="catalog-empty">{m.noTableConflicts}</li>}
       </ul>
 
       {/* Épico 1 (Sessão de Caixa), Story 1.1 — ainda não existe uma ação
           de "marcar como resolvido" pra esse tipo (não há evento
           equivalente a `table_conflict_resolved` pra sessão de caixa
           nesta story); fica como aviso não bloqueante, só leitura. */}
-      <h2 className="section-heading">Conflitos de sessão de caixa</h2>
+      <h2 className="section-heading">{m.cashSessionConflictsHeading}</h2>
       <ul className="catalog-list">
         {sortedCashSessionConflicts.map((conflict) => {
           const losingAmount = cashSessionAmount(conflict.losingSession);
@@ -88,18 +120,18 @@ function TableConflicts() {
             <li key={conflict.losingSession}>
               <div>
                 <strong>
-                  Sessão de caixa{losingAmount !== undefined ? ` (fundo de ${formatCentsToBRL(losingAmount)})` : ""}
+                  {m.cashSession}{losingAmount !== undefined ? m.openingFloat(formatCentsToBRL(losingAmount)) : ""}
                 </strong>
-                <div className="type-label">{new Date(conflict.createdAt).toLocaleString("pt-BR")}</div>
+                <div className="type-label">{formatDateTime(conflict.createdAt)}</div>
               </div>
               <span className="status-badge status-badge-warning">
-                mesclada na sessão {canonicalAmount !== undefined ? `de ${formatCentsToBRL(canonicalAmount)}` : "canônica"}
+                {canonicalAmount !== undefined ? m.mergedIntoAmount(formatCentsToBRL(canonicalAmount)) : m.mergedIntoCanonical}
               </span>
             </li>
           );
         })}
         {sortedCashSessionConflicts.length === 0 && (
-          <li className="catalog-empty">Nenhum conflito de sessão de caixa registrado ainda.</li>
+          <li className="catalog-empty">{m.noCashSessionConflicts}</li>
         )}
       </ul>
 

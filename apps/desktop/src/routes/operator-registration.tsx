@@ -4,6 +4,52 @@ import { SIDECAR_URL } from "../lib/sidecar";
 import { useOperators } from "../lib/operators";
 import { useSession } from "../lib/session";
 import type { OperatorRole } from "../lib/session";
+import { defineMessages, useMessages } from "../lib/i18n";
+import { localizeError } from "../lib/server-errors";
+import LanguageToggle from "../language-toggle";
+
+const messages = defineMessages({
+  pt: {
+    registerFailed: "não foi possível cadastrar",
+    loading: "Carregando...",
+    loginRequired: "Faça login antes de cadastrar operadores.",
+    ownerOnly: "Só o dono pode cadastrar operadores.",
+    titleFirstOperator: "Cadastrar o primeiro operador",
+    titleRegisterOperator: "Cadastrar operador",
+    bootstrapHint: "Nenhum operador cadastrado neste terminal ainda — comece criando o dono.",
+    name: "Nome",
+    role: "Papel",
+    roleOwner: "Dono",
+    roleCashier: "Caixa",
+    roleWaiter: "Garçom",
+    pinLabel: "PIN (4 a 6 dígitos)",
+    confirmPin: "Confirmar PIN",
+    pinInvalid: "PIN precisa ter de 4 a 6 dígitos.",
+    pinMismatch: "Os PINs não coincidem.",
+    submit: "Cadastrar",
+    cancel: "Cancelar",
+  },
+  en: {
+    registerFailed: "couldn't add staff member",
+    loading: "Loading...",
+    loginRequired: "Log in before adding staff members.",
+    ownerOnly: "Only the owner can add staff members.",
+    titleFirstOperator: "Add the first staff member",
+    titleRegisterOperator: "Add staff member",
+    bootstrapHint: "No staff members registered on this terminal yet — start by creating the owner.",
+    name: "Name",
+    role: "Role",
+    roleOwner: "Owner",
+    roleCashier: "Cashier",
+    roleWaiter: "Server",
+    pinLabel: "PIN (4 to 6 digits)",
+    confirmPin: "Confirm PIN",
+    pinInvalid: "PIN must be 4 to 6 digits.",
+    pinMismatch: "PINs don't match.",
+    submit: "Add",
+    cancel: "Cancel",
+  },
+});
 
 /**
  * PRD 1.1 — cadastro de operador. Serve dois casos com a mesma tela:
@@ -14,6 +60,7 @@ import type { OperatorRole } from "../lib/session";
  */
 function OperatorRegistration() {
   const navigate = useNavigate();
+  const m = useMessages(messages);
   const { operators, status: operatorsStatus } = useOperators();
   const { operator: currentOperator, status: sessionStatus } = useSession();
   const isBootstrap = operatorsStatus === "ready" && operators.length === 0;
@@ -47,7 +94,7 @@ function OperatorRegistration() {
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        setError(body?.error ?? "não foi possível cadastrar");
+        setError(body?.error ? localizeError(body.error) : m.registerFailed);
         return;
       }
       navigate(isBootstrap ? "/" : "/tables");
@@ -59,7 +106,8 @@ function OperatorRegistration() {
   if (loading) {
     return (
       <main className="container">
-        <p>Carregando...</p>
+        <LanguageToggle floating />
+        <p>{m.loading}</p>
       </main>
     );
   }
@@ -67,7 +115,8 @@ function OperatorRegistration() {
   if (!isBootstrap && !currentOperator) {
     return (
       <main className="container">
-        <p>Faça login antes de cadastrar operadores.</p>
+        <LanguageToggle floating />
+        <p>{m.loginRequired}</p>
       </main>
     );
   }
@@ -75,33 +124,35 @@ function OperatorRegistration() {
   if (!isBootstrap && currentOperator?.role !== "owner") {
     return (
       <main className="container">
-        <p>Só o dono pode cadastrar operadores.</p>
+        <LanguageToggle floating />
+        <p>{m.ownerOnly}</p>
       </main>
     );
   }
 
   return (
     <main className="container">
-      <h1>{isBootstrap ? "Cadastrar o primeiro operador" : "Cadastrar operador"}</h1>
-      {isBootstrap && <p>Nenhum operador cadastrado neste terminal ainda — comece criando o dono.</p>}
+      <LanguageToggle floating />
+      <h1>{isBootstrap ? m.titleFirstOperator : m.titleRegisterOperator}</h1>
+      {isBootstrap && <p>{m.bootstrapHint}</p>}
 
       <form onSubmit={handleSubmit} className="operator-form">
         <label>
-          Nome
+          {m.name}
           <input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         </label>
 
         <label>
-          Papel
+          {m.role}
           <select value={role} onChange={(e) => setSelectedRole(e.target.value as OperatorRole)} disabled={isBootstrap}>
-            <option value="owner">Dono</option>
-            <option value="cashier">Caixa</option>
-            <option value="waiter">Garçom</option>
+            <option value="owner">{m.roleOwner}</option>
+            <option value="cashier">{m.roleCashier}</option>
+            <option value="waiter">{m.roleWaiter}</option>
           </select>
         </label>
 
         <label>
-          PIN (4 a 6 dígitos)
+          {m.pinLabel}
           <input
             type="password"
             inputMode="numeric"
@@ -111,7 +162,7 @@ function OperatorRegistration() {
         </label>
 
         <label>
-          Confirmar PIN
+          {m.confirmPin}
           <input
             type="password"
             inputMode="numeric"
@@ -120,19 +171,19 @@ function OperatorRegistration() {
           />
         </label>
 
-        {pin.length > 0 && !pinValid && <p className="form-error" role="alert">PIN precisa ter de 4 a 6 dígitos.</p>}
-        {pinConfirm.length > 0 && pin !== pinConfirm && <p className="form-error" role="alert">Os PINs não coincidem.</p>}
+        {pin.length > 0 && !pinValid && <p className="form-error" role="alert">{m.pinInvalid}</p>}
+        {pinConfirm.length > 0 && pin !== pinConfirm && <p className="form-error" role="alert">{m.pinMismatch}</p>}
         {error && <p className="form-error" role="alert">{error}</p>}
 
         <div className="operator-form-actions">
           <button type="submit" className="button-primary" disabled={!canSubmit}>
-            Cadastrar
+            {m.submit}
           </button>
           {/* No bootstrap não tem pra onde voltar — sem operador nenhum,
               o app não tem mais nada pra mostrar (PRD 1.1). */}
           {!isBootstrap && (
             <Link to="/tables" className="button-secondary">
-              Cancelar
+              {m.cancel}
             </Link>
           )}
         </div>

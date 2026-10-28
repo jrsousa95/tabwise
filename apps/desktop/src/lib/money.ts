@@ -1,6 +1,12 @@
-/** PRD 5.2/NFR7 — valores monetários sempre em centavos (inteiro) na stack; só a UI trabalha em reais. */
+import { getLocale } from "./i18n";
+
+/**
+ * PRD 5.2/NFR7 — valores monetários sempre em centavos (inteiro) na stack; só a UI trabalha em reais.
+ * A moeda continua BRL nos dois idiomas (os valores são em reais); só a
+ * formatação segue o idioma da UI ("R$ 12,50" vs "R$12.50").
+ */
 export function formatCentsToBRL(cents: number): string {
-  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (cents / 100).toLocaleString(getLocale(), { style: "currency", currency: "BRL" });
 }
 
 /** Converte texto de input (ex: "12,50" ou "12.50") pra centavos; `null` se não for um valor válido. */

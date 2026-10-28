@@ -11,6 +11,72 @@ import {
   removeTable,
   type Table,
 } from "../lib/tables";
+import { defineMessages, useMessages } from "../lib/i18n";
+
+const messages = defineMessages({
+  pt: {
+    loading: "Carregando...",
+    title: "Mapa de Mesas",
+    addTableHeading: "Cadastrar mesa",
+    identifierPlaceholder: "Identificador (ex: Mesa 1)",
+    capacityOptionalPlaceholder: "Capacidade (opcional)",
+    add: "Adicionar",
+    tablesHeading: "Mesas",
+    tablesListLabel: (count: number) => `Mesas (${count})`,
+    rename: "Renomear",
+    remove: "Remover",
+    occupied: "Ocupada",
+    available: "Livre",
+    seats: (count: number) => `${count} lugares`,
+    openOrder: "Abrir comanda",
+    newIdentifierLabel: "Novo identificador da mesa",
+    capacityPlaceholder: "Capacidade",
+    newCapacityLabel: "Nova capacidade da mesa",
+    save: "Salvar",
+    cancel: "Cancelar",
+    noTables: "Nenhuma mesa cadastrada ainda.",
+    standaloneHeading: "Comandas avulsas",
+    openStandaloneOrder: "Abrir comanda avulsa",
+    standaloneOrderLink: (number: string) => `Comanda #${number}`,
+    noStandaloneOrders: "Nenhuma comanda avulsa aberta.",
+    viewOrder: "Ver comanda",
+    transferTo: "Transferir para",
+    transferToPlaceholder: "Transferir para...",
+    transfer: "Transferir",
+    transferTable: "Transferir mesa",
+  },
+  en: {
+    loading: "Loading...",
+    title: "Tables",
+    addTableHeading: "Add table",
+    identifierPlaceholder: "Name (e.g. Table 1)",
+    capacityOptionalPlaceholder: "Seats (optional)",
+    add: "Add",
+    tablesHeading: "Tables",
+    tablesListLabel: (count: number) => `Tables (${count})`,
+    rename: "Rename",
+    remove: "Remove",
+    occupied: "Occupied",
+    available: "Available",
+    seats: (count: number) => `${count} ${count === 1 ? "seat" : "seats"}`,
+    openOrder: "Open tab",
+    newIdentifierLabel: "New table name",
+    capacityPlaceholder: "Seats",
+    newCapacityLabel: "New table seat count",
+    save: "Save",
+    cancel: "Cancel",
+    noTables: "No tables added yet.",
+    standaloneHeading: "Walk-in tabs",
+    openStandaloneOrder: "Open walk-in tab",
+    standaloneOrderLink: (number: string) => `Tab #${number}`,
+    noStandaloneOrders: "No open walk-in tabs.",
+    viewOrder: "View tab",
+    transferTo: "Transfer to",
+    transferToPlaceholder: "Transfer to...",
+    transfer: "Transfer",
+    transferTable: "Transfer table",
+  },
+});
 
 /* Ícones inline (SVG, stroke=currentColor, sem preenchimento, 20×20) pras
    ações administrativas compactas do table-tile — sem lib de ícone nova
@@ -42,6 +108,7 @@ function TableMap() {
   const navigate = useNavigate();
   const { operator } = useSession();
   const { status, tables, orders, refresh } = useTablesAndOrders();
+  const m = useMessages(messages);
 
   const [identifier, setIdentifier] = useState("");
   const [capacity, setCapacity] = useState("");
@@ -64,7 +131,7 @@ function TableMap() {
   if (status === "loading") {
     return (
       <section>
-        <p>Carregando...</p>
+        <p>{m.loading}</p>
       </section>
     );
   }
@@ -161,21 +228,21 @@ function TableMap() {
 
   return (
     <section>
-      <h1>Mapa de Mesas</h1>
+      <h1>{m.title}</h1>
 
       {operator?.role === "owner" && (
         <div className="table-map-section">
-          <h2 className="section-heading">Cadastrar mesa</h2>
+          <h2 className="section-heading">{m.addTableHeading}</h2>
           <form onSubmit={handleAddTable} className="inline-form">
-            <input value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="Identificador (ex: Mesa 1)" />
+            <input value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder={m.identifierPlaceholder} />
             <input
               value={capacity}
               onChange={(e) => setCapacity(e.target.value.replace(/\D/g, ""))}
-              placeholder="Capacidade (opcional)"
+              placeholder={m.capacityOptionalPlaceholder}
               inputMode="numeric"
             />
             <button type="submit" className="button-primary" disabled={!identifier.trim()}>
-              Adicionar
+              {m.add}
             </button>
           </form>
           {tableError && <p className="form-error" role="alert">{tableError}</p>}
@@ -185,7 +252,7 @@ function TableMap() {
       {openError && <p className="form-error" role="alert">{openError}</p>}
 
       <div className="table-map-section">
-        <h2 className="section-heading">Mesas</h2>
+        <h2 className="section-heading">{m.tablesHeading}</h2>
         {tables.length > 0 ? (
           // Achado na validação de acessibilidade, 2026-09-23: virou um grid
           // de <div>s sem role nenhum quando a repaginação visual trocou a
@@ -194,7 +261,7 @@ function TableMap() {
           // arquitetura ARIA completa que o achado pede — ver
           // deferred-work.md): role="list"/"listitem" + aria-label na
           // coleção com a contagem.
-          <div className="table-tile-grid" role="list" aria-label={`Mesas (${tables.length})`}>
+          <div className="table-tile-grid" role="list" aria-label={m.tablesListLabel(tables.length)}>
             {tables.map((t) => {
               const order = orderForTable(t.id);
               return (
@@ -214,8 +281,8 @@ function TableMap() {
                           type="button"
                           className="button-secondary row-action-button"
                           onClick={() => handleStartRename(t)}
-                          aria-label="Renomear"
-                          title="Renomear"
+                          aria-label={m.rename}
+                          title={m.rename}
                         >
                           <PencilIcon />
                         </button>
@@ -224,16 +291,16 @@ function TableMap() {
                           className="button-secondary row-action-button"
                           onClick={() => handleRemoveTable(t.id)}
                           disabled={!!order}
-                          aria-label="Remover"
-                          title="Remover"
+                          aria-label={m.remove}
+                          title={m.remove}
                         >
                           <TrashIcon />
                         </button>
                       </span>
                     )}
                   </div>
-                  <span className="table-tile-status">{order ? "Ocupada" : "Livre"}</span>
-                  {t.capacity ? <span className="table-tile-meta">{t.capacity} lugares</span> : null}
+                  <span className="table-tile-status">{order ? m.occupied : m.available}</span>
+                  {t.capacity ? <span className="table-tile-meta">{m.seats(t.capacity)}</span> : null}
                   <div className="table-tile-actions">
                     {order ? (
                       <TransferControl
@@ -248,7 +315,7 @@ function TableMap() {
                       />
                     ) : (
                       <button type="button" className="button-primary button-compact" onClick={() => handleOpenTableOrder(t.id)}>
-                        Abrir comanda
+                        {m.openOrder}
                       </button>
                     )}
                   </div>
@@ -258,20 +325,20 @@ function TableMap() {
                       <input
                         value={renameIdentifier}
                         onChange={(e) => setRenameIdentifier(e.target.value)}
-                        aria-label="Novo identificador da mesa"
+                        aria-label={m.newIdentifierLabel}
                       />
                       <input
                         value={renameCapacity}
                         onChange={(e) => setRenameCapacity(e.target.value.replace(/\D/g, ""))}
-                        placeholder="Capacidade"
+                        placeholder={m.capacityPlaceholder}
                         inputMode="numeric"
-                        aria-label="Nova capacidade da mesa"
+                        aria-label={m.newCapacityLabel}
                       />
                       <button type="submit" className="button-primary" disabled={!renameIdentifier.trim()}>
-                        Salvar
+                        {m.save}
                       </button>
                       <button type="button" className="button-secondary" onClick={() => setRenamingTableId(null)}>
-                        Cancelar
+                        {m.cancel}
                       </button>
                       {renameError && <p className="form-error" role="alert">{renameError}</p>}
                     </form>
@@ -281,24 +348,24 @@ function TableMap() {
             })}
           </div>
         ) : (
-          <p className="catalog-empty">Nenhuma mesa cadastrada ainda.</p>
+          <p className="catalog-empty">{m.noTables}</p>
         )}
         {transferError && <p className="form-error" role="alert">{transferError}</p>}
         {removeError && <p className="form-error" role="alert">{removeError}</p>}
       </div>
 
       <div className="table-map-section">
-        <h2 className="section-heading">Comandas avulsas</h2>
+        <h2 className="section-heading">{m.standaloneHeading}</h2>
         <button type="button" className="button-primary button-compact" onClick={handleOpenStandaloneOrder}>
-          Abrir comanda avulsa
+          {m.openStandaloneOrder}
         </button>
         <ul className="catalog-list">
           {standaloneOrders.map((o) => (
             <li key={o.id}>
-              <a href={`#/orders/${o.id}`}>Comanda #{o.origin.source === "standalone" ? o.origin.number : ""}</a>
+              <a href={`#/orders/${o.id}`}>{m.standaloneOrderLink(o.origin.source === "standalone" ? String(o.origin.number) : "")}</a>
             </li>
           ))}
-          {standaloneOrders.length === 0 && <li className="catalog-empty">Nenhuma comanda avulsa aberta.</li>}
+          {standaloneOrders.length === 0 && <li className="catalog-empty">{m.noStandaloneOrders}</li>}
         </ul>
       </div>
     </section>
@@ -324,15 +391,16 @@ function TransferControl({
   onStartTransfer: () => void;
   onCancelTransfer: () => void;
 }) {
+  const m = useMessages(messages);
   return (
     <span className="transfer-control">
       <button type="button" className="button-secondary" onClick={onOpenOrder}>
-        Ver comanda
+        {m.viewOrder}
       </button>
       {isTransferring ? (
         <>
-          <select value={value} onChange={(e) => onChange(e.target.value)} disabled={options.length === 0} aria-label="Transferir para">
-            <option value="">Transferir para...</option>
+          <select value={value} onChange={(e) => onChange(e.target.value)} disabled={options.length === 0} aria-label={m.transferTo}>
+            <option value="">{m.transferToPlaceholder}</option>
             {options.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.identifier}
@@ -341,16 +409,16 @@ function TransferControl({
           </select>
           <div className="operator-form-actions">
             <button type="button" className="button-primary" onClick={onSubmit} disabled={!value}>
-              Transferir
+              {m.transfer}
             </button>
             <button type="button" className="button-secondary" onClick={onCancelTransfer}>
-              Cancelar
+              {m.cancel}
             </button>
           </div>
         </>
       ) : (
         <button type="button" className="button-secondary" onClick={onStartTransfer} disabled={options.length === 0}>
-          Transferir mesa
+          {m.transferTable}
         </button>
       )}
     </span>

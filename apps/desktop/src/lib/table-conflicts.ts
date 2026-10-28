@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { SIDECAR_URL } from "./sidecar";
+import { localizeError } from "./server-errors";
 
 export type TableConflict = {
   losingOrder: string;
@@ -85,12 +86,12 @@ export function useTableConflicts() {
       const res = await fetch(`${SIDECAR_URL}/orders/${losingOrder}/resolve-conflict`, { method: "POST" });
       const body = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) {
-        setResolveError(body?.error ?? "não foi possível marcar como resolvido");
+        setResolveError(localizeError(body?.error ?? "não foi possível marcar como resolvido"));
         return;
       }
       refresh();
     } catch {
-      setResolveError("não foi possível marcar como resolvido");
+      setResolveError(localizeError("não foi possível marcar como resolvido"));
     }
   }
 

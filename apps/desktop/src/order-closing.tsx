@@ -1,6 +1,64 @@
 import { useEffect, useState } from "react";
 import { formatCentsToBRL, parseReaisToCents } from "./lib/money";
 import { useEstablishment, closeOrder, type Split } from "./lib/closing";
+import { defineMessages, useMessages } from "./lib/i18n";
+
+const messages = defineMessages({
+  pt: {
+    heading: "Fechar comanda",
+    serviceFeePercent: "Taxa de serviço (%)",
+    subtotal: "Subtotal",
+    serviceFee: "Taxa de serviço",
+    total: "Total",
+    noItems: "Comanda sem itens lançados — não há nada a cobrar, pode fechar direto.",
+    splitHeading: "Dividir a conta (opcional)",
+    splitHint: "Por padrão é 1 pagamento só, o valor total. Divida só se precisar.",
+    numberOfParts: "Número de partes",
+    splitEqually: "Dividir igualmente",
+    addManualPart: "Adicionar parte manual",
+    amountPlaceholder: "Valor (R$)",
+    partAmount: "Valor da parte",
+    paymentMethod: "Forma de pagamento",
+    card: "Cartão",
+    pix: "Pix",
+    cash: "Dinheiro",
+    cashReceivedPlaceholder: "Valor recebido (R$)",
+    cashReceived: "Valor recebido em dinheiro",
+    removePart: "Remover parte da divisão",
+    remove: "Remover",
+    matchesTotal: "Confere com o total.",
+    missing: (amount: string) => `Falta ${amount}.`,
+    over: (amount: string) => `Sobra ${amount}.`,
+    confirmClosing: "Confirmar fechamento",
+  },
+  en: {
+    heading: "Close tab",
+    serviceFeePercent: "Service charge (%)",
+    subtotal: "Subtotal",
+    serviceFee: "Service charge",
+    total: "Total",
+    noItems: "This tab has no items — nothing to charge, you can close it right away.",
+    splitHeading: "Split bill (optional)",
+    splitHint: "By default it's a single payment for the full amount. Only split if needed.",
+    numberOfParts: "Number of parts",
+    splitEqually: "Split evenly",
+    addManualPart: "Add manual part",
+    amountPlaceholder: "Amount (R$)",
+    partAmount: "Part amount",
+    paymentMethod: "Payment method",
+    card: "Card",
+    pix: "Pix",
+    cash: "Cash",
+    cashReceivedPlaceholder: "Amount received (R$)",
+    cashReceived: "Cash amount received",
+    removePart: "Remove split part",
+    remove: "Remove",
+    matchesTotal: "Matches the total.",
+    missing: (amount: string) => `${amount} short.`,
+    over: (amount: string) => `${amount} over.`,
+    confirmClosing: "Confirm closing",
+  },
+});
 
 /* Ícone inline (SVG, stroke=currentColor, sem preenchimento, 20×20) — mesmo
    padrão já usado em catalog.tsx/table-map.tsx pra ações de linha
@@ -52,6 +110,7 @@ function OrderClosing({
   onClosed: () => void;
 }) {
   const { status: establishmentStatus, defaultServiceFeePercent } = useEstablishment();
+  const m = useMessages(messages);
   const [serviceFeePercent, setServiceFeePercent] = useState<string | null>(null);
   const [splits, setSplits] = useState<SplitRow[]>([]);
   const [equalParts, setEqualParts] = useState("1");
@@ -139,24 +198,24 @@ function OrderClosing({
 
   return (
     <div className="table-map-section">
-      <h2 className="section-heading">Fechar comanda</h2>
+      <h2 className="section-heading">{m.heading}</h2>
 
       <label>
-        Taxa de serviço (%)
+        {m.serviceFeePercent}
         <input value={percentText} onChange={(e) => setServiceFeePercent(e.target.value.replace(/[^0-9,.]/g, ""))} inputMode="decimal" />
       </label>
 
       <div className="summary">
         <div className="summary-row">
-          <span className="type-label">Subtotal</span>
+          <span className="type-label">{m.subtotal}</span>
           <span className="amount">{formatCentsToBRL(subtotalCents)}</span>
         </div>
         <div className="summary-row">
-          <span className="type-label">Taxa de serviço</span>
+          <span className="type-label">{m.serviceFee}</span>
           <span className="amount">{formatCentsToBRL(serviceFeeCents)}</span>
         </div>
         <div className="summary-row summary-row-total">
-          <span className="type-label">Total</span>
+          <span className="type-label">{m.total}</span>
           <span className="amount amount-display">{formatCentsToBRL(totalCents)}</span>
         </div>
       </div>
@@ -164,18 +223,18 @@ function OrderClosing({
       {/* Achado na validação de UX, 2026-09-23: .type-label (rótulo 13px)
           usado nos dois parágrafos abaixo em vez de texto corrido. */}
       {isFree ? (
-        <p>Comanda sem itens lançados — não há nada a cobrar, pode fechar direto.</p>
+        <p>{m.noItems}</p>
       ) : (
         <>
-          <h3 className="subsection-heading">Dividir a conta (opcional)</h3>
-          <p>Por padrão é 1 pagamento só, o valor total. Divida só se precisar.</p>
+          <h3 className="subsection-heading">{m.splitHeading}</h3>
+          <p>{m.splitHint}</p>
           <div className="inline-form">
-            <input value={equalParts} onChange={(e) => setEqualParts(e.target.value.replace(/\D/g, ""))} inputMode="numeric" aria-label="Número de partes" />
+            <input value={equalParts} onChange={(e) => setEqualParts(e.target.value.replace(/\D/g, ""))} inputMode="numeric" aria-label={m.numberOfParts} />
             <button type="button" className="button-secondary" onClick={handleGenerateEqual}>
-              Dividir igualmente
+              {m.splitEqually}
             </button>
             <button type="button" className="button-secondary" onClick={() => setSplits((prev) => [...prev, newSplitRow()])}>
-              Adicionar parte manual
+              {m.addManualPart}
             </button>
           </div>
 
@@ -190,26 +249,26 @@ function OrderClosing({
                 className="amount"
                 value={s.amountText}
                 onChange={(e) => updateSplit(s.id, { amountText: e.target.value.replace(/[^0-9,.]/g, "") })}
-                placeholder="Valor (R$)"
-                aria-label="Valor da parte"
+                placeholder={m.amountPlaceholder}
+                aria-label={m.partAmount}
                 inputMode="decimal"
               />
               <select
                 value={s.paymentMethod}
                 onChange={(e) => updateSplit(s.id, { paymentMethod: e.target.value as "cash" | "card" | "pix" })}
-                aria-label="Forma de pagamento"
+                aria-label={m.paymentMethod}
               >
-                <option value="card">Cartão</option>
-                <option value="pix">Pix</option>
-                <option value="cash">Dinheiro</option>
+                <option value="card">{m.card}</option>
+                <option value="pix">{m.pix}</option>
+                <option value="cash">{m.cash}</option>
               </select>
               {s.paymentMethod === "cash" && (
                 <input
                   className="amount"
                   value={s.cashReceivedText}
                   onChange={(e) => updateSplit(s.id, { cashReceivedText: e.target.value.replace(/[^0-9,.]/g, "") })}
-                  placeholder="Valor recebido (R$)"
-                  aria-label="Valor recebido em dinheiro"
+                  placeholder={m.cashReceivedPlaceholder}
+                  aria-label={m.cashReceived}
                   inputMode="decimal"
                 />
               )}
@@ -217,8 +276,8 @@ function OrderClosing({
                 type="button"
                 className="button-secondary row-action-button"
                 onClick={() => removeSplit(s.id)}
-                aria-label="Remover parte da divisão"
-                title="Remover"
+                aria-label={m.removePart}
+                title={m.remove}
               >
                 <TrashIcon />
               </button>
@@ -242,7 +301,7 @@ function OrderClosing({
               §Voice and Tone). */}
           {splits.length > 0 && (
             <p className={`split-diff ${diffCents === 0 ? "split-diff-ok" : diffCents > 0 ? "split-diff-danger" : "split-diff-warning"}`}>
-              {diffCents === 0 ? "Confere com o total." : diffCents > 0 ? `Falta ${formatCentsToBRL(diffCents)}.` : `Sobra ${formatCentsToBRL(-diffCents)}.`}
+              {diffCents === 0 ? m.matchesTotal : diffCents > 0 ? m.missing(formatCentsToBRL(diffCents)) : m.over(formatCentsToBRL(-diffCents))}
             </p>
           )}
         </>
@@ -251,7 +310,7 @@ function OrderClosing({
       {error && <p className="form-error" role="alert">{error}</p>}
 
       <button type="button" className="button-primary" onClick={handleConfirm} disabled={!canConfirm}>
-        Confirmar fechamento
+        {m.confirmClosing}
       </button>
     </div>
   );

@@ -2,6 +2,34 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useEstablishment, updateEstablishmentSettings } from "../lib/closing";
 import { MULTI_TERMINAL_UI_ENABLED } from "../lib/feature-flags";
+import { defineMessages, useMessages } from "../lib/i18n";
+
+const messages = defineMessages({
+  pt: {
+    loading: "Carregando...",
+    title: "Configurações do estabelecimento",
+    serviceFeeHeading: "Taxa de serviço padrão",
+    serviceFeePlaceholder: "Ex: 10",
+    serviceFeeAriaLabel: "Taxa de serviço padrão (%)",
+    save: "Salvar",
+    serviceFeeSaved: "Taxa de serviço padrão atualizada.",
+    pairingHeading: "Pareamento de terminais",
+    pairingHint: "Conecte este terminal a outro já configurado na mesma rede pra sincronizar mesas, cardápio e operadores.",
+    configurePairing: "Configurar pareamento →",
+  },
+  en: {
+    loading: "Loading...",
+    title: "Venue settings",
+    serviceFeeHeading: "Default service charge",
+    serviceFeePlaceholder: "e.g. 10",
+    serviceFeeAriaLabel: "Default service charge (%)",
+    save: "Save",
+    serviceFeeSaved: "Default service charge updated.",
+    pairingHeading: "Terminal pairing",
+    pairingHint: "Connect this terminal to another one already set up on the same network to sync tables, menu and staff.",
+    configurePairing: "Set up pairing →",
+  },
+});
 
 /**
  * Configurações gerais do estabelecimento (dono). Antes vivia dentro de
@@ -10,6 +38,7 @@ import { MULTI_TERMINAL_UI_ENABLED } from "../lib/feature-flags";
  * (achado em uso real, 2026-09-22).
  */
 function EstablishmentSettings() {
+  const m = useMessages(messages);
   const { status, defaultServiceFeePercent, refresh } = useEstablishment();
 
   const [serviceFeePercent, setServiceFeePercent] = useState("10");
@@ -41,16 +70,16 @@ function EstablishmentSettings() {
   if (status === "loading") {
     return (
       <section>
-        <p>Carregando...</p>
+        <p>{m.loading}</p>
       </section>
     );
   }
 
   return (
     <section>
-      <h1>Configurações do estabelecimento</h1>
+      <h1>{m.title}</h1>
       <div className="table-map-section settings-section">
-        <h2 className="section-heading">Taxa de serviço padrão</h2>
+        <h2 className="section-heading">{m.serviceFeeHeading}</h2>
         {/* Achado em uso real, 2026-09-22: era o único `.inline-form` do app
             com um `<label>` de legenda visível empilhada sobre o input — o
             bloco label+input ficava bem mais alto que o botão ao lado, que
@@ -66,15 +95,15 @@ function EstablishmentSettings() {
               setServiceFeeSaved(false);
             }}
             inputMode="decimal"
-            placeholder="Ex: 10"
-            aria-label="Taxa de serviço padrão (%)"
+            placeholder={m.serviceFeePlaceholder}
+            aria-label={m.serviceFeeAriaLabel}
           />
           <button type="submit" className="button-primary" disabled={serviceFeeSubmitting}>
-            Salvar
+            {m.save}
           </button>
         </form>
         {serviceFeeError && <p className="form-error" role="alert">{serviceFeeError}</p>}
-        {serviceFeeSaved && <p>Taxa de serviço padrão atualizada.</p>}
+        {serviceFeeSaved && <p>{m.serviceFeeSaved}</p>}
       </div>
 
       {/* Achado em uso real, 2026-09-22: Pareamento também é ação
@@ -87,10 +116,10 @@ function EstablishmentSettings() {
           (feature-flags.ts) — ver ali o motivo. */}
       {MULTI_TERMINAL_UI_ENABLED && (
         <div className="table-map-section">
-          <h2 className="section-heading">Pareamento de terminais</h2>
-          <p>Conecte este terminal a outro já configurado na mesma rede pra sincronizar mesas, cardápio e operadores.</p>
+          <h2 className="section-heading">{m.pairingHeading}</h2>
+          <p>{m.pairingHint}</p>
           <Link to="/pairing" className="button-secondary">
-            Configurar pareamento →
+            {m.configurePairing}
           </Link>
         </div>
       )}

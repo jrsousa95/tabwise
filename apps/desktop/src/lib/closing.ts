@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { SIDECAR_URL } from "./sidecar";
+import { localizeError } from "./server-errors";
 
 export type Split = {
   amountCents: number;
@@ -17,7 +18,7 @@ async function postJson<T>(path: string, body: unknown): Promise<ApiResult<T>> {
   });
   const responseBody = await res.json().catch(() => null);
   if (!res.ok) {
-    return { ok: false, error: (responseBody as { error?: string } | null)?.error ?? "não foi possível completar a ação" };
+    return { ok: false, error: localizeError((responseBody as { error?: string } | null)?.error ?? "não foi possível completar a ação") };
   }
   return { ok: true, data: responseBody as T };
 }

@@ -4,10 +4,67 @@ import { useSidecarHealth } from "./lib/sidecar";
 import { useSession } from "./lib/session";
 import { useMergeWarnings } from "./lib/merge-warnings";
 import { MULTI_TERMINAL_UI_ENABLED } from "./lib/feature-flags";
+import { defineMessages, useMessages } from "./lib/i18n";
+import LanguageToggle from "./language-toggle";
 
 const navLinkClassName = ({ isActive }: { isActive: boolean }) => (isActive ? "nav-link nav-link-active" : "nav-link");
 
-const roleLabel: Record<string, string> = { owner: "dono", cashier: "caixa", waiter: "garçom" };
+const messages = defineMessages({
+  pt: {
+    roleOwner: "dono",
+    roleCashier: "caixa",
+    roleWaiter: "garçom",
+    connected: "Conectado",
+    disconnected: "Sem conexão",
+    closeMenu: "Fechar menu",
+    openMenu: "Abrir menu",
+    logout: "Sair",
+    navTables: "Mapa de Mesas",
+    navCashRegister: "Caixa",
+    navCatalog: "Cardápio",
+    navSettings: "Configurações",
+    navConflicts: "Conflitos de Sincronização",
+    navReports: "Relatórios",
+    navConsolidatedReport: "Relatório Consolidado",
+    navRegisterOperator: "Cadastrar operador",
+    mergedOrders: (count: number) =>
+      `${count} ${count === 1 ? "comanda foi mesclada" : "comandas foram mescladas"} automaticamente por conflito de sincronização.`,
+    hideDetails: "Ocultar detalhes",
+    showDetails: "Ver detalhes",
+    dismissAll: "Dispensar tudo",
+    fullHistory: "Ver histórico completo",
+    mergeDetail: (table: string) =>
+      `${table}: a comanda mais nova foi mesclada na comanda existente — os itens lançados nela agora aparecem na comanda que ficou aberta.`,
+    dismiss: "Dispensar",
+  },
+  en: {
+    roleOwner: "owner",
+    roleCashier: "cashier",
+    roleWaiter: "server",
+    connected: "Connected",
+    disconnected: "Offline",
+    closeMenu: "Close menu",
+    openMenu: "Open menu",
+    logout: "Log out",
+    navTables: "Tables",
+    navCashRegister: "Cash Register",
+    navCatalog: "Menu",
+    navSettings: "Settings",
+    navConflicts: "Sync Conflicts",
+    navReports: "Reports",
+    navConsolidatedReport: "Consolidated Report",
+    navRegisterOperator: "Add staff member",
+    mergedOrders: (count: number) =>
+      `${count} ${count === 1 ? "tab was" : "tabs were"} automatically merged due to a sync conflict.`,
+    hideDetails: "Hide details",
+    showDetails: "Show details",
+    dismissAll: "Dismiss all",
+    fullHistory: "View full history",
+    mergeDetail: (table: string) =>
+      `${table}: the newer tab was merged into the existing one — its items now show up on the tab that stayed open.`,
+    dismiss: "Dismiss",
+  },
+});
 
 /* Ícones inline (mesmo padrão de table-map.tsx/order.tsx: SVG,
    stroke=currentColor, sem preenchimento, 20×20, aria-hidden porque o
@@ -45,6 +102,8 @@ function CloseIcon() {
  */
 function Layout() {
   const { health, error } = useSidecarHealth();
+  const m = useMessages(messages);
+  const roleLabel: Record<string, string> = { owner: m.roleOwner, cashier: m.roleCashier, waiter: m.roleWaiter };
   const { operator, logout } = useSession();
   const navigate = useNavigate();
   const { warnings: mergeWarnings, tableLabel, dismiss } = useMergeWarnings();
@@ -87,7 +146,7 @@ function Layout() {
     // detalhe técnico (erro cru) fica só no tooltip, pra quando alguém
     // for debugar.
     <span className={`status-badge ${health ? "status-badge-success" : "status-badge-danger"}`} title={!health && error ? error : undefined}>
-      {health ? "Conectado" : "Sem conexão"}
+      {health ? m.connected : m.disconnected}
     </span>
   );
 
@@ -98,23 +157,24 @@ function Layout() {
           type="button"
           ref={toggleRef}
           className="nav-toggle button-secondary"
-          aria-label={navOpen ? "Fechar menu" : "Abrir menu"}
+          aria-label={navOpen ? m.closeMenu : m.openMenu}
           aria-expanded={navOpen}
           aria-controls="app-nav-menu"
           onClick={() => setNavOpen((v) => !v)}
         >
           {navOpen ? <CloseIcon /> : <MenuIcon />}
         </button>
-        <span className="app-nav-brand brand-wordmark">Passa a Régua</span>
+        <span className="app-nav-brand brand-wordmark">Tabwise</span>
         {/* Achado em uso real, 2026-09-23: padrão de app mobile pedido pelo
             dono — hambúrguer à esquerda, logo centralizada, "Sair" à
             direita em cor de destaque (nunca neutra, é a saída da sessão).
             Nome do operador + status de conexão saem da barra principal
             abaixo de 1024px (viram informação de dentro do menu, não
             perdem nada) pra sobrar só esses 3 elementos. */}
+        <LanguageToggle />
         {operator && (
           <button type="button" className="logout-button" onClick={handleLogout}>
-            Sair
+            {m.logout}
           </button>
         )}
         <nav id="app-nav-menu" ref={navRef} className={navOpen ? "nav-open" : undefined}>
@@ -127,33 +187,33 @@ function Layout() {
             </div>
           )}
           <NavLink to="/tables" className={navLinkClassName} onClick={() => setNavOpen(false)}>
-            Mapa de Mesas
+            {m.navTables}
           </NavLink>
           {(operator?.role === "owner" || operator?.role === "cashier") && (
             <NavLink to="/cash-register" className={navLinkClassName} onClick={() => setNavOpen(false)}>
-              Caixa
+              {m.navCashRegister}
             </NavLink>
           )}
           {operator?.role === "owner" && (
             <NavLink to="/catalog" className={navLinkClassName} onClick={() => setNavOpen(false)}>
-              Cardápio
+              {m.navCatalog}
             </NavLink>
           )}
           {operator?.role === "owner" && (
             <NavLink to="/settings" className={navLinkClassName} onClick={() => setNavOpen(false)}>
-              Configurações
+              {m.navSettings}
             </NavLink>
           )}
           {/* Só tem conteúdo quando existe um 2º terminal pra conflitar —
               escondido junto do pareamento (feature-flags.ts). */}
           {MULTI_TERMINAL_UI_ENABLED && operator?.role === "owner" && (
             <NavLink to="/table-conflicts" className={navLinkClassName} onClick={() => setNavOpen(false)}>
-              Conflitos de Sincronização
+              {m.navConflicts}
             </NavLink>
           )}
           {operator?.role === "owner" && (
             <NavLink to="/reports" className={navLinkClassName} onClick={() => setNavOpen(false)}>
-              Relatórios
+              {m.navReports}
             </NavLink>
           )}
           {/* Épico 3 (Story 3.1) — item novo, owner-only, mesmo padrão dos
@@ -163,12 +223,12 @@ function Layout() {
               utilidade — escondido junto (feature-flags.ts). */}
           {MULTI_TERMINAL_UI_ENABLED && operator?.role === "owner" && (
             <NavLink to="/consolidated-report" className={navLinkClassName} onClick={() => setNavOpen(false)}>
-              Relatório Consolidado
+              {m.navConsolidatedReport}
             </NavLink>
           )}
           {operator?.role === "owner" && (
             <NavLink to="/operators/new" className={navLinkClassName} onClick={() => setNavOpen(false)}>
-              Cadastrar operador
+              {m.navRegisterOperator}
             </NavLink>
           )}
         </nav>
@@ -186,18 +246,17 @@ function Layout() {
         // só descobre o aviso se o operador navegar manualmente até o topo.
         <div className="merge-warning-banner" role="status">
           <span>
-            ⚠️ {mergeWarnings.length} {mergeWarnings.length === 1 ? "comanda foi mesclada" : "comandas foram mescladas"}{" "}
-            automaticamente por conflito de sincronização.
+            ⚠️ {m.mergedOrders(mergeWarnings.length)}
           </span>
           <button type="button" className="button-secondary" onClick={() => setShowMergeDetails((v) => !v)}>
-            {showMergeDetails ? "Ocultar detalhes" : "Ver detalhes"}
+            {showMergeDetails ? m.hideDetails : m.showDetails}
           </button>
           <button
             type="button"
             className="button-secondary"
             onClick={() => mergeWarnings.forEach((w) => dismiss(w.losingOrder))}
           >
-            Dispensar tudo
+            {m.dismissAll}
           </button>
           {/* ARCH §4.2 — este banner é só a notificação transitória (recente,
               dispensável) de conflito de MESA; o registro permanente
@@ -207,17 +266,16 @@ function Layout() {
               dono, já que a rota é owner-only. */}
           {operator?.role === "owner" && (
             <a href="#/table-conflicts" className="button-secondary">
-              Ver histórico completo
+              {m.fullHistory}
             </a>
           )}
           {showMergeDetails && (
             <ul>
               {mergeWarnings.map((w) => (
                 <li key={w.losingOrder}>
-                  {tableLabel(w.tableId)}: a comanda mais nova foi mesclada na comanda existente — os itens
-                  lançados nela agora aparecem na comanda que ficou aberta.{" "}
+                  {m.mergeDetail(tableLabel(w.tableId))}{" "}
                   <button type="button" className="button-secondary" onClick={() => dismiss(w.losingOrder)}>
-                    Dispensar
+                    {m.dismiss}
                   </button>
                 </li>
               ))}

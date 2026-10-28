@@ -1,6 +1,34 @@
 import { useMemo, useState } from "react";
 import { useCatalog, type Product } from "./lib/catalog";
 import { formatCentsToBRL } from "./lib/money";
+import { defineMessages, useMessages } from "./lib/i18n";
+
+const messages = defineMessages({
+  pt: {
+    heading: "Buscar produto",
+    namePlaceholder: "Nome do produto",
+    searchByName: "Buscar por nome",
+    filterByCategory: "Filtrar por categoria",
+    allCategories: "Todas as categorias",
+    quickAddLabel: (name: string) => `Adicionar 1 ${name}`,
+    quickAddTitle: "Adicionar 1",
+    detailedAddLabel: (name: string) => `Adicionar ${name} com quantidade ou observação`,
+    detailedAddTitle: "Quantidade / observação",
+    noResults: "Nenhum produto encontrado.",
+  },
+  en: {
+    heading: "Search products",
+    namePlaceholder: "Product name",
+    searchByName: "Search by name",
+    filterByCategory: "Filter by category",
+    allCategories: "All categories",
+    quickAddLabel: (name: string) => `Add 1 ${name}`,
+    quickAddTitle: "Add 1",
+    detailedAddLabel: (name: string) => `Add ${name} with quantity or note`,
+    detailedAddTitle: "Quantity / note",
+    noResults: "No products found.",
+  },
+});
 
 /* Ícone inline (SVG, stroke=currentColor, sem preenchimento, 20×20) — mesmo
    padrão já usado nas outras telas. Adição rápida: 1 clique = 1 unidade,
@@ -40,6 +68,7 @@ function ProductSearch({
   onDetailedAdd?: (product: Product) => void;
 }) {
   const { status, categories, products } = useCatalog();
+  const m = useMessages(messages);
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState("");
 
@@ -55,11 +84,11 @@ function ProductSearch({
 
   return (
     <div className="product-search">
-      <h2 className="section-heading">Buscar produto</h2>
+      <h2 className="section-heading">{m.heading}</h2>
       <div className="inline-form">
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nome do produto" aria-label="Buscar por nome" />
-        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label="Filtrar por categoria">
-          <option value="">Todas as categorias</option>
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={m.namePlaceholder} aria-label={m.searchByName} />
+        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label={m.filterByCategory}>
+          <option value="">{m.allCategories}</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -79,8 +108,8 @@ function ProductSearch({
                   type="button"
                   className="button-primary row-action-button"
                   onClick={() => onQuickAdd(p)}
-                  aria-label={`Adicionar 1 ${p.name}`}
-                  title="Adicionar 1"
+                  aria-label={m.quickAddLabel(p.name)}
+                  title={m.quickAddTitle}
                 >
                   <PlusIcon />
                 </button>
@@ -89,8 +118,8 @@ function ProductSearch({
                     type="button"
                     className="button-secondary row-action-button"
                     onClick={() => onDetailedAdd(p)}
-                    aria-label={`Adicionar ${p.name} com quantidade ou observação`}
-                    title="Quantidade / observação"
+                    aria-label={m.detailedAddLabel(p.name)}
+                    title={m.detailedAddTitle}
                   >
                     <PencilIcon />
                   </button>
@@ -99,7 +128,7 @@ function ProductSearch({
             )}
           </li>
         ))}
-        {results.length === 0 && <li className="catalog-empty">Nenhum produto encontrado.</li>}
+        {results.length === 0 && <li className="catalog-empty">{m.noResults}</li>}
       </ul>
     </div>
   );

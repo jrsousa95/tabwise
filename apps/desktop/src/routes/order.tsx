@@ -4,10 +4,74 @@ import { useSession } from "../lib/session";
 import { useOrder, addItemToOrder, cancelItem, updateItemNote, incrementItemQuantity } from "../lib/order";
 import { useTablesAndOrders } from "../lib/tables";
 import { formatCentsToBRL } from "../lib/money";
-import { cancelReasonLabel, cancelReasons, type CancelReason } from "../lib/cancel-reason";
+import { cancelReasonMessages, cancelReasons, type CancelReason } from "../lib/cancel-reason";
+import { defineMessages, useMessages } from "../lib/i18n";
 import type { Product } from "../lib/catalog";
 import ProductSearch from "../product-search";
 import OrderClosing from "../order-closing";
+
+const messages = defineMessages({
+  pt: {
+    loading: "Carregando...",
+    orderNotFound: "Comanda não encontrada.",
+    tableOrderTitle: (table: string | undefined) => `Comanda — ${table ?? "mesa"}`,
+    standaloneOrderTitle: (number: number) => `Comanda avulsa #${number}`,
+    quantityMustBePositive: "quantidade precisa ser um número inteiro positivo",
+    otherReasonRequiresNote: "motivo 'outro' exige uma observação",
+    orderClosed: "Comanda fechada — não aceita mais alterações.",
+    columnItem: "Item",
+    columnQuantity: "Qtd",
+    columnUnitPrice: "Preço un.",
+    columnSubtotal: "Subtotal",
+    canceledPrefix: "— cancelado:",
+    editNote: "Editar observação",
+    cancelItem: "Cancelar item",
+    cancel: "Cancelar",
+    noItems: "Nenhum item lançado ainda.",
+    subtotal: "Subtotal",
+    note: "Observação",
+    notePlaceholder: "ex: sem cebola",
+    save: "Salvar",
+    reason: "Motivo",
+    noteRequired: "Observação (obrigatória)",
+    confirmCancel: "Confirmar cancelamento",
+    addProduct: (name: string) => `Adicionar ${name}`,
+    quantity: "Quantidade",
+    noteWithExample: "Observação (ex: sem cebola)",
+    confirm: "Confirmar",
+    closeOrder: "Fechar comanda",
+  },
+  en: {
+    loading: "Loading...",
+    orderNotFound: "Tab not found.",
+    tableOrderTitle: (table: string | undefined) => `Tab — ${table ?? "table"}`,
+    standaloneOrderTitle: (number: number) => `Walk-in tab #${number}`,
+    quantityMustBePositive: "quantity must be a positive whole number",
+    otherReasonRequiresNote: "reason 'other' requires a note",
+    orderClosed: "Tab closed — no further changes allowed.",
+    columnItem: "Item",
+    columnQuantity: "Qty",
+    columnUnitPrice: "Unit price",
+    columnSubtotal: "Subtotal",
+    canceledPrefix: "— voided:",
+    editNote: "Edit note",
+    cancelItem: "Void item",
+    cancel: "Cancel",
+    noItems: "No items added yet.",
+    subtotal: "Subtotal",
+    note: "Note",
+    notePlaceholder: "e.g. no onions",
+    save: "Save",
+    reason: "Reason",
+    noteRequired: "Note (required)",
+    confirmCancel: "Confirm void",
+    addProduct: (name: string) => `Add ${name}`,
+    quantity: "Quantity",
+    noteWithExample: "Note (e.g. no onions)",
+    confirm: "Confirm",
+    closeOrder: "Close tab",
+  },
+});
 
 /* Ícone inline (SVG, stroke=currentColor, sem preenchimento, 20×20) — mesmo
    padrão já usado em catalog.tsx/table-map.tsx pra ações de linha
@@ -41,6 +105,8 @@ function Order() {
   const { operator } = useSession();
   const { status, order, refresh } = useOrder(orderId);
   const { tables } = useTablesAndOrders();
+  const m = useMessages(messages);
+  const cancelReasonLabel = useMessages(cancelReasonMessages);
 
   const [closing, setClosing] = useState(false);
 
@@ -66,7 +132,7 @@ function Order() {
   if (status === "loading") {
     return (
       <section>
-        <p>Carregando...</p>
+        <p>{m.loading}</p>
       </section>
     );
   }
@@ -74,13 +140,13 @@ function Order() {
   if (status === "not-found" || !order || !orderId) {
     return (
       <section>
-        <p>Comanda não encontrada.</p>
+        <p>{m.orderNotFound}</p>
       </section>
     );
   }
 
   const tableLabel = order.currentTableId ? tables.find((t) => t.id === order.currentTableId)?.identifier : undefined;
-  const title = order.origin.source === "table" ? `Comanda — ${tableLabel ?? "mesa"}` : `Comanda avulsa #${order.origin.number}`;
+  const title = order.origin.source === "table" ? m.tableOrderTitle(tableLabel) : m.standaloneOrderTitle(order.origin.number);
   const subtotalCents = order.items.filter((i) => !i.canceled).reduce((sum, i) => sum + i.unitPriceCents * i.quantity, 0);
 
   function handleSelectProduct(product: Product) {
@@ -94,7 +160,7 @@ function Order() {
     if (!pendingProduct || !orderId) return;
     const quantityValue = Number(quantity);
     if (!Number.isInteger(quantityValue) || quantityValue <= 0) {
-      setAddError("quantidade precisa ser um número inteiro positivo");
+      setAddError(m.quantityMustBePositive);
       return;
     }
     setAdding(true);
@@ -163,7 +229,7 @@ function Order() {
   async function handleConfirmCancel(itemId: string) {
     if (!orderId) return;
     if (cancelReason === "other" && !cancelNote.trim()) {
-      setCancelError("motivo 'outro' exige uma observação");
+      setCancelError(m.otherReasonRequiresNote);
       return;
     }
     setCancelError(null);
@@ -181,15 +247,15 @@ function Order() {
   return (
     <section>
       <h1>{title}</h1>
-      {order.status === "closed" && <p className="form-error" role="alert">Comanda fechada — não aceita mais alterações.</p>}
+      {order.status === "closed" && <p className="form-error" role="alert">{m.orderClosed}</p>}
 
       <table className="catalog-table">
         <thead>
           <tr>
-            <th>Item</th>
-            <th>Qtd</th>
-            <th>Preço un.</th>
-            <th>Subtotal</th>
+            <th>{m.columnItem}</th>
+            <th>{m.columnQuantity}</th>
+            <th>{m.columnUnitPrice}</th>
+            <th>{m.columnSubtotal}</th>
             <th></th>
           </tr>
         </thead>
@@ -202,7 +268,7 @@ function Order() {
                 {item.canceled && (
                   <>
                     {" "}
-                    — cancelado: {cancelReasonLabel[item.cancelReason ?? "other"]}
+                    {m.canceledPrefix} {cancelReasonLabel[item.cancelReason ?? "other"]}
                     {item.cancelNote ? ` (${item.cancelNote})` : ""}
                   </>
                 )}
@@ -217,8 +283,8 @@ function Order() {
                       type="button"
                       className="button-secondary row-action-button"
                       onClick={() => handleStartEditNote(item)}
-                      aria-label="Editar observação"
-                      title="Editar observação"
+                      aria-label={m.editNote}
+                      title={m.editNote}
                     >
                       <PencilIcon />
                     </button>
@@ -227,8 +293,8 @@ function Order() {
                         type="button"
                         className="button-secondary row-action-button"
                         onClick={() => setCancelingItemId(item.id)}
-                        aria-label="Cancelar item"
-                        title="Cancelar"
+                        aria-label={m.cancelItem}
+                        title={m.cancel}
                       >
                         <CancelIcon />
                       </button>
@@ -241,7 +307,7 @@ function Order() {
           {order.items.length === 0 && (
             <tr>
               <td colSpan={5} className="catalog-empty">
-                Nenhum item lançado ainda.
+                {m.noItems}
               </td>
             </tr>
           )}
@@ -254,22 +320,22 @@ function Order() {
           basta; o destaque visual continua vindo de amount-display. */}
       <div className="summary">
         <div className="summary-row">
-          <span className="type-label">Subtotal</span>
+          <span className="type-label">{m.subtotal}</span>
           <span className="amount amount-display">{formatCentsToBRL(subtotalCents)}</span>
         </div>
       </div>
 
       {editingNoteItemId && (
         <div className="table-map-section">
-          <h2 className="section-heading">Editar observação</h2>
+          <h2 className="section-heading">{m.editNote}</h2>
           <label>
-            Observação
-            <input value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="ex: sem cebola" autoFocus />
+            {m.note}
+            <input value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder={m.notePlaceholder} autoFocus />
           </label>
           {noteError && <p className="form-error" role="alert">{noteError}</p>}
           <div className="operator-form-actions">
             <button type="button" className="button-primary" onClick={handleConfirmEditNote} disabled={noteSubmitting}>
-              Salvar
+              {m.save}
             </button>
             {/* Achado na auditoria visual, 2026-09-23: "Voltar" era a
                 exceção — "Cancelar" é a convenção em 5 de 6 ocorrências
@@ -277,7 +343,7 @@ function Order() {
                 todo o app, incluindo o botão logo abaixo neste mesmo
                 arquivo. */}
             <button type="button" className="button-secondary" onClick={() => setEditingNoteItemId(null)}>
-              Cancelar
+              {m.cancel}
             </button>
           </div>
         </div>
@@ -285,9 +351,9 @@ function Order() {
 
       {cancelingItemId && (
         <div className="table-map-section">
-          <h2 className="section-heading">Cancelar item</h2>
+          <h2 className="section-heading">{m.cancelItem}</h2>
           <label>
-            Motivo
+            {m.reason}
             <select value={cancelReason} onChange={(e) => setCancelReason(e.target.value as CancelReason)}>
               {cancelReasons.map((r) => (
                 <option key={r} value={r}>
@@ -298,17 +364,17 @@ function Order() {
           </label>
           {cancelReason === "other" && (
             <label>
-              Observação (obrigatória)
+              {m.noteRequired}
               <input value={cancelNote} onChange={(e) => setCancelNote(e.target.value)} />
             </label>
           )}
           {cancelError && <p className="form-error" role="alert">{cancelError}</p>}
           <div className="operator-form-actions">
             <button type="button" className="button-primary" onClick={() => handleConfirmCancel(cancelingItemId)}>
-              Confirmar cancelamento
+              {m.confirmCancel}
             </button>
             <button type="button" className="button-secondary" onClick={() => setCancelingItemId(null)}>
-              Cancelar
+              {m.cancel}
             </button>
           </div>
         </div>
@@ -318,22 +384,22 @@ function Order() {
         <>
           {pendingProduct && (
             <div className="table-map-section">
-              <h2 className="section-heading">Adicionar {pendingProduct.name}</h2>
+              <h2 className="section-heading">{m.addProduct(pendingProduct.name)}</h2>
               <label>
-                Quantidade
+                {m.quantity}
                 <input value={quantity} onChange={(e) => setQuantity(e.target.value.replace(/\D/g, ""))} inputMode="numeric" />
               </label>
               <label>
-                Observação (ex: sem cebola)
+                {m.noteWithExample}
                 <input value={note} onChange={(e) => setNote(e.target.value)} />
               </label>
               {addError && <p className="form-error" role="alert">{addError}</p>}
               <div className="operator-form-actions">
                 <button type="button" className="button-primary" onClick={handleConfirmAdd} disabled={adding}>
-                  Confirmar
+                  {m.confirm}
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setPendingProduct(null)}>
-                  Cancelar
+                  {m.cancel}
                 </button>
               </div>
             </div>
@@ -351,7 +417,7 @@ function Order() {
             ) : (
               <div className="table-map-section">
                 <button type="button" className="button-primary" onClick={() => setClosing(true)}>
-                  Fechar comanda
+                  {m.closeOrder}
                 </button>
               </div>
             ))}

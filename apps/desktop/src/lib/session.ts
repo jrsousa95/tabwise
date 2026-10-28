@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { SIDECAR_URL } from "./sidecar";
+import { localizeError } from "./server-errors";
 
 export type OperatorRole = "owner" | "cashier" | "waiter";
 
@@ -67,7 +68,7 @@ export function useSession() {
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        return { ok: false, error: body?.error ?? "não foi possível entrar" };
+        return { ok: false, error: localizeError(body?.error ?? "não foi possível entrar") };
       }
       const data = (await res.json()) as CurrentOperator;
       setOperator(data);
