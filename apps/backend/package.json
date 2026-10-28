@@ -1,5 +1,5 @@
 {
-  "name": "@passa-a-regua/backend",
+  "name": "@tabwise/backend",
   "private": true,
   "version": "0.0.0",
   "description": "API de sync com a nuvem (M9, ARCH §5, §8) — ingestão de eventos, projeção materializada em PostgreSQL, cadastro/pareamento de terminal.",
@@ -12,8 +12,8 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@passa-a-regua/shared-types": "*",
-    "@passa-a-regua/sync-engine": "*",
+    "@tabwise/shared-types": "*",
+    "@tabwise/sync-engine": "*",
     "pg": "^8.13.1"
   },
   "devDependencies": {

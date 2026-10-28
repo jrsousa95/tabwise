@@ -33,7 +33,7 @@ jobs:
         working-directory: apps/desktop/src-tauri/sidecar
         shell: pwsh
         run: |
-          $exe = Get-ChildItem -Filter "passa-a-regua-sidecar-*.exe" | Select-Object -First 1
+          $exe = Get-ChildItem -Filter "tabwise-sidecar-*.exe" | Select-Object -First 1
           if (-not $exe) { throw "Binário do sidecar não encontrado após o build." }
           Write-Host "Binário encontrado: $($exe.Name)"
 
@@ -64,7 +64,7 @@ jobs:
       - name: Upload do instalador gerado
         uses: actions/upload-artifact@v4
         with:
-          name: passa-a-regua-windows-installer
+          name: tabwise-windows-installer
           path: |
             apps/desktop/src-tauri/target/release/bundle/**/*.msi
             apps/desktop/src-tauri/target/release/bundle/**/*.exe

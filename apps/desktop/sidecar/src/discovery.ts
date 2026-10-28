@@ -4,7 +4,7 @@ import { Bonjour, type Service } from "bonjour-service";
  * M9 (ARCH §2, decisão 2) — descoberta mDNS entre terminais, reaproveitando
  * o `bonjour-service` já validado no Spike 2 (`spikes/spike-2-mdns/`).
  */
-const SERVICE_TYPE = "passaaregua";
+const SERVICE_TYPE = "tabwise";
 
 export interface Peer {
   readonly terminalId: string;

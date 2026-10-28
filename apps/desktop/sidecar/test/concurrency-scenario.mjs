@@ -42,7 +42,7 @@ function log(msg) {
 
 function startSidecar(port, dataDir, extraEnv = {}) {
   const child = spawn(process.execPath, [SIDECAR_ENTRY], {
-    env: { ...process.env, PASSA_A_REGUA_PORT: String(port), PASSA_A_REGUA_DATA_DIR: dataDir, ...extraEnv },
+    env: { ...process.env, TABWISE_PORT: String(port), TABWISE_DATA_DIR: dataDir, ...extraEnv },
     stdio: ["ignore", "pipe", "pipe"],
   });
   child.stdout.on("data", () => {}); // silencia stdout normal; erros ainda vão pro stderr do processo pai
@@ -172,8 +172,8 @@ function shiftLocalDateKeyForTest(baseDateKey, deltaDays) {
 }
 
 async function main() {
-  const dataDirA = mkdtempSync(path.join(tmpdir(), "passa-a-regua-concurrency-a-"));
-  const dataDirB = mkdtempSync(path.join(tmpdir(), "passa-a-regua-concurrency-b-"));
+  const dataDirA = mkdtempSync(path.join(tmpdir(), "tabwise-concurrency-a-"));
+  const dataDirB = mkdtempSync(path.join(tmpdir(), "tabwise-concurrency-b-"));
   let sidecarA;
   let sidecarB;
 
@@ -951,11 +951,11 @@ async function main() {
     // direto no data-dir (sem passar pelo fluxo de registro de verdade). ===
     log("CENÁRIO 9: proxy do relatório consolidado — sucesso (200, corpo repassado) e nuvem inalcançável (502)...");
 
-    const dataDirC = mkdtempSync(path.join(tmpdir(), "passa-a-regua-concurrency-c-"));
+    const dataDirC = mkdtempSync(path.join(tmpdir(), "tabwise-concurrency-c-"));
     let sidecarC;
     let standinBackend;
     try {
-      sidecarC = startSidecar(PORT_C, dataDirC, { PASSA_A_REGUA_BACKEND_URL: `http://127.0.0.1:${STANDIN_BACKEND_PORT}` });
+      sidecarC = startSidecar(PORT_C, dataDirC, { TABWISE_BACKEND_URL: `http://127.0.0.1:${STANDIN_BACKEND_PORT}` });
       await waitForHealth(PORT_C);
       await postJson(PORT_C, "/operators", { name: "Ana", role: "owner", pin: "1234" });
       await postJson(PORT_C, "/session/login", { pin: "1234" });

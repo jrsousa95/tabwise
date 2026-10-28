@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DomainEvent } from "@passa-a-regua/shared-types";
+import type { DomainEvent } from "@tabwise/shared-types";
 import { serialize, tick, ZERO } from "../src/hlc.js";
 import { merge, project, sortEvents } from "../src/reconciliation.js";
 

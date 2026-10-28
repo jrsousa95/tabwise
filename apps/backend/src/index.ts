@@ -1,6 +1,6 @@
 import http from "node:http";
 import { randomBytes } from "node:crypto";
-import { DomainEventSchema } from "@passa-a-regua/shared-types";
+import { DomainEventSchema } from "@tabwise/shared-types";
 import {
   project,
   sortEvents,
@@ -10,7 +10,7 @@ import {
   computeConsolidatedCashSessionSummary,
   localDateKey,
   type ProjectedState,
-} from "@passa-a-regua/sync-engine";
+} from "@tabwise/sync-engine";
 import {
   openDatabase,
   createEstablishment,
@@ -36,7 +36,7 @@ import {
  */
 
 const PORT = Number(process.env.PORT) || 4551;
-const DATABASE_URL = process.env.DATABASE_URL ?? "postgres://passa_a_regua:passa_a_regua_dev@localhost:5432/passa_a_regua";
+const DATABASE_URL = process.env.DATABASE_URL ?? "postgres://tabwise:tabwise_dev@localhost:5432/tabwise";
 
 const db: Db = await openDatabase(DATABASE_URL);
 

@@ -1,7 +1,7 @@
 import http from "node:http";
 import path from "node:path";
 import { mkdirSync } from "node:fs";
-import { openDatabase } from "@passa-a-regua/sync-engine";
+import { openDatabase } from "@tabwise/sync-engine";
 import { loadOrCreateTerminalId } from "./terminal-identity.js";
 import { loadOrCreateLanToken } from "./lan-pairing.js";
 import { startDiscovery, stopDiscovery } from "./discovery.js";
@@ -38,7 +38,7 @@ import { handleReportRoutes } from "./routes/reports.js";
 
 // Override só pra rodar mais de um sidecar na mesma máquina (teste manual,
 // e mais pra frente M9 com múltiplos terminais simulados localmente).
-const PORT = Number(process.env.PASSA_A_REGUA_PORT) || 4550;
+const PORT = Number(process.env.TABWISE_PORT) || 4550;
 const startedAt = new Date().toISOString();
 
 /**
@@ -46,9 +46,9 @@ const startedAt = new Date().toISOString();
  * `src-tauri/src/lib.rs`) — é onde o SQLite deve morar de verdade. Fora do
  * Tauri (ex: rodando o sidecar direto em dev), cai num caminho local.
  */
-const dataDir = process.env.PASSA_A_REGUA_DATA_DIR ?? path.join(process.cwd(), ".dev-data");
+const dataDir = process.env.TABWISE_DATA_DIR ?? path.join(process.cwd(), ".dev-data");
 mkdirSync(dataDir, { recursive: true });
-const dbPath = path.join(dataDir, "passa-a-regua.db");
+const dbPath = path.join(dataDir, "tabwise.db");
 const db = openDatabase(dbPath);
 const terminalId = loadOrCreateTerminalId(dataDir);
 

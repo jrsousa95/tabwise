@@ -1,4 +1,4 @@
-# Project Brief — Passa a Régua
+# Project Brief — Tabwise
 
 **Fase:** Discovery (BMAD — Analyst)
 **Data:** 2026-09-19
@@ -10,7 +10,7 @@
 
 Sistema de PDV desktop para bares e restaurantes, com foco em gerenciamento de mesas e comandas. Objetivo: competir com SAIPOS, Consumer e Goomer começando por um MVP mais enxuto, sem nota fiscal, focado em resolver bem o ciclo operacional do dia a dia (abrir comanda → lançar pedido → fechar comanda → fechar caixa).
 
-Nome do projeto: **Passa a Régua**.
+Nome do projeto: **Tabwise** (originalmente "Passa a Régua", renomeado em 2026-10-28 pra um nome global).
 
 ## 2. Personas
 

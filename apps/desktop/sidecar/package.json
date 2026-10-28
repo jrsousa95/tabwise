@@ -1,5 +1,5 @@
 {
-  "name": "@passa-a-regua/sidecar",
+  "name": "@tabwise/sidecar",
   "private": true,
   "version": "0.1.0",
   "description": "Processo sidecar Node embutido no app Tauri via SEA (Single Executable Application) — ARCH §9, M2.",
@@ -11,8 +11,8 @@
     "test:concurrency": "npm run build:bundle && node test/concurrency-scenario.mjs"
   },
   "dependencies": {
-    "@passa-a-regua/shared-types": "*",
-    "@passa-a-regua/sync-engine": "*",
+    "@tabwise/shared-types": "*",
+    "@tabwise/sync-engine": "*",
     "bonjour-service": "^1.4.4"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
-import { DomainEventSchema } from "@passa-a-regua/shared-types";
-import { insertEvent, listEventsSinceCursor, project, sortEvents } from "@passa-a-regua/sync-engine";
+import { DomainEventSchema } from "@tabwise/shared-types";
+import { insertEvent, listEventsSinceCursor, project, sortEvents } from "@tabwise/sync-engine";
 import { loadOrCreateLanToken } from "./lan-pairing.js";
 import { receiveHlc } from "./clock.js";
 import { loadCloudCredential, saveCloudCredential, type CloudCredential } from "./cloud-credential.js";
@@ -15,14 +15,14 @@ const SYNC_INTERVAL_MS = 5000;
 export const REQUEST_TIMEOUT_MS = 8000;
 
 // Override só pra apontar pro backend certo (dev local vs. produção, quando existir).
-export const BACKEND_URL = process.env.PASSA_A_REGUA_BACKEND_URL ?? "http://localhost:4551";
+export const BACKEND_URL = process.env.TABWISE_BACKEND_URL ?? "http://localhost:4551";
 
 /**
  * M12 (ARCH §7, revisão de segurança) — "HTTPS obrigatório" pro sync com a
  * nuvem é uma decisão de arquitetura, não algo que o código consiga
  * impor sozinho (o backend real pode ficar atrás de um proxy/load
  * balancer que termina TLS, por exemplo). Isso aqui só evita o erro mais
- * comum: apontar `PASSA_A_REGUA_BACKEND_URL` pra um endereço `http://`
+ * comum: apontar `TABWISE_BACKEND_URL` pra um endereço `http://`
  * que não seja loopback/dev local, o que mandaria a credencial de
  * terminal em texto plano pela rede.
  */
@@ -31,7 +31,7 @@ function warnIfInsecureBackendUrl(url: string): void {
   const isLocalDev = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/.test(url);
   if (isLocalDev) return;
   console.warn(
-    `[sidecar] ATENÇÃO: PASSA_A_REGUA_BACKEND_URL (${url}) não usa HTTPS — a credencial de terminal trafegaria em texto plano pela rede (ARCH §7). Use https:// em qualquer ambiente que não seja dev local.`
+    `[sidecar] ATENÇÃO: TABWISE_BACKEND_URL (${url}) não usa HTTPS — a credencial de terminal trafegaria em texto plano pela rede (ARCH §7). Use https:// em qualquer ambiente que não seja dev local.`
   );
 }
 warnIfInsecureBackendUrl(BACKEND_URL);

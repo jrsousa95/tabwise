@@ -72,7 +72,7 @@ function serializeHlc(l, c) {
 
 function spawnSidecar(dataDir) {
   const child = spawn(exePath, [], {
-    env: { ...process.env, PASSA_A_REGUA_PORT: String(PORT), PASSA_A_REGUA_DATA_DIR: dataDir },
+    env: { ...process.env, TABWISE_PORT: String(PORT), TABWISE_DATA_DIR: dataDir },
     stdio: ["ignore", "pipe", "pipe"],
   });
   child.stdout.on("data", (d) => process.stdout.write(`[sidecar stdout] ${d}`));
@@ -97,7 +97,7 @@ async function stopSidecar(child) {
 }
 
 async function main() {
-  const dataDir = mkdtempSync(path.join(tmpdir(), "passa-a-regua-packaged-smoke-"));
+  const dataDir = mkdtempSync(path.join(tmpdir(), "tabwise-packaged-smoke-"));
   let child = spawnSidecar(dataDir);
 
   try {
@@ -175,7 +175,7 @@ async function main() {
     // 200 depois de reler o log inteiro.
     console.log("[packaged-binary-smoke] releitura de eventos antigos de junção de mesas (PRD 2.6)...");
     await stopSidecar(child);
-    const dbPath = path.join(dataDir, "passa-a-regua.db");
+    const dbPath = path.join(dataDir, "tabwise.db");
     const groupId = randomUUID();
     const db = new DatabaseSync(dbPath);
     try {

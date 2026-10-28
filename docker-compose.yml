@@ -5,9 +5,9 @@ services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: passa_a_regua
-      POSTGRES_PASSWORD: passa_a_regua_dev
-      POSTGRES_DB: passa_a_regua
+      POSTGRES_USER: tabwise
+      POSTGRES_PASSWORD: tabwise_dev
+      POSTGRES_DB: tabwise
     ports:
       - "5432:5432"
     volumes:

@@ -1,7 +1,7 @@
 import type http from "node:http";
 import { randomUUID } from "node:crypto";
-import { DomainEventSchema } from "@passa-a-regua/shared-types";
-import { insertEvent, computeExpectedCashSessionAmountCents } from "@passa-a-regua/sync-engine";
+import { DomainEventSchema } from "@tabwise/shared-types";
+import { insertEvent, computeExpectedCashSessionAmountCents } from "@tabwise/sync-engine";
 import { sendJson, readJsonBody } from "../http-helpers.js";
 import { nextHlc } from "../clock.js";
 import type { RequestContext } from "../context.js";

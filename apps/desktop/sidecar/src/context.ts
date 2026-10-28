@@ -1,7 +1,7 @@
 import type http from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import { listEventsSinceCursor, project, sortEvents, type OperatorState, type OrderState, type ProjectedState } from "@passa-a-regua/sync-engine";
+import { listEventsSinceCursor, project, sortEvents, type OperatorState, type OrderState, type ProjectedState } from "@tabwise/sync-engine";
 import { sendJson } from "./http-helpers.js";
 import { loadSession } from "./session.js";
 import { loadOrCreateLanToken } from "./lan-pairing.js";

@@ -1,6 +1,6 @@
 import type http from "node:http";
-import { DomainEventSchema } from "@passa-a-regua/shared-types";
-import { insertEvent, insertEvents, listEventsSinceCursor, findEventsByAggregateId } from "@passa-a-regua/sync-engine";
+import { DomainEventSchema } from "@tabwise/shared-types";
+import { insertEvent, insertEvents, listEventsSinceCursor, findEventsByAggregateId } from "@tabwise/sync-engine";
 import { sendJson, readJsonBody } from "../http-helpers.js";
 import type { RequestContext } from "../context.js";
 import { loadCloudCredential } from "../cloud-credential.js";

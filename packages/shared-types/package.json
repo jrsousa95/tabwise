@@ -1,5 +1,5 @@
 {
-  "name": "@passa-a-regua/shared-types",
+  "name": "@tabwise/shared-types",
   "private": true,
   "version": "0.0.0",
   "description": "Tipos e schemas de validação (Zod) dos eventos compartilhados entre desktop e backend — ARCH §3.1, §8.",

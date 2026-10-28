@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import { DomainEventSchema, type DomainEvent } from "@passa-a-regua/shared-types";
+import { DomainEventSchema, type DomainEvent } from "@tabwise/shared-types";
 
 /**
  * Schema da tabela `events` — append-only, fonte de verdade (ARCH §3.1).

@@ -29,8 +29,8 @@ jobs:
       # (workspace symlink aponta pro pacote, não builda sozinho).
       - name: Builda os pacotes locais (shared-types, sync-engine) que o sidecar depende
         run: |
-          npm run build --workspace=@passa-a-regua/shared-types
-          npm run build --workspace=@passa-a-regua/sync-engine
+          npm run build --workspace=@tabwise/shared-types
+          npm run build --workspace=@tabwise/sync-engine
 
       - name: Builda o binário SEA do sidecar (nativo em Windows, sem cross-build)
         working-directory: apps/desktop
@@ -40,7 +40,7 @@ jobs:
         working-directory: apps/desktop/src-tauri/sidecar
         shell: pwsh
         run: |
-          $exe = Get-ChildItem -Filter "passa-a-regua-sidecar-*.exe" | Select-Object -First 1
+          $exe = Get-ChildItem -Filter "tabwise-sidecar-*.exe" | Select-Object -First 1
           if (-not $exe) { throw "Binário do sidecar não encontrado após o build." }
           Write-Host "Binário encontrado: $($exe.Name)"
           node "$env:GITHUB_WORKSPACE\apps\desktop\sidecar\test\packaged-binary-smoke.mjs" "$($exe.FullName)"
@@ -52,7 +52,7 @@ jobs:
       - name: Upload do instalador gerado
         uses: actions/upload-artifact@v4
         with:
-          name: passa-a-regua-windows-installer
+          name: tabwise-windows-installer
           path: |
             apps/desktop/src-tauri/target/release/bundle/**/*.msi
             apps/desktop/src-tauri/target/release/bundle/**/*.exe

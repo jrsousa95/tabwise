@@ -11,7 +11,7 @@
 # ─────────────────────────────────────────────────────────────────
 
 [core]
-project_name = "passa-a-regua"
+project_name = "tabwise"
 document_output_language = "Portuguese (Brazil)"
 output_folder = "_bmad-output"
 

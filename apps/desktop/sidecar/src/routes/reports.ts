@@ -1,5 +1,5 @@
 import type http from "node:http";
-import { computeCashRegisterSummaryForRange, computeProductRanking, countCanceledItemsByOperator } from "@passa-a-regua/sync-engine";
+import { computeCashRegisterSummaryForRange, computeProductRanking, countCanceledItemsByOperator } from "@tabwise/sync-engine";
 import { sendJson } from "../http-helpers.js";
 import type { RequestContext } from "../context.js";
 import { loadCloudCredential } from "../cloud-credential.js";

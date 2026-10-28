@@ -8,7 +8,7 @@ planning_artifacts: "{project-root}/_bmad-output/planning-artifacts"
 implementation_artifacts: "{project-root}/_bmad-output/implementation-artifacts"
 project_knowledge: docs
 user_name: Eudesjunior
-project_name: passa-a-regua
+project_name: tabwise
 communication_language: Portuguese (Brazil)
 document_output_language: Portuguese (Brazil)
 output_folder: _bmad-output

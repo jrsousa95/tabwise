@@ -1,5 +1,5 @@
 import type http from "node:http";
-import { localDateKey, computeCashRegisterSummary } from "@passa-a-regua/sync-engine";
+import { localDateKey, computeCashRegisterSummary } from "@tabwise/sync-engine";
 import { sendJson } from "../http-helpers.js";
 import type { RequestContext } from "../context.js";
 

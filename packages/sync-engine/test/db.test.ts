@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DomainEvent } from "@passa-a-regua/shared-types";
+import type { DomainEvent } from "@tabwise/shared-types";
 import { openDatabase, findEventsByAggregateId, insertEvent, insertEvents, listEventsSinceCursor } from "../src/db.js";
 import { serialize, tick, ZERO } from "../src/hlc.js";
 

@@ -29,20 +29,20 @@ jobs:
       # achado documentado no m12-windows-packaging.yml).
       - name: Builda os pacotes compartilhados (shared-types, sync-engine)
         run: |
-          npm run build --workspace=@passa-a-regua/shared-types
-          npm run build --workspace=@passa-a-regua/sync-engine
+          npm run build --workspace=@tabwise/shared-types
+          npm run build --workspace=@tabwise/sync-engine
 
       - name: Testes unitários — shared-types
-        run: npm test --workspace=@passa-a-regua/shared-types
+        run: npm test --workspace=@tabwise/shared-types
 
       - name: Testes unitários — sync-engine
-        run: npm test --workspace=@passa-a-regua/sync-engine
+        run: npm test --workspace=@tabwise/sync-engine
 
       - name: Typecheck — backend
-        run: npm run typecheck --workspace=@passa-a-regua/backend
+        run: npm run typecheck --workspace=@tabwise/backend
 
       - name: Typecheck — sidecar
-        run: npm run typecheck --workspace=@passa-a-regua/sidecar
+        run: npm run typecheck --workspace=@tabwise/sidecar
 
       - name: Typecheck — desktop (frontend)
         working-directory: apps/desktop
@@ -63,8 +63,8 @@ jobs:
 
       - name: Builda os pacotes compartilhados (shared-types, sync-engine)
         run: |
-          npm run build --workspace=@passa-a-regua/shared-types
-          npm run build --workspace=@passa-a-regua/sync-engine
+          npm run build --workspace=@tabwise/shared-types
+          npm run build --workspace=@tabwise/sync-engine
 
       # PRD 7.4 / ARCH §9 item 4 — cenário sintético de concorrência
       # multi-terminal, isolado do usuário (portas 4700/4701, data-dirs

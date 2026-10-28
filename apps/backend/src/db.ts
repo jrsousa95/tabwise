@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import pg from "pg";
-import { DomainEventSchema, type DomainEvent } from "@passa-a-regua/shared-types";
+import { DomainEventSchema, type DomainEvent } from "@tabwise/shared-types";
 
 const { Pool } = pg;
 

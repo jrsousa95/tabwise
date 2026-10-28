@@ -1,4 +1,4 @@
-import type { DomainEvent, PaymentMethod, CancelReason, OrderOrigin, OperatorRole } from "@passa-a-regua/shared-types";
+import type { DomainEvent, PaymentMethod, CancelReason, OrderOrigin, OperatorRole } from "@tabwise/shared-types";
 import { compareSerialized } from "./hlc.js";
 
 /** Ordem total determinística: por HLC e, em empate, por id do evento. */

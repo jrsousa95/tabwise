@@ -1,4 +1,4 @@
-import { parse, receive, serialize, tick, ZERO, type HLC } from "@passa-a-regua/sync-engine";
+import { parse, receive, serialize, tick, ZERO, type HLC } from "@tabwise/sync-engine";
 
 /**
  * Estado do HLC deste terminal para eventos criados localmente (ARCH §3.3).

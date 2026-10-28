@@ -5,7 +5,7 @@
  * hlc.ts (dogfooding). Portado de `spikes/spike-3-reconciliation/`.
  */
 import fc from "fast-check";
-import type { DomainEvent } from "@passa-a-regua/shared-types";
+import type { DomainEvent } from "@tabwise/shared-types";
 import { ZERO, receive, serialize, tick, type HLC } from "../src/hlc.js";
 
 export const TERMINALS = ["T1", "T2", "T3"] as const;

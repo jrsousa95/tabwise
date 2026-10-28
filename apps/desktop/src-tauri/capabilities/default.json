@@ -10,9 +10,9 @@
       "identifier": "shell:allow-execute",
       "allow": [
         {
-          "name": "passa-a-regua-sidecar",
+          "name": "tabwise-sidecar",
           "sidecar": true,
-          "cmd": "passa-a-regua-sidecar",
+          "cmd": "tabwise-sidecar",
           "args": true
         }
       ]

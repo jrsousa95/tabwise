@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
-import { DomainEventSchema } from "@passa-a-regua/shared-types";
-import { insertEvent, listEventsSinceCursor } from "@passa-a-regua/sync-engine";
+import { DomainEventSchema } from "@tabwise/shared-types";
+import { insertEvent, listEventsSinceCursor } from "@tabwise/sync-engine";
 import { receiveHlc } from "./clock.js";
 import { loadOrCreateLanToken } from "./lan-pairing.js";
 import { listLanSyncTargets } from "./sync-targets.js";

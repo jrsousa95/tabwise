@@ -1,5 +1,5 @@
 /**
- * Sistema de Design Visual — Passa a Régua
+ * Sistema de Design Visual — Tabwise
  * Implementação literal dos tokens de DESIGN.md (cores, tipografia, rounded,
  * spacing, components) + comportamento de EXPERIENCE.md (table-tile, status-badge).
  * Ver _bmad-output/planning-artifacts/ux-designs/ux-passa-a-regua-2026-09-21/{DESIGN,EXPERIENCE}.md
@@ -10,7 +10,7 @@
  * variação de opacidade/filtro do token claro (ver DESIGN.md §Colors).
  */
 
-/* Wordmark da marca ("Passa a Régua" no cabeçalho e no título de Login).
+/* Wordmark da marca ("Tabwise" no cabeçalho e no título de Login).
    Arquivo .woff2 baixado e embutido no app (não um @import de CDN) de
    propósito — o app roda 100% offline (ver ARCH), carregar fonte de fora
    quebraria num estabelecimento sem internet. Pacifico é OFL (Open Font
@@ -545,8 +545,24 @@ button:disabled {
    (nunca neutra, é a saída da sessão) — mesma forma/tamanho de sempre
    (herda de `button` a base, ver regra combinada no topo do arquivo),
    só a paleta muda pra `danger`. */
-.logout-button {
+/* Seletor PT/EN (language-toggle.tsx) — logo antes de "Sair". */
+.language-toggle {
   order: 6;
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Telas de entrada (Login/Cadastro, fora do header): canto superior direito. */
+.language-toggle-floating {
+  position: fixed;
+  top: var(--spacing-4);
+  right: var(--spacing-4);
+}
+
+.logout-button {
+  order: 7;
   padding: var(--spacing-2) var(--spacing-4);
   font-size: 13px;
   color: var(--color-danger);
@@ -1177,6 +1193,7 @@ form.table-tile-actions button {
     text-align: center;
   }
 
+  .language-toggle,
   .logout-button {
     order: 3;
   }

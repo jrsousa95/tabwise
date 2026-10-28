@@ -14,7 +14,7 @@ Provar que dois terminais conseguem se achar automaticamente na rede local via m
 
 Protótipo isolado em `spikes/spike-2-mdns/` (mesmo padrão de isolamento dos Spikes 1 e 3 — pacote TS standalone, fora do workspace npm):
 
-- `src/announce.ts`: publica um serviço `_passaaregua._tcp.local` via `bonjour-service` (nome, porta e um TXT record com `terminalId`). CLI: `npm run announce -- --name T1 --port 4550`.
+- `src/announce.ts`: publica um serviço `_tabwise._tcp.local` via `bonjour-service` (nome, porta e um TXT record com `terminalId`). CLI: `npm run announce -- --name T1 --port 4550`.
 - `src/discover.ts`: fica escutando a rede e loga em tempo real quando um serviço aparece (`up`, com endereços IP resolvidos e tempo decorrido desde o início da busca) ou desaparece (`down`, goodbye packet). CLI: `npm run discover`.
 - `src/args.ts`, `src/config.ts`: parsing de argumentos e constantes, sem dependência extra.
 - Ambos os processos tratam `SIGINT`/`SIGTERM` fazendo `unpublish`/`destroy` — importante pra simular um terminal sendo desligado normalmente (o outro lado deve ver o evento `down`, não só parar de ouvir silenciosamente).
@@ -31,9 +31,9 @@ Isso confirma que **o código funciona** — mas não prova nada sobre o risco r
 
 ## Validação real: 2 dispositivos físicos, 2 redes
 
-Como não havia um segundo notebook disponível, a validação cross-device foi feita com o Mac rodando `announce` e um **iPhone 12 rodando um app de Bonjour/DNS-SD Browser** (busca manual pelo tipo de serviço `_passaaregua._tcp`) — um dispositivo genuinamente diferente, participando da rede pelo próprio rádio Wi-Fi, exatamente o cenário que o roteador precisa suportar.
+Como não havia um segundo notebook disponível, a validação cross-device foi feita com o Mac rodando `announce` e um **iPhone 12 rodando um app de Bonjour/DNS-SD Browser** (busca manual pelo tipo de serviço `_tabwise._tcp`) — um dispositivo genuinamente diferente, participando da rede pelo próprio rádio Wi-Fi, exatamente o cenário que o roteador precisa suportar.
 
-- **Rede 1 (Wi-Fi de casa):** ✅ funcionou. O iPhone encontrou `mac-eudes._passaaregua._tcp.local.`, com IPv4 real (`192.168.0.7`), IPv6 e o TXT record completo (`terminalId`, `startedAt`), em poucos segundos.
+- **Rede 1 (Wi-Fi de casa):** ✅ funcionou. O iPhone encontrou `mac-eudes._tabwise._tcp.local.`, com IPv4 real (`192.168.0.7`), IPv6 e o TXT record completo (`terminalId`, `startedAt`), em poucos segundos.
 - **Rede 2 (hotspot pessoal do iPhone):** ✅ funcionou, confirmado numa segunda rodada sem ambiguidade — a primeira tentativa tinha ficado inconclusiva porque o processo `announce` não foi reiniciado ao trocar de rede (o `startedAt` idêntico ao teste anterior denunciou isso). Reiniciando o `announce` já com o Mac conectado no hotspot: IPv4 mudou para `172.20.10.9` (faixa característica do Personal Hotspot da Apple) e `startedAt` com timestamp novo — confirma que foi uma descoberta fresca, de verdade, nessa rede. O iPhone encontrou o serviço normalmente.
 - **Firewall/permissões:** nenhum prompt do macOS apareceu em nenhum dos dois testes.
 - **Testado só num sentido** (Mac anuncia, iPhone descobre) — suficiente pro objetivo do spike, já que o iPhone nunca vai rodar o software de produto; o que importa é provar que o roteador/AP encaminha multicast entre dispositivos diferentes, o que ficou confirmado nas duas redes.

@@ -1,4 +1,4 @@
-# Arquitetura — Passa a Régua
+# Arquitetura — Tabwise
 
 **Fase:** Arquitetura (BMAD — Architect)
 **Data:** 2026-09-20 (última atualização: 2026-09-24 — Épico 9)
@@ -187,7 +187,7 @@ O backend mantém sua própria camada de leitura materializada em PostgreSQL (me
 ## 8. Estrutura de projeto sugerida (monorepo)
 
 ```
-passa-a-regua/
+tabwise/
   apps/
     desktop/           # Tauri + React + TS (UI)
       src-tauri/        # Rust: shell, IPC, gerenciamento do sidecar

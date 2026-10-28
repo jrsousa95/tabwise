@@ -1,4 +1,4 @@
-# PRD — Passa a Régua
+# PRD — Tabwise
 
 **Fase:** Definição de Produto (BMAD — PM)
 **Data:** 2026-09-19

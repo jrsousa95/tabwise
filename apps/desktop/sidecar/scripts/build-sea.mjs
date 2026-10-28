@@ -40,7 +40,7 @@ function main() {
 
   const triple = hostTargetTriple();
   const isWindows = triple.includes("windows");
-  const outputName = `passa-a-regua-sidecar-${triple}${isWindows ? ".exe" : ""}`;
+  const outputName = `tabwise-sidecar-${triple}${isWindows ? ".exe" : ""}`;
   const outputPath = path.join(srcTauriSidecarDir, outputName);
 
   mkdirSync(srcTauriSidecarDir, { recursive: true });

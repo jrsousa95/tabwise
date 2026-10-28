@@ -10,7 +10,7 @@ Provar a cadeia completa decidida na arquitetura: um processo Node/TS, empacotad
 
 ## Implementação
 
-- `apps/desktop/sidecar/`: código-fonte TS do sidecar (servidor HTTP mínimo com endpoint `/health`) + script de build (`scripts/build-sea.mjs`) que compila TS → JS e empacota como binário SEA nomeado com o target triple exigido pelo Tauri (`passa-a-regua-sidecar-<triple>`).
+- `apps/desktop/sidecar/`: código-fonte TS do sidecar (servidor HTTP mínimo com endpoint `/health`) + script de build (`scripts/build-sea.mjs`) que compila TS → JS e empacota como binário SEA nomeado com o target triple exigido pelo Tauri (`tabwise-sidecar-<triple>`).
 - `apps/desktop/src-tauri/`: `tauri-plugin-shell` adicionado; `lib.rs` spawna o sidecar no hook `setup()` e encaminha stdout/stderr do processo filho para o log do Tauri; capability `shell:allow-execute` configurada para o sidecar específico.
 - `apps/desktop/src/App.tsx`: tela de validação que faz `fetch` em `http://127.0.0.1:4550/health` a cada 2s e exibe o resultado.
 
@@ -33,7 +33,7 @@ Ambas as armadilhas são exatamente o tipo de coisa que a arquitetura já anteci
 
 ## Pendências para fechar o Spike 1 por completo
 
-1. ~~Testar o instalador final em Windows real (VM ou máquina física)~~ — **resolvido**, via `.github/workflows/spike1-windows-validation.yml` (runner `windows-latest` do GitHub Actions, disparo manual via `workflow_dispatch`, [run 35517168909](https://github.com/jrsousa95/passa-a-regua/actions/runs/35517168909)): sidecar buildado nativamente em Windows, smoke test do `/health` respondeu `{"status":"ok","platform":"win32","arch":"x64"}`, e o instalador Tauri completo (`.msi`/`.exe`) foi gerado com sucesso e subido como artifact. A primeira execução já achou e corrigiu de quebra a armadilha 3 acima — confirma que o cross-build a partir do Mac não seria suficiente pra pegar esse bug.
+1. ~~Testar o instalador final em Windows real (VM ou máquina física)~~ — **resolvido**, via `.github/workflows/spike1-windows-validation.yml` (runner `windows-latest` do GitHub Actions, disparo manual via `workflow_dispatch`, [run 35517168909](https://github.com/jrsousa95/tabwise/actions/runs/35517168909)): sidecar buildado nativamente em Windows, smoke test do `/health` respondeu `{"status":"ok","platform":"win32","arch":"x64"}`, e o instalador Tauri completo (`.msi`/`.exe`) foi gerado com sucesso e subido como artifact. A primeira execução já achou e corrigiu de quebra a armadilha 3 acima — confirma que o cross-build a partir do Mac não seria suficiente pra pegar esse bug.
 2. Assinatura de código para distribuição real (o ad-hoc signing usado aqui — `codesign --sign -` — só serve para rodar localmente; um instalador distribuído precisará de um certificado de assinatura de verdade, tanto para macOS/notarization quanto para Windows/Authenticode, para não ser bloqueado por Gatekeeper/SmartScreen).
 
 ~~Confirmação visual do `fetch()` renderizando na tela~~ — **resolvido**: confirmado rodando localmente (tela exibindo "✅ Sidecar respondendo" com pid/plataforma corretos), após a correção de CORS acima.
