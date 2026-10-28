@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tabwise — Offline-first POS for bars &amp; restaurants</title>
+    <title>Tabwise</title>
     <meta
       name="description"
-      content="Tabwise is a free, offline-first point of sale for bars and restaurants: tables, tabs, menu, cash register and reports — no internet required."
+      content="Tabwise: an offline-first point of sale for small bars and restaurants. Personal project by Eudes Junior."
     />
     <link rel="icon" type="image/svg+xml" href="logo.svg" />
-    <meta property="og:title" content="Tabwise — Offline-first POS for bars & restaurants" />
-    <meta property="og:description" content="Tables, tabs, menu, cash register and reports — all working without internet. Free download for Windows and macOS." />
+    <meta property="og:title" content="Tabwise" />
+    <meta property="og:description" content="An offline-first point of sale for small bars and restaurants. Personal project, available for Windows and macOS." />
     <meta property="og:image" content="https://jrsousa95.github.io/tabwise/screenshots/table-map-en.png" />
     <meta property="og:url" content="https://jrsousa95.github.io/tabwise/" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -65,7 +65,7 @@
       }
       .gh { font-size: 14px; font-weight: 600; text-decoration: none; }
       .hero { text-align: center; padding: 48px 0 32px; }
-      .hero h1 { font-size: clamp(32px, 5vw, 52px); line-height: 1.1; margin: 0 0 16px; letter-spacing: -0.02em; }
+      .hero h1 { font-size: clamp(30px, 4vw, 40px); line-height: 1.15; margin: 0 0 12px; letter-spacing: -0.01em; }
       .hero p.lead { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); max-width: 680px; margin: 0 auto 32px; }
       .downloads { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
       .btn {
@@ -119,12 +119,11 @@
 
       <div class="hero">
         <h1>
-          <span lang="en">The point of sale that keeps working when the Wi-Fi doesn't.</span>
-          <span lang="pt">O PDV que continua funcionando quando o Wi-Fi cai.</span>
+          Tabwise
         </h1>
         <p class="lead">
-          <span lang="en">Tables, tabs, menu, cash register and reports for small bars and restaurants — offline-first, free to download, available in English and Portuguese.</span>
-          <span lang="pt">Mesas, comandas, cardápio, caixa e relatórios para bares e restaurantes pequenos — offline-first, download gratuito, em português e inglês.</span>
+          <span lang="en">An offline-first point of sale for small bars and restaurants. A personal project, free to download and try, in English and Portuguese.</span>
+          <span lang="pt">Um ponto de venda offline-first para bares e restaurantes pequenos. Projeto pessoal, gratuito para baixar e experimentar, em português e inglês.</span>
         </p>
         <div class="downloads">
           <a class="btn" id="dl-windows" href="https://github.com/jrsousa95/tabwise/releases/latest/download/Tabwise-windows-x64-setup.exe">
@@ -149,11 +148,11 @@
 
     <section>
       <div class="wrap">
-        <h2><span lang="en">Everything a small venue needs</span><span lang="pt">Tudo que um estabelecimento pequeno precisa</span></h2>
+        <h2><span lang="en">Features</span><span lang="pt">Funcionalidades</span></h2>
         <div class="grid">
           <div class="card">
             <h3><span lang="en">Tables &amp; tabs</span><span lang="pt">Mesas e comandas</span></h3>
-            <p><span lang="en">Open, transfer and close tabs from a live table map. Walk-in tabs for counter sales.</span><span lang="pt">Abra, transfira e feche comandas a partir do mapa de mesas. Comanda avulsa pro balcão.</span></p>
+            <p><span lang="en">Table map with open, transfer and close tab actions. Walk-in tabs for counter sales.</span><span lang="pt">Mapa de mesas com abertura, transferência e fechamento de comandas. Comanda avulsa para o balcão.</span></p>
           </div>
           <div class="card">
             <h3><span lang="en">Closing &amp; split bill</span><span lang="pt">Fechamento e divisão</span></h3>
@@ -169,11 +168,11 @@
           </div>
           <div class="card">
             <h3><span lang="en">PIN login &amp; roles</span><span lang="pt">Login por PIN e papéis</span></h3>
-            <p><span lang="en">Owner, cashier and server roles with different permissions. Fast PIN login.</span><span lang="pt">Papéis de dono, caixa e garçom com permissões diferentes. Login rápido por PIN.</span></p>
+            <p><span lang="en">Owner, cashier and server roles with different permissions, PIN login.</span><span lang="pt">Papéis de dono, caixa e garçom com permissões diferentes, login por PIN.</span></p>
           </div>
           <div class="card">
-            <h3><span lang="en">Truly offline</span><span lang="pt">Offline de verdade</span></h3>
-            <p><span lang="en">Your data lives on your machine (SQLite). Nothing waits on a server.</span><span lang="pt">Seus dados ficam na sua máquina (SQLite). Nada fica esperando servidor.</span></p>
+            <h3><span lang="en">Offline-first</span><span lang="pt">Offline-first</span></h3>
+            <p><span lang="en">Data is stored locally (SQLite); the app works without a network connection.</span><span lang="pt">Os dados ficam salvos localmente (SQLite); o app funciona sem conexão de rede.</span></p>
           </div>
         </div>
       </div>
@@ -188,7 +187,7 @@
 
     <section class="tech">
       <div class="wrap">
-        <h2><span lang="en">Under the hood</span><span lang="pt">Por dentro</span></h2>
+        <h2><span lang="en">How it works</span><span lang="pt">Como funciona</span></h2>
         <p>
           <span lang="en">Each terminal keeps an append-only event log. Syncing — between terminals on the LAN or with the cloud — means exchanging and merging logs, ordered by a Hybrid Logical Clock, with deterministic conflict resolution. The same sync engine runs on the desktop and on the server.</span>
           <span lang="pt">Cada terminal mantém um log de eventos append-only. Sincronizar — entre terminais na LAN ou com a nuvem — é trocar e mesclar logs, ordenados por um Hybrid Logical Clock, com resolução de conflito determinística. O mesmo motor de sync roda no desktop e no servidor.</span>
@@ -281,10 +280,6 @@
         toggle.addEventListener("click", function () { apply(lang === "pt" ? "en" : "pt"); });
         apply(lang);
 
-        // Destaca o botão do sistema operacional de quem está visitando.
-        var ua = navigator.userAgent;
-        var primary = /Mac/.test(ua) ? "dl-mac" : "dl-windows";
-        document.getElementById(primary).classList.add("primary");
       })();
     </script>
   </body>
